@@ -9,13 +9,17 @@ defineProps({
   iconColor: { type: String, default: "currentColor" },
   active: { type: Boolean, default: false },
   id: { type: String, default: undefined },
+  chip: { type: Boolean, default: false },
 });
 </script>
 
 <template>
   <button
     type="button"
-    class="icon-btn border-0 bg-transparent d-flex flex-column align-items-center"
+    class="icon-btn d-flex align-items-center"
+    :class="
+      chip ? 'icon-btn--chip flex-row' : 'flex-column border-0 bg-transparent'
+    "
     :id="id"
     :aria-pressed="active"
     :style="iconColor !== 'currentColor' ? { color: iconColor } : undefined"

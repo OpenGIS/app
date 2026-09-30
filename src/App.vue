@@ -3,8 +3,9 @@ import { ref, inject, onMounted } from "vue";
 import iconSprite from "@ogis/icons/dist/ogis-icons.svg?raw";
 
 // UI
-import Top from "@/components/ui/top.vue";
+import Controls from "@/components/ui/controls.vue";
 import Panels from "@/components/ui/panels.vue";
+import About from "@/components/modals/welcome.vue";
 import LocateConfirm from "@/components/modals/locate-confirm.vue";
 
 import { useMap } from "@/composables/useMap";
@@ -22,10 +23,8 @@ const { resolvedTheme } = useSettings();
 
 // UI Store
 const {
-	closeNav,
 	openPanel,
 	togglePanelExpanded,
-	isNavVisible,
 	isPanelVisible,
 	isPanelExpanded,
 	isDesktop,
@@ -33,10 +32,6 @@ const {
 } = useUI();
 
 const handleMapClick = () => {
-	if (isNavVisible.value && !isDesktop.value) {
-		closeNav();
-	}
-
 	// If Mobile Panel is visible and expanded, collapse it (minimize it)
 	if (isMobile.value && isPanelVisible.value && isPanelExpanded.value) {
 		togglePanelExpanded();
@@ -59,9 +54,6 @@ onMounted(() => initWakeLock());
 		:data-bs-theme="resolvedTheme"
 	>
 		<div style="display: none" v-html="iconSprite"></div>
-		<div class="onrte-top">
-			<Top />
-		</div>
 
 		<div class="onrte-content">
 			<Panels />
@@ -76,7 +68,11 @@ onMounted(() => initWakeLock());
 			@click="handleMapClick"
 		/>
 
+		<!-- Corner controls overlay -->
+		<Controls />
+
 		<!-- Global modals -->
+		<About />
 		<LocateConfirm />
 	</div>
 </template>

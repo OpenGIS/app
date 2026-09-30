@@ -126,66 +126,61 @@ test.describe("First load / Returning visits", () => {
   });
 });
 
-// ─── First load / About button ────────────────────────────────────────────────
+// ─── First load / Info button ─────────────────────────────────────────────────
 
-test.describe("First load / About button", () => {
-  test("About button in menu opens the About panel", async ({ page }) => {
+test.describe("First load / Info button", () => {
+  test("Info button in menu opens the Info panel", async ({ page }) => {
     await withViewStorage(page);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator(".onrte-panel")).toBeVisible({ timeout: 5000 });
 
-    await page.locator("#about-button").click();
-    await expect(page.locator(".onrte-about-panel")).toBeVisible();
+    await page.locator("#info-button").click();
+    await expect(page.locator(".onrte-info-panel")).toBeVisible();
   });
 });
 
-// ─── About panel ──────────────────────────────────────────────────────────────
+// ─── Info panel ───────────────────────────────────────────────────────────────
 
-test.describe("About panel", () => {
-  test("About panel shows description and attributions", async ({ page }) => {
+test.describe("Info panel", () => {
+  test("Info panel shows map view, about, privacy and attribution content", async ({
+    page,
+  }) => {
     await withViewStorage(page);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await page.locator("#about-button").click();
-    const panel = page.locator(".onrte-about-panel");
-    await expect(panel).toContainText("On Route");
-    await expect(panel).toContainText("OpenStreetMap");
-    await expect(panel).toContainText("MapLibre GL JS");
-    await expect(panel).toContainText("OpenFreeMap");
-    await expect(panel).toContainText("Vue JS");
-    await expect(panel).toContainText("Bootstrap");
+    await page.locator("#info-button").click();
+    const panel = page.locator(".onrte-info-panel");
+    await expect(panel).toBeVisible();
+
+    const about = panel.locator(".onrte-about-section");
+    await expect(about).toContainText("On Route");
+    await expect(about).toContainText("OpenStreetMap");
+    await expect(about).toContainText("MapLibre GL JS");
+    await expect(about).toContainText("OpenFreeMap");
+    await expect(about).toContainText("Vue JS");
+    await expect(about).toContainText("Bootstrap");
+
+    const privacy = panel.locator(".onrte-privacy-section");
+    await expect(privacy).toContainText("local storage");
+    await expect(privacy).toContainText("OpenFreeMap");
+    await expect(privacy).toContainText("Locate");
+    await expect(privacy).toContainText("no analytics");
+
+    await expect(panel.locator(".onrte-attribution-section")).toContainText(
+      /OpenStreetMap/,
+    );
   });
-});
 
-// ─── Privacy panel ────────────────────────────────────────────────────────────
-
-test.describe("Privacy panel", () => {
-  test("Privacy button in menu opens the Privacy panel", async ({ page }) => {
+  test("Attribution chip opens the Info panel", async ({ page }) => {
     await withViewStorage(page);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.locator(".onrte-panel")).toBeVisible({ timeout: 5000 });
-
-    await page.locator("#privacy-button").click();
-    await expect(page.locator(".onrte-privacy-panel")).toBeVisible();
-  });
-
-  test("Privacy panel contains expected content", async ({ page }) => {
-    await withViewStorage(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    await expect(page.locator(".onrte-panel")).toBeVisible({ timeout: 5000 });
-
-    await page.locator("#privacy-button").click();
-    const panel = page.locator(".onrte-privacy-panel");
-    await expect(panel).toContainText("local storage");
-    await expect(panel).toContainText("OpenFreeMap");
-    await expect(panel).toContainText("Locate");
-    await expect(panel).toContainText("no analytics");
+    await page.locator("#attribution-button").click();
+    await expect(page.locator(".onrte-info-panel")).toBeVisible();
   });
 });
+

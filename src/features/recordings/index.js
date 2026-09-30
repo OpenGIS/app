@@ -274,7 +274,7 @@ export const RecordingsFeature = {
     addButton({
       id: "record",
       icon: "route",
-      position: "middle",
+      position: "bottom-right",
       component: RecordButton,
       panel: {
         title: "Recordings",

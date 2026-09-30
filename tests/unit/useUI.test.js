@@ -69,16 +69,6 @@ describe("useUI / Responsive breakpoints", () => {
 		expect(ui.isTablet.value).toBe(false);
 		expect(ui.isMobile.value).toBe(true);
 	});
-
-	it("isNavVisible defaults to true on desktop", async () => {
-		const ui = await freshUseUI({ width: 1280 });
-		expect(ui.isNavVisible.value).toBe(true);
-	});
-
-	it("isNavVisible defaults to false on mobile", async () => {
-		const ui = await freshUseUI({ width: 500 });
-		expect(ui.isNavVisible.value).toBe(false);
-	});
 });
 
 describe("useUI / Panel", () => {
@@ -120,26 +110,6 @@ describe("useUI / Panel", () => {
 		expect(ui.isPanelVisible.value).toBe(false);
 	});
 
-	it("togglePanel always opens on mobile when nav is visible", async () => {
-		const ui = await freshUseUI({ width: 500 });
-		ui.isNavVisible.value = true;
-
-		// On mobile with nav visible, togglePanel should open the panel (not toggle)
-		ui.togglePanel();
-
-		expect(ui.isPanelVisible.value).toBe(true);
-		expect(ui.isNavVisible.value).toBe(false);
-	});
-
-	it("openPanel hides nav on mobile", async () => {
-		const ui = await freshUseUI({ width: 500 });
-		ui.isNavVisible.value = true;
-
-		ui.openPanel();
-
-		expect(ui.isNavVisible.value).toBe(false);
-	});
-
 	it("togglePanelExpanded toggles the expanded state", async () => {
 		const ui = await freshUseUI();
 		ui.openPanel();
@@ -154,49 +124,10 @@ describe("useUI / Panel", () => {
 
 	it("setActivePanel updates the activePanel id", async () => {
 		const ui = await freshUseUI();
-		expect(ui.activePanel.value).toBe("view");
+		expect(ui.activePanel.value).toBe("info");
 
 		ui.setActivePanel("settings");
 		expect(ui.activePanel.value).toBe("settings");
-	});
-});
-
-describe("useUI / Navigation", () => {
-	it("toggleNav toggles isNavVisible", async () => {
-		const ui = await freshUseUI({ width: 1280 });
-		expect(ui.isNavVisible.value).toBe(true);
-
-		ui.toggleNav();
-		expect(ui.isNavVisible.value).toBe(false);
-
-		ui.toggleNav();
-		expect(ui.isNavVisible.value).toBe(true);
-	});
-
-	it("toggleNav sets isNavExpanded true on mobile when opening", async () => {
-		const ui = await freshUseUI({ width: 500 });
-		expect(ui.isNavVisible.value).toBe(false);
-
-		ui.toggleNav();
-
-		expect(ui.isNavVisible.value).toBe(true);
-		expect(ui.isNavExpanded.value).toBe(true);
-	});
-
-	it("closeNav sets isNavVisible to false", async () => {
-		const ui = await freshUseUI({ width: 1280 });
-		expect(ui.isNavVisible.value).toBe(true);
-
-		ui.closeNav();
-		expect(ui.isNavVisible.value).toBe(false);
-	});
-
-	it("setNavExpanded updates isNavExpanded", async () => {
-		const ui = await freshUseUI();
-		expect(ui.isNavExpanded.value).toBe(false);
-
-		ui.setNavExpanded(true);
-		expect(ui.isNavExpanded.value).toBe(true);
 	});
 });
 
@@ -246,7 +177,7 @@ describe("useUI / Instance isolation", () => {
 		const uiB = useUI();
 
 		// A is desktop, B is mobile — independent state
-		expect(uiA.isNavVisible.value).toBe(true);
-		expect(uiB.isNavVisible.value).toBe(false);
+		expect(uiA.isDesktop.value).toBe(true);
+		expect(uiB.isDesktop.value).toBe(false);
 	});
 });

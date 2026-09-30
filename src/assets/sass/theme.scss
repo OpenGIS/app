@@ -12,13 +12,14 @@
 // #4  Bootstrap infrastructure (variables, maps, mixins, root)
 // #5  Full Bootstrap component set
 // #6  App component overrides
-//       a  Top navigation bar
+//       a  Corner controls overlay
 //       b  Side panel (Offcanvas)
 //       c  Panel navigation tabs
 //       d  Panel content sections
 //       e  Icon buttons
 //       f  Share URL textarea
 //       g  Layout and structural styles
+//       h  Attribution chip, disclosures & scale offset
 // ============================================================
 
 // ── #1  Bootstrap functions ───────────────────────────────────
@@ -115,18 +116,6 @@ $font-size-base: 0.9375rem; // 15 px
   --onrte-panel-width: #{$offcanvas-horizontal-width};
 }
 
-// #6a  Top navigation bar
-// ─────────────────────────────────────────────────────────────
-// The navbar always uses data-bs-theme="dark" so it stays a
-// consistent dark anchor regardless of the user's colour mode.
-
-.onrte-top .navbar {
-  background: rgba($app-black, 0.95) !important;
-  backdrop-filter: blur(12px) saturate(160%);
-  -webkit-backdrop-filter: blur(12px) saturate(160%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
 // #6b  Side panel (Bootstrap Offcanvas)
 // ─────────────────────────────────────────────────────────────
 
@@ -168,7 +157,7 @@ $font-size-base: 0.9375rem; // 15 px
   border-top-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-// #6e  Icon buttons (panel nav + top bar)
+// #6e  Icon buttons (panel nav tabs + corner control chips)
 // ─────────────────────────────────────────────────────────────
 
 .icon-btn {
@@ -242,29 +231,57 @@ $font-size-base: 0.9375rem; // 15 px
   width: calc(100% - var(--onrte-panel-width, 340px));
 }
 
-// Top navigation bar container
-.onrte-top {
-  z-index: 1040;
+// #6a  Corner controls overlay
+// ─────────────────────────────────────────────────────────────
+// A full-size, click-through overlay hosting the four map-corner
+// control clusters. The overlay mirrors the map's panel shift so
+// controls stay on the visible map area when the panel is open.
+
+.onrte-controls {
+  z-index: 1030;
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transition:
+    left 0.3s ease,
+    width 0.3s ease;
 }
 
-.onrte-top nav.navbar {
-  touch-action: pan-x pan-y;
+.onrte-controls.panel-open {
+  left: var(--onrte-panel-width, 340px);
+  width: calc(100% - var(--onrte-panel-width, 340px));
 }
 
-.onrte-top .navbar-toggler:focus {
-  box-shadow: none;
-  border: 0;
-  outline: none;
+.onrte-corner {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  pointer-events: auto;
 }
 
-// Side panel — positioned below the top bar
-.onrte-panel {
-  top: 78px !important;
-  height: calc(100% - 73px) !important;
+.onrte-corner--tl {
+  top: 0;
+  left: 0;
+}
+
+.onrte-corner--tr {
+  top: 0;
+  right: 0;
+}
+
+.onrte-corner--br {
+  bottom: 0;
+  right: 0;
+}
+
+.onrte-corner--bl {
+  bottom: 0;
+  left: 0;
 }
 
 // Panel navigation tab row
@@ -282,7 +299,7 @@ $font-size-base: 0.9375rem; // 15 px
   flex: 1 0 calc(100% / 4);
 }
 
-// Icon buttons (panel nav + top bar)
+// Icon buttons (panel nav tabs + corner control chips)
 .icon-btn {
   cursor: pointer;
   line-height: 1;
@@ -315,6 +332,56 @@ $font-size-base: 0.9375rem; // 15 px
   pointer-events: none;
 }
 
+// Chip variant — horizontal glass pill for the map-corner controls
+.icon-btn--chip {
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
+  color: var(--bs-secondary-color);
+
+  .icon-btn__label {
+    position: static;
+    transform: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: none;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  &:focus-visible {
+    outline-offset: 2px;
+    border-radius: 999px;
+  }
+
+  &[aria-pressed="true"],
+  &:hover {
+    color: var(--bs-primary);
+    background: rgba(255, 255, 255, 0.92);
+  }
+}
+
+[data-bs-theme="dark"] .icon-btn--chip {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(10, 18, 10, 0.82);
+  color: rgba(255, 255, 255, 0.7);
+
+  &[aria-pressed="true"],
+  &:hover {
+    color: var(--bs-primary);
+    background: rgba(10, 18, 10, 0.92);
+  }
+}
+
 // GPS locate markers (rendered into the MapLibre map)
 .onrte-locate-position,
 .onrte-locate-heading {
@@ -323,7 +390,7 @@ $font-size-base: 0.9375rem; // 15 px
   pointer-events: none;
 }
 
-// Modal z-index — must sit above the top nav bar
+// Modal z-index — must sit above the panel and corner controls
 .onrte-modal-backdrop {
   z-index: 1065;
 }
@@ -331,3 +398,73 @@ $font-size-base: 0.9375rem; // 15 px
 .onrte-modal {
   z-index: 1070;
 }
+
+// #6h  Attribution chip, disclosures & scale offset
+// ─────────────────────────────────────────────────────────────
+// The bottom-left attribution chip expands on load, then collapses to
+// an icon-only pill on the first map drag. Its text wraps rather than
+// spanning the viewport, and its links are decoration only.
+
+.onrte-attribution-chip {
+  max-width: min(70ch, calc(100vw - 8rem));
+  align-items: center;
+}
+
+.onrte-attribution-chip .onrte-attribution-chip__text {
+  white-space: normal;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-align: left;
+  pointer-events: none;
+}
+
+.onrte-attribution-chip a {
+  pointer-events: none;
+}
+
+// Info panel attribution links — interactive here, unlike the chip.
+.onrte-attribution-section a {
+  color: var(--bs-primary);
+}
+
+// Native <details> disclosure with a simple [+]/[−] marker.
+.onrte-disclosure > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  list-style: none;
+  color: var(--bs-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.onrte-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.onrte-disclosure > summary::before {
+  content: "[+]";
+  font-family: var(--bs-font-monospace);
+}
+
+.onrte-disclosure[open] > summary::before {
+  content: "[−]";
+}
+
+// Keep the MapLibre scale control clear of the bottom-left attribution chip.
+.maplibregl-ctrl-bottom-left {
+  bottom: 3.25rem !important;
+}
+
+// Dark theme: MapLibre's scale control ships as a bright white box, which is
+// the only light element left in the dark UI. Recolour it to the app's dark
+// glass surfaces — background, border and text only, geometry untouched.
+[data-bs-theme="dark"] .maplibregl-ctrl-scale {
+  background-color: rgba(10, 18, 10, 0.82);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+}
+

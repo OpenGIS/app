@@ -13,19 +13,17 @@ function createState(instanceId) {
         width: ref(window.innerWidth),
         isFirstLoad: ref(firstLoad),
         showAboutModal: ref(firstLoad),
-        isNavVisible: ref(window.innerWidth >= 992),
-        isNavExpanded: ref(false),
         isPanelVisible: ref(false),
         isPanelExpanded: ref(false),
-        activePanel: ref("view"),
+        activePanel: ref("info"),
     };
 }
 
 /**
  * Composable for UI state management.
  *
- * Manages responsive breakpoints, side panel visibility, navigation bar state,
- * and first-load detection. State is shared across all callers within the app.
+ * Manages responsive breakpoints, side panel visibility, and first-load
+ * detection. State is shared across all callers within the app.
  */
 export const useUI = () => {
     const instanceId = inject("onrteAppId", "app");
@@ -36,11 +34,6 @@ export const useUI = () => {
         const s = instances.get(instanceId);
         const onResize = () => {
             s.width.value = window.innerWidth;
-            if (s.width.value >= 992) {
-                s.isNavVisible.value = true;
-            } else if (s.isNavVisible.value && !s.isNavExpanded.value) {
-                s.isNavVisible.value = false;
-            }
         };
 
         window.addEventListener("resize", onResize);
@@ -59,40 +52,12 @@ export const useUI = () => {
 
     // --- Actions ---
 
-    const toggleNav = () => {
-        s.isNavVisible.value = !s.isNavVisible.value;
-        if (s.isNavVisible.value && !isDesktop.value) {
-            s.isNavExpanded.value = true;
-        } else {
-            s.isNavExpanded.value = false;
-        }
-    };
-
-    const closeNav = () => {
-        s.isNavVisible.value = false;
-        if (!isDesktop.value) {
-            s.isNavExpanded.value = false;
-        }
-    };
-
-    const setNavExpanded = (value) => {
-        s.isNavExpanded.value = value;
-    };
-
     const openPanel = () => {
         s.isPanelVisible.value = true;
         s.isPanelExpanded.value = true;
-        if (s.isNavVisible.value && !isDesktop.value) {
-            s.isNavVisible.value = false;
-        }
-        s.isNavExpanded.value = false;
     };
 
     const togglePanel = () => {
-        if (s.isNavVisible.value && !isDesktop.value) {
-            openPanel();
-            return;
-        }
         if (s.isPanelVisible.value) {
             s.isPanelVisible.value = false;
         } else {
@@ -135,8 +100,6 @@ export const useUI = () => {
     return {
         // State
         width: s.width,
-        isNavVisible: s.isNavVisible,
-        isNavExpanded: s.isNavExpanded,
         isPanelVisible: s.isPanelVisible,
         isPanelExpanded: s.isPanelExpanded,
         activePanel: s.activePanel,
@@ -149,9 +112,6 @@ export const useUI = () => {
         isMobile,
 
         // Actions
-        toggleNav,
-        closeNav,
-        setNavExpanded,
         openPanel,
         togglePanel,
         closePanel,

@@ -4,10 +4,8 @@ import { useUI } from "@/composables/useUI";
 import { useLocale } from "@/composables/useLocale";
 import { getMapInstance } from "@/composables/useMap";
 import IconButton from "@/components/ui/icon-button.vue";
-import ViewPanel from "@/components/panels/view.vue";
+import InfoPanel from "@/components/panels/info.vue";
 import SettingsPanel from "@/components/panels/settings.vue";
-import AboutPanel from "@/components/panels/about.vue";
-import PrivacyPanel from "@/components/panels/privacy.vue";
 
 const instanceId = inject("onrteAppId", "app");
 const buttonsRef = inject("navigatorButtons", shallowRef([]));
@@ -17,10 +15,8 @@ const { isPanelVisible, activePanel, setActivePanel, closePanel, isDesktop } = u
 const { t } = useLocale();
 
 const builtInTabs = [
-  { id: "view",     icon: "globe",        labelKey: "menu.mapView" },
-  { id: "settings", icon: "gear",         labelKey: "menu.settings",   btnId: "settings-button" },
-  { id: "about",    icon: "info-circle",  labelKey: "menu.about",      btnId: "about-button" },
-  { id: "privacy",  icon: "lock",         labelKey: "menu.privacy",    btnId: "privacy-button" },
+  { id: "info",     icon: "info-circle", labelKey: "menu.info",     btnId: "info-button" },
+  { id: "settings", icon: "gear",        labelKey: "menu.settings", btnId: "settings-button" },
 ];
 
 // Custom buttons that have a panel definition become additional tabs
@@ -52,10 +48,8 @@ const tabs = computed(() => [
 ]);
 
 const panelComponents = {
-  view:     ViewPanel,
+  info:     InfoPanel,
   settings: SettingsPanel,
-  about:    AboutPanel,
-  privacy:  PrivacyPanel,
 };
 
 const isCustomPanel = computed(() => !(activePanel.value in panelComponents));

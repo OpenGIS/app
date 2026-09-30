@@ -1,10 +1,8 @@
 {
   "nav.menu": "Menu",
 
-  "menu.mapView": "Vue actuelle",
+  "menu.info": "Infos",
   "menu.settings": "Paramètres",
-  "menu.privacy": "Vie privée",
-  "menu.about": "À propos",
   "menu.account": "Compte",
   "menu.maps": "Cartes",
   "menu.collections": "Collections",
@@ -16,6 +14,7 @@
   "modal.welcome.getStarted": "Commencer",
 
   "panel.about.title": "À propos de On Route",
+  "panel.about.summary": "Une application de cartographie gratuite, privée et open-source qui fonctionne entièrement dans votre navigateur.",
   "panel.about.descriptionOne": "Une carte pour explorer, naviguer et enregistrer vos aventures.",
   "panel.about.descriptionTwo": "On Route est une application de cartographie gratuite, privée et open-source qui fonctionne entièrement dans votre navigateur.",
   "panel.about.descriptionThree": "Aucune inscription, aucun suivi, aucune donnée envoyée à un serveur. Tout reste sur votre appareil.",
@@ -30,6 +29,7 @@
   "panel.about.userInterface": "Interface utilisateur",
 
   "panel.privacy.title": "Votre vie privée",
+  "panel.privacy.summary": "Aucun compte, aucun suivi, aucun cookie — vos données restent sur votre appareil.",
   "panel.privacy.onDevice": "Sur votre appareil",
   "panel.privacy.onDeviceBody": "Votre vue de carte est stockée uniquement dans le stockage local de votre navigateur — ces données ne quittent jamais votre appareil.",
   "panel.privacy.mapView": "Vue de carte — coordonnées du centre et niveau de zoom, pour que la carte se rouvre là où vous l'avez laissée.",
@@ -163,6 +163,9 @@
   "panel.collections.errorSave": "Impossible d'enregistrer les détails de la collection pour le moment.",
   "panel.collections.errorDelete": "Impossible de supprimer cette collection pour le moment.",
   "panel.collections.errorNotFound": "Collection introuvable ou non accessible.",
+
+  "panel.info.readMore": "En savoir plus",
+  "panel.info.attribution": "Attribution",
 
   "panel.view.title": "Vue actuelle",
   "panel.view.shareDescription": "Partagez un lien vers cette vue de la carte.",

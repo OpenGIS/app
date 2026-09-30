@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
 async function openMenuPanel(page) {
 	const offcanvas = page.locator(".offcanvas.show");
 	if (!(await offcanvas.isVisible())) {
-		await page.click(".navbar-toggler");
+		await page.click("#menu-button");
 		await offcanvas.waitFor();
 	}
 }
@@ -29,8 +29,8 @@ async function openSettings(page, name = /settings/i) {
 
 /** Returns the app theme root (the wrapper with data-bs-theme). */
 function themeRoot(page) {
-	// .onrte-root carries :data-bs-theme="resolvedTheme"; the navbar also has
-	// data-bs-theme="dark" (hardcoded) — use .onrte-root to target only our root.
+	// Theme binding lives on .onrte-root only: it carries
+	// :data-bs-theme="resolvedTheme" for the whole UI (panel, chips, modals).
 	return page.locator(".onrte-root");
 }
 
@@ -59,9 +59,7 @@ test.describe("Opening Settings", () => {
 		await openMenuPanel(page);
 
 		// Settings link is present at the bottom
-		await expect(
-			page.getByRole("button", { name: /settings/i }),
-		).toBeVisible();
+		await expect(page.getByRole("button", { name: /settings/i })).toBeVisible();
 	});
 
 	test("clicking settings link opens the settings panel", async ({ page }) => {

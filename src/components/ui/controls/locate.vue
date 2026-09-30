@@ -30,8 +30,11 @@ const label = computed(() => {
 
 <template>
   <IconButton
+    chip
     :icon="iconName"
     :label="label"
+    :icon-width="20"
+    :icon-height="20"
     :icon-color="iconColor"
     :active="mode !== null && mode !== 'error'"
     :class="{ 'locate-btn--error': mode === 'error' }"
@@ -41,5 +44,3 @@ const label = computed(() => {
   />
   <LocateError />
 </template>
-
-

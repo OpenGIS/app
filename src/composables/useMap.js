@@ -80,7 +80,7 @@ export const useMap = (containerRef = null, options = {}) => {
     if (!mapCache.has(instanceId)) {
         mapCache.set(instanceId, {
             state: useStorage("view", {
-                mapView: { center: null, zoom: null },
+                mapView: { center: null, zoom: null, pitch: 0, bearing: 0 },
             }, instanceId),
             mapInstance: null,
             scaleControl: null,
@@ -128,11 +128,16 @@ export const useMap = (containerRef = null, options = {}) => {
                     map.jumpTo({
                         center: hashView.center,
                         zoom: hashView.zoom,
+                        pitch: hashView.pitch,
+                        bearing: hashView.bearing,
                     });
                 } else if (hasStoredView) {
                     map.jumpTo({
                         center: cached.state.mapView.center,
                         zoom: cached.state.mapView.zoom,
+                        // Old stored views predate pitch/bearing — default them to 0.
+                        pitch: cached.state.mapView.pitch ?? 0,
+                        bearing: cached.state.mapView.bearing ?? 0,
                     });
                 }
 
@@ -141,8 +146,16 @@ export const useMap = (containerRef = null, options = {}) => {
                 const refreshView = () => {
                     const c = map.getCenter();
                     const z = map.getZoom();
-                    cached.mapView.value = { lat: c.lat, lng: c.lng, zoom: z };
-                    updateUrlHash(z, c.lat, c.lng);
+                    const pitch = map.getPitch();
+                    const bearing = map.getBearing();
+                    cached.mapView.value = {
+                        lat: c.lat,
+                        lng: c.lng,
+                        zoom: z,
+                        pitch,
+                        bearing,
+                    };
+                    updateUrlHash(z, c.lat, c.lng, pitch, bearing);
                 };
 
                 // Only populate mapView when there is a meaningful view to share
@@ -154,22 +167,33 @@ export const useMap = (containerRef = null, options = {}) => {
                 } else {
                     const c = map.getCenter();
                     const z = map.getZoom();
-                    updateUrlHash(z, c.lat, c.lng);
+                    updateUrlHash(z, c.lat, c.lng, map.getPitch(), map.getBearing());
                 }
 
                 // On map movement: persist to localStorage, update ref, and update hash.
                 const persistView = () => {
                     const c = map.getCenter();
                     const z = map.getZoom();
+                    const pitch = map.getPitch();
+                    const bearing = map.getBearing();
                     cached.state.mapView.center = c;
                     cached.state.mapView.zoom = z;
+                    cached.state.mapView.pitch = pitch;
+                    cached.state.mapView.bearing = bearing;
                     cached.mapView.value = {
                         lat: c.lat,
                         lng: c.lng,
                         zoom: z,
+                        pitch,
+                        bearing,
                     };
-                    updateUrlHash(z, c.lat, c.lng);
-                    emitter.emit("view:change", { center: { lat: c.lat, lng: c.lng }, zoom: z });
+                    updateUrlHash(z, c.lat, c.lng, pitch, bearing);
+                    emitter.emit("view:change", {
+                        center: { lat: c.lat, lng: c.lng },
+                        zoom: z,
+                        pitch,
+                        bearing,
+                    });
                 };
 
                 // Gesture-driven moves are throttled to avoid a write per frame.

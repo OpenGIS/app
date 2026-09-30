@@ -9,7 +9,7 @@
 export const mapDefaults = {
     // style: "https://tiles.openfreemap.org/styles/bright",
     style: "https://raw.githubusercontent.com/OpenGIS/outdoors/refs/heads/master/style.json",
-    attributionControl: true,
+    attributionControl: false,
     center: [0, 0],
     zoom: 1,
 };

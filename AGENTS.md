@@ -50,38 +50,50 @@ src/
   App.vue               # root Vue component
   composables/
     useStorage.js       # localStorage wrapper, instance-scoped
-    useUrlHash.js       # URL hash read/write helpers
+    useUrlHash.js       # URL hash read/write helpers (#map=zoom/lat/lng/pitch/bearing)
     useMap.js           # MapLibre lifecycle, globe projection, view persistence
-    useUI.js            # UI state: breakpoints, panel, nav, first-load
+    useUI.js            # UI state: breakpoints, panel, first-load
+    useAttribution.js   # reactive style attribution (corner chip + Info panel)
     useLocale.js        # i18n: language resolution, translations
     useSettings.js      # OS-derived prefs: units + theme follow the device
     useLocate.js        # GPS locate feature
     useGeoJSON.js       # GeoJSON rendering: points, lines, polygons
+  defaults/
+    maplibre.js         # MapLibre defaults: style, attributionControl disabled, globe, scale width
   features/
     recordings/
       index.js          # Recordings feature — GPS track recording, GPX export
-      RecordButton.vue  # toolbar button
+      RecordButton.vue  # corner control chip (bottom-right)
       RecordingsPanel.vue # side panel
     routes/
       index.js          # Routes feature — GPX import, route rendering, offline navigation
       gpx.js            # pure GPX parser (DOMParser, no dependencies)
       RoutesPanel.vue   # side panel
+    offline/
+      index.js          # Offline Maps feature — region download orchestration
+      tiles.js          # tile maths (lon/lat → tile, bounds → range)
+      download.js       # region URL building
+      OfflinePanel.vue  # side panel
   utils/
     geo.js              # shared geo helpers: haversine, totalDistance, formatDuration, formatDistance
+    attribution.js      # builds the attribution string from a style's sources
   components/
+    modals/
+      modal.vue         # generic modal shell
+      welcome.vue       # first-load welcome modal (About content)
+      locate-confirm.vue # locate permission confirmation
+      locate-error.vue  # locate error dialog
     panels/
-      about.vue         # About panel
-      privacy.vue       # Privacy panel
-      locate.vue        # Locate panel
+      info.vue          # Info panel: Map View + About + Privacy + Attribution
       settings.vue      # Settings panel (read-only OS-derived locale + units)
     ui/
-      top.vue           # top navigation bar
-      top/
-        locate.vue      # Locate button (top bar)
-      about.vue         # About modal (first-load + menu button)
-      side/
-        panel.vue       # Bootstrap offcanvas side panel
-        menu.vue        # default panel content (main navigation)
+      controls.vue      # corner-controls overlay: menu, locate, feature chips, attribution
+      controls/
+        locate.vue      # Locate chip (top-right)
+        attribution.vue # Attribution chip (bottom-left)
+      icon-button.vue   # IconButton (default + chip variants)
+      icon.vue          # sprite icon
+      panels.vue        # Bootstrap offcanvas side panel + tab strip
 ```
 
 ---
@@ -125,7 +137,8 @@ export const useMyFeature = () => {
 Core elements use `.onrte-*` classes:
 
 - `.onrte-map` — MapLibre container
-- `.onrte-top` — top navigation bar
+- `.onrte-controls` — corner-controls overlay (`.onrte-corner--tl/tr/br/bl` clusters)
+- `.onrte-attribution-chip` — bottom-left attribution chip
 - `.onrte-panel` — Bootstrap offcanvas side panel
 - `--onrte-panel-width` — CSS custom property for panel width
 
@@ -160,7 +173,7 @@ Features are plain objects with an `install(ctx)` method. A feature lives in `sr
 | `docs/1.setup.md` | Dev server, build, URL params, iframe isolation |
 | `docs/2.instances.md` | Instance ID, localStorage key format |
 | `docs/3.map.md` | `useMap` API: lifecycle, view persistence, URL hash, globe |
-| `docs/4.ui.md` | `useUI` API: breakpoints, panel, navigation |
+| `docs/4.ui.md` | `useUI` API: breakpoints, panel, corner controls |
 | `docs/5.geojson.md` | `useGeoJSON` API: rendering features with styles |
 | `docs/6.locale.md` | `useLocale` API: translations, language resolution |
 | `docs/7.theme.md` | Bootstrap SCSS theme, green palette |

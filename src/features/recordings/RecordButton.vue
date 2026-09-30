@@ -1,4 +1,4 @@
-<!-- RecordButton.vue — centre-aligned navbar button that toggles recording -->
+<!-- RecordButton.vue — corner control chip that toggles recording -->
 <script setup>
 import { inject, computed } from 'vue';
 import { useUI } from '@/composables/useUI.js';
@@ -39,10 +39,11 @@ const label = computed(() => {
 <template>
   <IconButton
     id="recordings-button"
+    chip
     :icon="iconName"
     :label="label"
-    :icon-width="40"
-    :icon-height="40"
+    :icon-width="20"
+    :icon-height="20"
     :icon-color="iconColor"
     :active="isActive"
     @click="toggle"
