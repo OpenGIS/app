@@ -17,10 +17,10 @@ Built with the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem. Specia
 - Record GPS tracks and export as GPX
 - Import GPX routes and navigate offline
 - Download map regions for offline use (via a service worker)
-- Multilingual (auto-detects browser language)
+- Multilingual — follows your device language
 - Shareable map links
 - Map view persisted between sessions
-- Light and dark mode
+- Light and dark mode, following your device setting
 - Works on any device
 
 > [!NOTE]
@@ -76,7 +76,7 @@ npm run dev
 ### Test
 
 ```bash
-npm test                                          # unit tests (vitest, <1 s)
+npm test                                          # unit tests (vitest, < 10 s)
 npm run test:e2e -- tests/e2e/{spec}.spec.js      # single E2E spec
 npm run test:e2e                                  # full E2E suite
 ```

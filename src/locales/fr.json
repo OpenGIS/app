@@ -12,7 +12,6 @@
   "modal.welcome.title": "On Route",
   "modal.welcome.introOne": "Une carte pour explorer, naviguer et enregistrer vos aventures.",
   "modal.welcome.introTwo": "Pas d'app stores, pas de comptes, pas de suivi. Propulsé par l'Open Source.",
-  "modal.welcome.preferences": "Choisissez vos préférences",
   "modal.welcome.locateInfo": "Affichez votre position actuelle en appuyant sur Localiser. Votre autorisation est requise, mais aucune donnée de localisation ne quitte jamais votre appareil.",
   "modal.welcome.getStarted": "Commencer",
 
@@ -32,9 +31,8 @@
 
   "panel.privacy.title": "Votre vie privée",
   "panel.privacy.onDevice": "Sur votre appareil",
-  "panel.privacy.onDeviceBody": "Votre vue de carte et vos paramètres sont stockés uniquement dans le stockage local de votre navigateur — ces données ne quittent jamais votre appareil.",
+  "panel.privacy.onDeviceBody": "Votre vue de carte est stockée uniquement dans le stockage local de votre navigateur — ces données ne quittent jamais votre appareil.",
   "panel.privacy.mapView": "Vue de carte — coordonnées du centre et niveau de zoom, pour que la carte se rouvre là où vous l'avez laissée.",
-  "panel.privacy.settings": "Paramètres — langue, unités et préférences de thème de couleur.",
   "panel.privacy.thirdParty": "Services de tuiles tiers",
   "panel.privacy.thirdPartyBody": "Lorsque vous consultez la carte, votre navigateur récupère les tuiles directement depuis OpenFreeMap. Comme pour toute requête réseau, votre adresse IP est visible par leurs serveurs. Aucune autre donnée n'est envoyée.",
   "panel.privacy.location": "Données de localisation",
@@ -43,12 +41,11 @@
   "panel.privacy.noTrackingBody": "Cette application ne contient aucun outil d'analyse, aucune publicité, aucun cookie et aucun script de suivi.",
 
   "panel.settings.title": "Paramètres",
-  "panel.settings.appearance": "Apparence",
-  "panel.settings.darkMode": "Mode sombre",
   "panel.settings.units": "Unités",
   "panel.settings.metric": "Métrique (km, m/s)",
   "panel.settings.imperial": "Impérial (mi, mph)",
   "panel.settings.language": "Langue",
+  "panel.settings.fromDevice": "Depuis votre appareil",
 
   "panel.account.title": "Compte",
   "panel.account.description": "Connectez-vous avec un lien magique pour relier cette application à vos API de compte On Route.",
@@ -88,6 +85,7 @@
   "panel.maps.refreshing": "Actualisation…",
   "panel.maps.clearSelection": "Effacer la sélection",
   "panel.maps.loadingMaps": "Chargement des cartes…",
+  "panel.maps.loadingCollections": "Chargement des collections…",
   "panel.maps.empty": "Aucune carte trouvée.",
   "panel.maps.createTitle": "Créer une carte",
   "panel.maps.createAction": "Créer la carte",

@@ -94,7 +94,7 @@ export const useMap = (containerRef = null, options = {}) => {
         const { isMetric } = useSettings();
         const { mapLanguageTag } = useLocale();
 
-        // Keep the scale control unit in sync with the units preference.
+        // Keep the scale control unit in sync with the OS-derived units.
         watch(isMetric, (metric) => {
             if (cached.scaleControl) {
                 cached.scaleControl.setUnit(metric ? "metric" : "imperial");
@@ -157,23 +157,35 @@ export const useMap = (containerRef = null, options = {}) => {
                     updateUrlHash(z, c.lat, c.lng);
                 }
 
-                // On map movement: persist to localStorage, update ref, and update hash
-                map.on(
-                    "moveend",
-                    throttle(() => {
-                        const c = map.getCenter();
-                        const z = map.getZoom();
-                        cached.state.mapView.center = c;
-                        cached.state.mapView.zoom = z;
-                        cached.mapView.value = {
-                            lat: c.lat,
-                            lng: c.lng,
-                            zoom: z,
-                        };
-                        updateUrlHash(z, c.lat, c.lng);
-                        emitter.emit("view:change", { center: { lat: c.lat, lng: c.lng }, zoom: z });
-                    }, 1000),
-                );
+                // On map movement: persist to localStorage, update ref, and update hash.
+                const persistView = () => {
+                    const c = map.getCenter();
+                    const z = map.getZoom();
+                    cached.state.mapView.center = c;
+                    cached.state.mapView.zoom = z;
+                    cached.mapView.value = {
+                        lat: c.lat,
+                        lng: c.lng,
+                        zoom: z,
+                    };
+                    updateUrlHash(z, c.lat, c.lng);
+                    emitter.emit("view:change", { center: { lat: c.lat, lng: c.lng }, zoom: z });
+                };
+
+                // Gesture-driven moves are throttled to avoid a write per frame.
+                const throttledPersistView = throttle(persistView, 1000);
+
+                map.on("moveend", (event) => {
+                    // A programmatic camera move (flyTo/easeTo/jumpTo) carries no
+                    // originalEvent. Its hash write must never be dropped by the
+                    // throttle, otherwise the final view (e.g. the locate initial
+                    // zoom to #map=16) can be swallowed, leaving a stale hash.
+                    if (event?.originalEvent) {
+                        throttledPersistView();
+                    } else {
+                        persistView();
+                    }
+                });
 
                 cached.mapInstance = map;
 
@@ -192,7 +204,7 @@ export const useMap = (containerRef = null, options = {}) => {
                 // Apply the active language to map labels immediately after load.
                 applyMapLanguage(map, mapLanguageTag.value);
 
-                // Scale bar — unit follows the units preference in settings.
+                // Scale bar — unit follows the OS/browser region.
                 const scaleControl = new maplibregl.ScaleControl({
                     maxWidth: scaleMaxWidth,
                     unit: isMetric.value ? "metric" : "imperial",

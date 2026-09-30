@@ -1,14 +1,24 @@
-import { ref, computed, inject, watch } from "vue";
-import { useStorage } from "@/composables/useStorage";
+import { ref, computed, watch } from "vue";
 import { emitter } from "@/emitter.js";
+import { navigatorLanguages } from "@/composables/useLocale";
 
-// Module-level reactive system preference — shared across the app.
-const systemDark = ref(window.matchMedia("(prefers-color-scheme: dark)").matches);
-window
-	.matchMedia("(prefers-color-scheme: dark)")
-	.addEventListener("change", (e) => {
+// Module-level reactive system preference — the single source of truth for theme.
+// Guarded so importing this module outside a browser never throws (defaults to light).
+const darkQuery =
+	typeof window !== "undefined" && typeof window.matchMedia === "function"
+		? window.matchMedia("(prefers-color-scheme: dark)")
+		: null;
+
+const systemDark = ref(darkQuery ? darkQuery.matches : false);
+
+if (darkQuery) {
+	darkQuery.addEventListener("change", (e) => {
 		systemDark.value = e.matches;
 	});
+}
+
+// Notify subscribers (e.g. future MapLibre style swap) whenever the system theme changes.
+watch(systemDark, (v) => emitter.emit("theme:change", v ? "dark" : "light"));
 
 /**
  * Infer the user's preferred unit system from a browser locale string.
@@ -16,75 +26,40 @@ window
  * Returns 'imperial' for those locales, 'metric' for everything else.
  */
 export function localeDefaultUnits(localeStr) {
+	const language =
+		localeStr ??
+		(typeof navigator !== "undefined" ? navigator.language : undefined);
+	if (!language) return "metric";
 	try {
-		const region = new Intl.Locale(localeStr ?? navigator.language).maximize().region;
+		const region = new Intl.Locale(language).maximize().region;
 		return ["US", "LR", "MM"].includes(region) ? "imperial" : "metric";
 	} catch {
 		return "metric";
 	}
 }
 
-// Module-level state — initialised on first call, shared by all callers.
-const cache = new Map();
-
 /**
- * @param {string} [instanceId] - App instance ID. If omitted, resolved via inject('onrteAppId').
- *   Pass explicitly when calling from outside Vue setup context (e.g. a feature install()).
+ * User preferences derived from the OS/browser — nothing is stored.
+ * Theme follows `prefers-color-scheme`; units follow the region of the
+ * user's most-preferred language. Both update live at runtime.
  */
-export const useSettings = (instanceId) => {
-	const id = instanceId ?? inject("onrteAppId", "app");
-
-	if (!cache.has(id)) {
-		const storage = useStorage("settings", {
-			theme: null, // null = follow system, 'light', or 'dark'
-			units: null, // null = follow locale default
-			language: null, // null = follow browser default
-		}, id);
-		cache.set(id, { storage });
-
-		// Register the theme watcher once per instance.
-		watch(
-			() => storage.theme ?? (systemDark.value ? "dark" : "light"),
-			(theme) => emitter.emit("theme:change", theme),
-		);
-	}
-
-	const { storage } = cache.get(id);
-
-	const resolvedTheme = computed(
-		() => storage.theme ?? (systemDark.value ? "dark" : "light"),
-	);
+export const useSettings = () => {
+	const resolvedTheme = computed(() => (systemDark.value ? "dark" : "light"));
 
 	const isDark = computed(() => resolvedTheme.value === "dark");
 
-	const resolvedUnits = computed(() => storage.units ?? localeDefaultUnits());
+	const resolvedUnits = computed(() =>
+		localeDefaultUnits(
+			navigatorLanguages.value[0] ??
+				(typeof navigator !== "undefined" ? navigator.language : undefined),
+		),
+	);
 	const isMetric = computed(() => resolvedUnits.value === "metric");
-
-	/** Toggle between light and dark theme, persisting the choice. */
-	const toggleTheme = () => {
-		storage.theme = isDark.value ? "light" : "dark";
-	};
-
-	/** @param {'metric'|'imperial'} units */
-	const setUnits = (units) => {
-		storage.units = units;
-	};
-
-	const language = computed(() => storage.language);
-
-	/** @param {string|null} lang - BCP 47 language tag, or null to follow browser locale. */
-	const setLanguage = (lang) => {
-		storage.language = lang;
-	};
 
 	return {
 		resolvedTheme,
 		isDark,
 		isMetric,
 		resolvedUnits,
-		toggleTheme,
-		setUnits,
-		language,
-		setLanguage,
 	};
 };

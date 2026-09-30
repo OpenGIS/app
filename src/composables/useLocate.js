@@ -3,6 +3,7 @@ import maplibregl from "maplibre-gl";
 import { magvar } from "magvar";
 import { useStorage } from "@/composables/useStorage";
 import { getMapInstance } from "@/composables/useMap";
+import { emitter } from "@/emitter.js";
 import { locateZoom } from "@/defaults/maplibre";
 import { Position } from "@/classes/Position";
 
@@ -42,6 +43,8 @@ export const useLocate = (explicitInstanceId) => {
             smoothedHeading: null, // internal: raw float used for smoothing
             magneticDeclination: 0, // degrees East; corrects webkitCompassHeading to true north
             needsInitialZoom: false, // true until the first fix after activation
+            generation: 0, // incremented on start/stop; discards stale callbacks
+            mapReadyListener: null, // pending map:ready retry for the initial zoom
             headingTimeoutId: null, // timeout handle for heading-loss detection
             showConfirmModal: ref(false),
             showErrorModal: ref(false),
@@ -76,6 +79,9 @@ export const useLocate = (explicitInstanceId) => {
      * Called after every position or orientation update.
      */
     const syncMarkers = () => {
+        // Never create or refresh markers once tracking has stopped or errored.
+        // A late orientation/position callback must not resurrect a marker.
+        if (c.mode.value === null || c.mode.value === "error") return;
         if (!c.position.value) return;
         const map = getMapInstance(instanceId);
         if (!map) return;
@@ -226,9 +232,58 @@ export const useLocate = (explicitInstanceId) => {
         c.headingLost.value = false;
     };
 
+    // ─── Initial zoom ─────────────────────────────────────────────────────────
+
+    /** Drop any pending map:ready retry for the one-shot initial zoom. */
+    const clearInitialZoomRetry = () => {
+        if (c.mapReadyListener) {
+            emitter.off("map:ready", c.mapReadyListener);
+            c.mapReadyListener = null;
+        }
+    };
+
+    /**
+     * Apply the one-shot initial zoom, exactly once per activation.
+     *
+     * The flag is only consumed when the map is ready and a position exists, so
+     * a first fix that lands before map init is retained for a later fix rather
+     * than being lost. On success the flag is cleared, preventing a double zoom.
+     */
+    const applyInitialZoom = () => {
+        if (!c.needsInitialZoom) return;
+        const map = getMapInstance(instanceId);
+        if (!map || !c.position.value) return;
+        c.needsInitialZoom = false;
+        clearInitialZoomRetry();
+        map.flyTo({
+            center: [c.position.value.lng, c.position.value.lat],
+            zoom: locateZoom,
+        });
+    };
+
+    /**
+     * If the map is not ready yet, retry the initial zoom once `map:ready`
+     * fires. Guards against a first fix arriving before MapLibre has
+     * initialised (see applyInitialZoom). The listener is registered once.
+     */
+    const armInitialZoomRetry = () => {
+        if (getMapInstance(instanceId) || c.mapReadyListener) return;
+        c.mapReadyListener = () => applyInitialZoom();
+        emitter.once("map:ready", c.mapReadyListener);
+    };
+
     // ─── Geolocation callbacks ────────────────────────────────────────────────
 
-    const onPosition = (geoPos) => {
+    /**
+     * @param {GeolocationPosition} geoPos
+     * @param {number} gen - generation captured by startWatching; stale
+     *   callbacks from a stopped/superseded session are ignored.
+     */
+    const onPosition = (geoPos, gen) => {
+        if (gen !== c.generation) return;
+        // Ignore fixes that arrive after the user has stopped tracking.
+        if (c.mode.value === null || c.mode.value === "error") return;
+
         if (!c.storage.permissionGranted) {
             c.storage.permissionGranted = true;
         }
@@ -244,12 +299,7 @@ export const useLocate = (explicitInstanceId) => {
             speed,
         });
 
-        if (c.needsInitialZoom) {
-            c.needsInitialZoom = false;
-            const map = getMapInstance(instanceId);
-            if (map) map.flyTo({ center: [longitude, latitude], zoom: locateZoom });
-        }
-
+        applyInitialZoom();
         syncMarkers();
 
         if (c.mode.value === "following") {
@@ -261,7 +311,16 @@ export const useLocate = (explicitInstanceId) => {
         }
     };
 
-    const onError = (err) => {
+    /**
+     * @param {GeolocationPositionError} err
+     * @param {number} gen - see onPosition; stale errors must not tear down a
+     *   newer session (e.g. an old error clearing a freshly created watcher).
+     */
+    const onError = (err, gen) => {
+        if (gen !== c.generation) return;
+        c.generation++; // bump so any other in-flight callback is discarded
+        clearInitialZoomRetry();
+        c.needsInitialZoom = false;
         stopWatcher();
         stopOrientationWatching();
         removeMarkers();
@@ -278,18 +337,28 @@ export const useLocate = (explicitInstanceId) => {
             c.mode.value = "error";
             return;
         }
+        const gen = ++c.generation;
         c.mode.value = "active";
         c.needsInitialZoom = true;
+        armInitialZoomRetry();
 
         // Request orientation permission (no-op on non-iOS) then start listening.
         // Both happen inside the same user-gesture call stack so iOS treats them
         // as a single permission prompt.
         await requestOrientationPermission();
+
+        // A stop() (or a fresh startWatching) may have run during that await.
+        // Abandon this generation so we neither orphan a watcher nor clobber
+        // the newer session's state.
+        if (gen !== c.generation) return;
+
         startOrientationWatching();
 
-        c.watcherId = navigator.geolocation.watchPosition(onPosition, onError, {
-            enableHighAccuracy: true,
-        });
+        c.watcherId = navigator.geolocation.watchPosition(
+            (pos) => onPosition(pos, gen),
+            (err) => onError(err, gen),
+            { enableHighAccuracy: true },
+        );
     };
 
     const stopWatcher = () => {
@@ -353,6 +422,12 @@ export const useLocate = (explicitInstanceId) => {
 
     /** Stop tracking and return to the inactive state. */
     const stop = () => {
+        // Bump the generation first so any in-flight watcher callback (or a
+        // startWatching still awaiting orientation permission) is superseded
+        // and can no longer create a watcher or markers.
+        c.generation++;
+        clearInitialZoomRetry();
+        c.needsInitialZoom = false;
         stopWatcher();
         stopOrientationWatching();
         removeMarkers();

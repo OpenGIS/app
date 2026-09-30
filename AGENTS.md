@@ -23,19 +23,21 @@ The app is a fully installable PWA. It includes a Web App Manifest (`public/mani
 ```bash
 npm run dev          # start Vite dev server (app at http://localhost:5173)
 npm run build        # build the app for distribution
-npm run test:unit    # run vitest unit tests (<1 s)
-npm run test:e2e -- tests/e2e/{spec}.spec.js   # run only the relevant E2E spec
-npm run test:e2e     # run all E2E tests
+npm run test:unit    # run vitest unit tests (<10 s)
+npm run test:e2e -- tests/e2e/{spec}.spec.js   # run only the relevant E2E spec (recommended)
+npm run test:e2e -- --workers=1                # full E2E suite, serial (manual run)
 npm test             # run unit tests only (final check before confirming a task done)
 ```
 
 ### Running tests — timing guidance
 
-`npm test` runs unit tests only and completes in under a second.
+`npm test` runs the unit suite (Vitest) only: ~230 tests, completing in under 10 seconds.
 
-E2E tests are available separately via `npm run test:e2e` but are slow (a single spec takes **15–45 seconds**, the full suite **2–3 minutes**) and are not required as part of the standard task completion check. Run E2E tests manually when validating browser integration or complex user flows.
+E2E tests are available separately via `npm run test:e2e` and are not required as part of the standard task completion check. Run them manually when validating browser integration or complex user flows. E2E does not run in CI (CI runs Vitest only).
 
-When running E2E tests with a shell tool, use `mode="sync"` with `initial_wait` set to at least **60** for a single spec and **240** for the full suite. You will be automatically notified when the command completes — **do not poll repeatedly with short waits**. Wait for the completion notification, then read the output once.
+Locally, always run E2E serially with `--workers=1`. The default parallel workers (3 on this machine) cause flaky input-dispatch hangs with software-rendered MapLibre (SwiftShader); serial is both reliable and faster. Prefer targeted single-spec runs while developing — expect roughly **1–3 minutes per spec**; the full suite is a longer manual run.
+
+When running E2E tests with a shell tool, use `mode="sync"` with `initial_wait` set to at least **180** for a single spec and **600** for the full suite. You will be automatically notified when the command completes — **do not poll repeatedly with short waits**. Wait for the completion notification, then read the output once.
 
 ---
 
@@ -52,7 +54,7 @@ src/
     useMap.js           # MapLibre lifecycle, globe projection, view persistence
     useUI.js            # UI state: breakpoints, panel, nav, first-load
     useLocale.js        # i18n: language resolution, translations
-    useSettings.js      # user preferences: theme, units, language
+    useSettings.js      # OS-derived prefs: units + theme follow the device
     useLocate.js        # GPS locate feature
     useGeoJSON.js       # GeoJSON rendering: points, lines, polygons
   features/
@@ -71,7 +73,7 @@ src/
       about.vue         # About panel
       privacy.vue       # Privacy panel
       locate.vue        # Locate panel
-      settings.vue      # Settings panel
+      settings.vue      # Settings panel (read-only OS-derived locale + units)
     ui/
       top.vue           # top navigation bar
       top/
@@ -88,7 +90,7 @@ src/
 
 ### Instance isolation
 
-The `instanceId` is read from the `?id=` URL param (default `'app'`) and passed via `app.provide('onrteAppId', instanceId)`. All composables call `inject('onrteAppId', 'app')` to scope their localStorage keys. This supports iframe isolation — each iframe gets its own `?id=` and its own storage namespace.
+The `instanceId` is read from the `?id=` URL param (default `'app'`) and passed via `app.provide('onrteAppId', instanceId)`. Composables that persist state call `inject('onrteAppId', 'app')` to scope their localStorage keys; `useLocale` scopes a per-instance in-memory cache the same way, and `useSettings` is storage-free (OS-derived). This supports iframe isolation — each iframe gets its own `?id=` and its own storage namespace.
 
 ### localStorage key format
 
@@ -96,7 +98,7 @@ The `instanceId` is read from the `?id=` URL param (default `'app'`) and passed 
 onrte_{namespace}_{instanceId}
 ```
 
-Examples: `onrte_view_app`, `onrte_settings_app`. The instance id is always last — this makes keys easy to read in browser DevTools.
+Examples: `onrte_view_app`, `onrte_recordings_app`. The instance id is always last — this makes keys easy to read in browser DevTools.
 
 ### Composable pattern
 

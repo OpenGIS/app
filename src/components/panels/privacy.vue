@@ -14,8 +14,7 @@ const { t } = useLocale();
       <h6 class="mb-2 text-muted small text-uppercase fw-semibold">{{ t('panel.privacy.onDevice') }}</h6>
       <p class="mb-2 small">{{ t('panel.privacy.onDeviceBody') }}</p>
       <ul class="mb-0 small ps-3">
-        <li class="mb-1">{{ t('panel.privacy.mapView') }}</li>
-        <li>{{ t('panel.privacy.settings') }}</li>
+        <li>{{ t('panel.privacy.mapView') }}</li>
       </ul>
     </div>
 

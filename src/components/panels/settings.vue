@@ -1,9 +1,28 @@
 <script setup>
-import { useSettings } from "@/composables/useSettings";
+import { computed } from "vue";
 import { useLocale } from "@/composables/useLocale";
+import { useSettings } from "@/composables/useSettings";
 
-const { isDark, resolvedUnits, toggleTheme, setUnits } = useSettings();
-const { t, locale, locales, localeNames, setLocale } = useLocale();
+const { t, locale } = useLocale();
+const { resolvedUnits } = useSettings();
+
+const unitsLabel = computed(() =>
+    resolvedUnits.value === "imperial"
+        ? t("panel.settings.imperial")
+        : t("panel.settings.metric"),
+);
+
+const languageLabel = computed(() => {
+    try {
+        return (
+            new Intl.DisplayNames([locale.value], { type: "language" }).of(
+                locale.value,
+            ) || locale.value
+        );
+    } catch {
+        return locale.value;
+    }
+});
 </script>
 
 <template>
@@ -12,48 +31,14 @@ const { t, locale, locales, localeNames, setLocale } = useLocale();
     </div>
 
     <div class="sidebar-section sidebar-section-body p-3 border-top">
-        <h6 class="mb-3 text-muted small text-uppercase fw-semibold">
-            {{ t('panel.settings.appearance') }}
-        </h6>
-        <div class="form-check form-switch">
-            <input
-                class="form-check-input"
-                type="checkbox"
-                role="switch"
-                id="settings-dark-mode"
-                :checked="isDark"
-                @change="toggleTheme"
-            />
-            <label class="form-check-label" for="settings-dark-mode">
-                {{ t('panel.settings.darkMode') }}
-            </label>
-        </div>
-    </div>
-
-    <div class="sidebar-section sidebar-section-body p-3 border-top">
         <h6 class="mb-3 text-muted small text-uppercase fw-semibold">{{ t('panel.settings.units') }}</h6>
-        <select
-            id="settings-units"
-            class="form-select form-select-sm w-auto"
-            :value="resolvedUnits"
-            @change="(e) => setUnits(e.target.value)"
-        >
-            <option value="metric">{{ t('panel.settings.metric') }}</option>
-            <option value="imperial">{{ t('panel.settings.imperial') }}</option>
-        </select>
+        <p class="mb-0" id="settings-units">{{ unitsLabel }}</p>
+        <p class="mb-0 text-body-secondary small">{{ t('panel.settings.fromDevice') }}</p>
     </div>
 
     <div class="sidebar-section sidebar-section-body p-3 border-top">
         <h6 class="mb-3 text-muted small text-uppercase fw-semibold">{{ t('panel.settings.language') }}</h6>
-        <select
-            id="settings-language"
-            class="form-select form-select-sm w-auto"
-            :value="locale"
-            @change="(e) => setLocale(e.target.value)"
-        >
-            <option v-for="code in locales" :key="code" :value="code">
-                {{ localeNames[code] }}
-            </option>
-        </select>
+        <p class="mb-0" id="settings-language">{{ languageLabel }}</p>
+        <p class="mb-0 text-body-secondary small">{{ t('panel.settings.fromDevice') }}</p>
     </div>
 </template>

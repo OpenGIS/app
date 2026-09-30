@@ -30,6 +30,9 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
+        // Force full animations: with prefers-reduced-motion MapLibre degrades
+        // flyTo/easeTo to an instant jumpTo, which changes the #map hash timing.
+        reducedMotion: "no-preference",
         launchOptions: {
           args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
         },

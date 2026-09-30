@@ -1,13 +1,5 @@
 import { test, expect } from "@playwright/test";
 
-const SETTINGS_STORAGE_KEY = "onrte_settings_app";
-
-/** Seed settings storage before page load (avoids an extra reload). */
-const withSettings = (page, data) =>
-	page.addInitScript(({ key, data }) => {
-		localStorage.setItem(key, JSON.stringify(data));
-	}, { key: SETTINGS_STORAGE_KEY, data });
-
 // Seed view storage so the About modal does not appear on fresh contexts
 test.beforeEach(async ({ page }) => {
 	await page.addInitScript(() => {
@@ -29,11 +21,32 @@ async function openMenuPanel(page) {
 	}
 }
 
+/** Opens the Settings panel from the menu. */
+async function openSettings(page, name = /settings/i) {
+	await openMenuPanel(page);
+	await page.getByRole("button", { name }).click();
+}
+
 /** Returns the app theme root (the wrapper with data-bs-theme). */
 function themeRoot(page) {
 	// .onrte-root carries :data-bs-theme="resolvedTheme"; the navbar also has
 	// data-bs-theme="dark" (hardcoded) — use .onrte-root to target only our root.
 	return page.locator(".onrte-root");
+}
+
+/** Simulates the browser/OS changing its preferred language at runtime. */
+async function setBrowserLanguages(page, languages) {
+	await page.evaluate((langs) => {
+		Object.defineProperty(navigator, "languages", {
+			value: langs,
+			configurable: true,
+		});
+		Object.defineProperty(navigator, "language", {
+			value: langs[0] ?? "en",
+			configurable: true,
+		});
+		window.dispatchEvent(new Event("languagechange"));
+	}, languages);
 }
 
 test.describe("Opening Settings", () => {
@@ -55,90 +68,79 @@ test.describe("Opening Settings", () => {
 		await page.goto("/");
 		await page.waitForSelector(".onrte-map canvas");
 
-		await openMenuPanel(page);
-		await page.getByRole("button", { name: /settings/i }).click();
+		await openSettings(page);
 
 		await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 	});
 });
 
 test.describe("Appearance", () => {
-	test("dark mode switch is present in the settings panel", async ({
-		page,
-	}) => {
-		await page.goto("/");
-		await page.waitForSelector(".onrte-map canvas");
+	test.describe("OS prefers dark", () => {
+		test.use({ colorScheme: "dark" });
 
-		await openMenuPanel(page);
-		await page.getByRole("button", { name: /settings/i }).click();
+		test("data-bs-theme is dark when the OS prefers dark", async ({ page }) => {
+			await page.goto("/");
+			await page.waitForSelector(".onrte-map canvas");
 
-		await expect(page.locator("#settings-dark-mode")).toBeVisible();
-		await expect(page.locator('label[for="settings-dark-mode"]')).toContainText(
-			"Dark mode",
-		);
+			await expect(themeRoot(page)).toHaveAttribute("data-bs-theme", "dark");
+		});
 	});
 
-	test("toggling dark mode switch applies data-bs-theme to the navigator root", async ({
-		page,
-	}) => {
-		// Force light mode to get a known start state
-		await withSettings(page, { theme: "light", units: "metric" });
+	test.describe("OS prefers light", () => {
+		test.use({ colorScheme: "light" });
+
+		test("data-bs-theme is light when the OS prefers light", async ({ page }) => {
+			await page.goto("/");
+			await page.waitForSelector(".onrte-map canvas");
+
+			await expect(themeRoot(page)).toHaveAttribute("data-bs-theme", "light");
+		});
+	});
+
+	test("data-bs-theme follows a runtime OS theme change", async ({ page }) => {
+		// Start in light, then simulate the OS switching to dark while the app is open.
+		await page.emulateMedia({ colorScheme: "light" });
 		await page.goto("/");
 		await page.waitForSelector(".onrte-map canvas");
 
 		const root = themeRoot(page);
 		await expect(root).toHaveAttribute("data-bs-theme", "light");
 
-		await openMenuPanel(page);
-		await page.getByRole("button", { name: /settings/i }).click();
-		await page.locator("#settings-dark-mode").click();
-
-		await expect(root).toHaveAttribute("data-bs-theme", "dark");
-	});
-
-	test("toggling dark mode switch off sets theme to light", async ({
-		page,
-	}) => {
-		// Start in dark mode
-		await withSettings(page, { theme: "dark", units: "metric" });
-		await page.goto("/");
-		await page.waitForSelector(".onrte-map canvas");
-
-		const root = themeRoot(page);
+		await page.emulateMedia({ colorScheme: "dark" });
 		await expect(root).toHaveAttribute("data-bs-theme", "dark");
 
-		await openMenuPanel(page);
-		await page.getByRole("button", { name: /settings/i }).click();
-		await page.locator("#settings-dark-mode").click();
-
+		// ...and back to light again.
+		await page.emulateMedia({ colorScheme: "light" });
 		await expect(root).toHaveAttribute("data-bs-theme", "light");
 	});
 });
 
 test.describe("Units", () => {
-	test("units select is present in the settings panel", async ({ page }) => {
+	test("units value is shown read-only in the settings panel", async ({
+		page,
+	}) => {
 		await page.goto("/");
 		await page.waitForSelector(".onrte-map canvas");
 
-		await openMenuPanel(page);
-		await page.getByRole("button", { name: /settings/i }).click();
+		await openSettings(page);
 
 		await expect(page.locator("#settings-units")).toBeVisible();
+		// No picker remains.
+		await expect(page.locator("select#settings-units")).toHaveCount(0);
 	});
 
-	test.describe("locale default — metric region (en-GB)", () => {
+	test.describe("OS region — metric (en-GB)", () => {
 		test.use({ locale: "en-GB" });
 
-		test("units select defaults to metric for metric-system locale", async ({
-			page,
-		}) => {
+		test("units value is metric for a metric-system locale", async ({ page }) => {
 			await page.goto("/");
 			await page.waitForSelector(".onrte-map canvas");
 
-			await openMenuPanel(page);
-			await page.getByRole("button", { name: /settings/i }).click();
+			await openSettings(page);
 
-			await expect(page.locator("#settings-units")).toHaveValue("metric");
+			await expect(page.locator("#settings-units")).toHaveText(
+				"Metric (km, m/s)",
+			);
 		});
 
 		test("scale bar shows metric units by default for metric-system locale", async ({
@@ -153,19 +155,20 @@ test.describe("Units", () => {
 		});
 	});
 
-	test.describe("locale default — imperial region (en-US)", () => {
+	test.describe("OS region — imperial (en-US)", () => {
 		test.use({ locale: "en-US" });
 
-		test("units select defaults to imperial for imperial-system locale", async ({
+		test("units value is imperial for an imperial-system locale", async ({
 			page,
 		}) => {
 			await page.goto("/");
 			await page.waitForSelector(".onrte-map canvas");
 
-			await openMenuPanel(page);
-			await page.getByRole("button", { name: /settings/i }).click();
+			await openSettings(page);
 
-			await expect(page.locator("#settings-units")).toHaveValue("imperial");
+			await expect(page.locator("#settings-units")).toHaveText(
+				"Imperial (mi, mph)",
+			);
 		});
 
 		test("scale bar shows imperial units by default for imperial-system locale", async ({
@@ -180,164 +183,91 @@ test.describe("Units", () => {
 		});
 	});
 
-	test("selecting imperial in units select sets units to imperial", async ({
-		page,
-	}) => {
-		// Force metric to get a known start state
-		await withSettings(page, { theme: null, units: "metric" });
-		await page.goto("/");
-		await page.waitForSelector(".onrte-map canvas");
+	test.describe("runtime language change (en-US → fr-FR)", () => {
+		test.use({ locale: "en-US" });
 
-		await openMenuPanel(page);
-		await page.getByRole("button", { name: /settings/i }).click();
+		test("units update without reload when the browser language changes", async ({
+			page,
+		}) => {
+			await page.goto("/");
+			await page.waitForSelector(".onrte-map canvas");
+			await page.waitForSelector(".maplibregl-ctrl-scale");
 
-		await page.locator("#settings-units").selectOption("imperial");
-		await expect(page.locator("#settings-units")).toHaveValue("imperial");
-	});
+			await openSettings(page);
+			await expect(page.locator("#settings-units")).toHaveText(
+				"Imperial (mi, mph)",
+			);
 
-	test("scale bar switches to imperial when units set to imperial", async ({
-		page,
-	}) => {
-		await withSettings(page, { theme: null, units: "imperial" });
-		await page.goto("/");
-		await page.waitForSelector(".maplibregl-ctrl-scale");
+			await setBrowserLanguages(page, ["fr-FR"]);
 
-		const scale = page.locator(".maplibregl-ctrl-scale");
-		await expect(scale).toContainText("mi");
-	});
-});
-
-test.describe("Persistence", () => {
-	test("dark mode preference is saved to localStorage", async ({ page }) => {
-		await withSettings(page, { theme: "light", units: "metric" });
-		await page.goto("/");
-		await page.waitForSelector(".onrte-map canvas");
-
-		await openMenuPanel(page);
-		await page.getByRole("button", { name: /settings/i }).click();
-		await page.locator("#settings-dark-mode").click();
-
-		const stored = await page.evaluate((key) =>
-			JSON.parse(localStorage.getItem(key)),
-		SETTINGS_STORAGE_KEY);
-		expect(stored.theme).toBe("dark");
-	});
-
-	test("units preference is saved to localStorage", async ({ page }) => {
-		// Seed metric so we have a known start state regardless of locale
-		await withSettings(page, { theme: null, units: "metric" });
-		await page.goto("/");
-		await page.waitForSelector(".onrte-map canvas");
-
-		await openMenuPanel(page);
-		await page.getByRole("button", { name: /settings/i }).click();
-
-		await page.locator("#settings-units").selectOption("imperial");
-
-		const stored = await page.evaluate((key) =>
-			JSON.parse(localStorage.getItem(key)),
-		SETTINGS_STORAGE_KEY);
-		expect(stored.units).toBe("imperial");
-	});
-
-	test("persisted theme is applied on page reload", async ({ page }) => {
-		await withSettings(page, { theme: "dark", units: "metric" });
-		await page.goto("/");
-		await page.waitForSelector(".onrte-map canvas");
-
-		await expect(themeRoot(page)).toHaveAttribute("data-bs-theme", "dark");
-	});
-
-	test("persisted units are reflected in the settings select on reload", async ({
-		page,
-	}) => {
-		await withSettings(page, { theme: "light", units: "imperial" });
-		await page.goto("/");
-		await page.waitForSelector(".onrte-map canvas");
-
-		await openMenuPanel(page);
-		await page.getByRole("button", { name: /settings/i }).click();
-
-		await expect(page.locator("#settings-units")).toHaveValue("imperial");
+			// UI is now French, so the units label is localised as well.
+			await expect(page.locator("#settings-units")).toHaveText(
+				"Métrique (km, m/s)",
+			);
+			await expect(page.locator(".maplibregl-ctrl-scale")).toContainText("km");
+		});
 	});
 });
 
 test.describe("Language", () => {
-	test("language select is present in the settings panel", async ({ page }) => {
+	test("language value is shown read-only in the settings panel", async ({
+		page,
+	}) => {
 		await page.goto("/");
 		await page.waitForSelector(".onrte-map canvas");
 
-		await openMenuPanel(page);
-		await page.getByRole("button", { name: /settings/i }).click();
+		await openSettings(page);
 
 		await expect(page.locator("#settings-language")).toBeVisible();
+		await expect(page.locator("select#settings-language")).toHaveCount(0);
 	});
 
-	test.describe("browser language default — French (fr-FR)", () => {
+	test.describe("browser language — French (fr-FR)", () => {
 		test.use({ locale: "fr-FR" });
 
-		test("language select defaults to French for French browser locale", async ({
+		test("settings panel is in French for a French browser locale", async ({
 			page,
 		}) => {
 			await page.goto("/");
 			await page.waitForSelector(".onrte-map canvas");
 
-			const offcanvas = page.locator(".offcanvas.show");
-			if (!(await offcanvas.isVisible())) {
-				await page.click(".navbar-toggler");
-				await offcanvas.waitFor();
-			}
 			// Settings button will be in French
-			await page.getByRole("button", { name: /paramètres/i }).click();
+			await openSettings(page, /paramètres/i);
 
-			await expect(page.locator("#settings-language")).toHaveValue("fr");
+			await expect(page.locator("#settings-language")).toHaveText("français");
 		});
 	});
 
-	test("selecting a language updates the UI immediately", async ({ page }) => {
-		// Seed English so we have a known start state
-		await withSettings(page, { theme: null, units: null, language: "en" });
-		await page.goto("/");
-		await page.waitForSelector(".onrte-map canvas");
+	test.describe("runtime language change (en-US → fr-FR)", () => {
+		test.use({ locale: "en-US" });
 
-		await openMenuPanel(page);
-		await page.getByRole("button", { name: /settings/i }).click();
+		test("UI updates without reload when the browser language changes", async ({
+			page,
+		}) => {
+			await page.goto("/");
+			await page.waitForSelector(".onrte-map canvas");
 
-		await page.locator("#settings-language").selectOption("fr");
+			await openSettings(page);
+			await expect(page.locator("#settings-language")).toHaveText("English");
 
-		// After switching to French, the settings heading should be in French
-		await expect(page.getByRole("heading", { name: /paramètres/i })).toBeVisible();
+			await setBrowserLanguages(page, ["fr-FR"]);
+
+			await expect(page.getByRole("heading", { name: /paramètres/i })).toBeVisible();
+			await expect(page.locator("#settings-language")).toHaveText("français");
+		});
 	});
+});
 
-	test("language preference is saved to localStorage", async ({ page }) => {
-		await withSettings(page, { theme: null, units: null, language: "en" });
+test.describe("Persistence", () => {
+	test("no settings storage key is written", async ({ page }) => {
 		await page.goto("/");
 		await page.waitForSelector(".onrte-map canvas");
 
-		await openMenuPanel(page);
-		await page.getByRole("button", { name: /settings/i }).click();
+		await openSettings(page);
 
-		await page.locator("#settings-language").selectOption("fr");
-
-		const stored = await page.evaluate(
-			(key) => JSON.parse(localStorage.getItem(key)),
-			SETTINGS_STORAGE_KEY,
+		const stored = await page.evaluate(() =>
+			localStorage.getItem("onrte_settings_app"),
 		);
-		expect(stored.language).toBe("fr");
-	});
-
-	test("persisted language is applied on page reload", async ({ page }) => {
-		await withSettings(page, { theme: null, units: null, language: "fr" });
-		await page.goto("/");
-		await page.waitForSelector(".onrte-map canvas");
-
-		const offcanvas = page.locator(".offcanvas.show");
-		if (!(await offcanvas.isVisible())) {
-			await page.click(".navbar-toggler");
-			await offcanvas.waitFor();
-		}
-		await page.getByRole("button", { name: /paramètres/i }).click();
-
-		await expect(page.getByRole("heading", { name: /paramètres/i })).toBeVisible();
+		expect(stored).toBeNull();
 	});
 });

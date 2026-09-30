@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 /**
  * Tests for docs/guide/core.md
  *
- * Covers the First load behaviour: Welcome modal, language/units selection,
+ * Covers the First load behaviour: Welcome modal, OS-driven language,
  * returning visits, and the About button.
  */
 
@@ -55,112 +55,38 @@ test.describe("First load / Welcome modal", () => {
 // ─── First load / Language ────────────────────────────────────────────────────
 
 test.describe("First load / Language", () => {
-  test("language selector is visible in the modal", async ({ page }) => {
+  test("welcome modal has no language picker", async ({ page }) => {
     await withNoViewStorage(page);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.locator("#about-language")).toBeVisible();
+    await expect(page.locator("#about-language")).toHaveCount(0);
   });
 
-  test("language selector defaults to browser language (English)", async ({ page }) => {
-    await withNoViewStorage(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
+  test.describe("browser language — French (fr-FR)", () => {
+    test.use({ locale: "fr-FR" });
 
-    await expect(page.locator("#about-language")).toHaveValue("en");
-  });
+    test("welcome modal content follows the browser language", async ({ page }) => {
+      await withNoViewStorage(page);
+      await page.goto("/");
+      await page.waitForLoadState("networkidle");
 
-  test("language selector defaults to French for French browser locale", async ({ browser }) => {
-    const context = await browser.newContext({ locale: "fr-FR" });
-    const page = await context.newPage();
-
-    await withNoViewStorage(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    await expect(page.locator("#about-language")).toHaveValue("fr");
-    await context.close();
-  });
-
-  test("changing language updates the modal text immediately", async ({ page }) => {
-    await withNoViewStorage(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    await expect(page.locator("#about-modal .modal-body")).toContainText("A map for exploring");
-
-    await page.locator("#about-language").selectOption("fr");
-
-    await expect(page.locator("#about-modal .modal-body")).toContainText("Une carte pour explorer");
-  });
-
-  test("language choice is saved to settings storage", async ({ page }) => {
-    await withNoViewStorage(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    await page.locator("#about-language").selectOption("fr");
-    await page.locator("#about-modal-close").click();
-
-    await expect.poll(() =>
-      page.evaluate(() => {
-        const raw = localStorage.getItem("onrte_settings_app");
-        return raw ? JSON.parse(raw).language : null;
-      })
-    ).toBe("fr");
+      await expect(page.locator("#about-modal .modal-body")).toContainText(
+        "Une carte pour explorer",
+      );
+    });
   });
 });
 
 // ─── First load / Units ───────────────────────────────────────────────────────
 
 test.describe("First load / Units", () => {
-  test("units selector is visible in the modal", async ({ page }) => {
+  test("welcome modal has no units picker", async ({ page }) => {
     await withNoViewStorage(page);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.locator("#about-units")).toBeVisible();
-  });
-
-  test("units selector defaults to metric for metric-system locale (en-GB)", async ({ browser }) => {
-    const context = await browser.newContext({ locale: "en-GB" });
-    const page = await context.newPage();
-
-    await withNoViewStorage(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    await expect(page.locator("#about-units")).toHaveValue("metric");
-    await context.close();
-  });
-
-  test("units selector defaults to imperial for imperial-system locale (en-US)", async ({ browser }) => {
-    const context = await browser.newContext({ locale: "en-US" });
-    const page = await context.newPage();
-
-    await withNoViewStorage(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    await expect(page.locator("#about-units")).toHaveValue("imperial");
-    await context.close();
-  });
-
-  test("units choice is saved to settings storage", async ({ page }) => {
-    await withNoViewStorage(page);
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    await page.locator("#about-units").selectOption("imperial");
-    await page.locator("#about-modal-close").click();
-
-    await expect.poll(() =>
-      page.evaluate(() => {
-        const raw = localStorage.getItem("onrte_settings_app");
-        return raw ? JSON.parse(raw).units : null;
-      })
-    ).toBe("imperial");
+    await expect(page.locator("#about-units")).toHaveCount(0);
   });
 });
 

@@ -12,7 +12,6 @@
   "modal.welcome.title": "On Route",
   "modal.welcome.introOne": "A map for exploring, navigating and recording your adventures.",
   "modal.welcome.introTwo": "No app stores, no accounts, no tracking. Powered by Open Source.",
-  "modal.welcome.preferences": "Choose your preferences",
   "modal.welcome.locateInfo": "Display your current location by pressing Locate. Your permission is required, but no location data ever leaves your device.",
   "modal.welcome.getStarted": "Get started",
 
@@ -32,9 +31,8 @@
 
   "panel.privacy.title": "Your Privacy",
   "panel.privacy.onDevice": "On your device",
-  "panel.privacy.onDeviceBody": "Your map view and settings are stored in your browser's local storage only — this data never leaves your device.",
+  "panel.privacy.onDeviceBody": "Your map view is stored in your browser's local storage only — this data never leaves your device.",
   "panel.privacy.mapView": "Map view — centre coordinates and zoom level, so the map reopens where you left it.",
-  "panel.privacy.settings": "Settings — language, units, and colour theme preferences.",
   "panel.privacy.thirdParty": "Third-party tile services",
   "panel.privacy.thirdPartyBody": "When you view the map, your browser fetches map tiles directly from OpenFreeMap. As with any network request, your IP address is visible to their servers. No other data is sent.",
   "panel.privacy.location": "Location data",
@@ -43,12 +41,11 @@
   "panel.privacy.noTrackingBody": "This app contains no analytics, no advertising, no cookies, and no tracking scripts of any kind.",
 
   "panel.settings.title": "Settings",
-  "panel.settings.appearance": "Appearance",
-  "panel.settings.darkMode": "Dark mode",
   "panel.settings.units": "Units",
   "panel.settings.metric": "Metric (km, m/s)",
   "panel.settings.imperial": "Imperial (mi, mph)",
   "panel.settings.language": "Language",
+  "panel.settings.fromDevice": "From your device",
 
   "panel.account.title": "Account",
   "panel.account.description": "Sign in with a magic link to connect this app to your On Route account APIs.",
@@ -88,6 +85,7 @@
   "panel.maps.refreshing": "Refreshing…",
   "panel.maps.clearSelection": "Clear selection",
   "panel.maps.loadingMaps": "Loading maps…",
+  "panel.maps.loadingCollections": "Loading collections…",
   "panel.maps.empty": "No maps found.",
   "panel.maps.createTitle": "Create map",
   "panel.maps.createAction": "Create map",

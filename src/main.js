@@ -75,7 +75,7 @@ const featureCtx = {
   emitter,
   useStorage: (namespace, defaultState) =>
     _useStorage(namespace, defaultState, instanceId),
-  useSettings: () => _useSettings(instanceId),
+  useSettings: () => _useSettings(),
   useLocale: () => _useLocale(instanceId),
   getMap: () => getMapInstance(instanceId),
   onMapReady: (callback) => {

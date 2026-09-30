@@ -6,6 +6,12 @@ import { test, expect } from "@playwright/test";
  * Covers the Locate button states, permission flow modals, and map marker.
  */
 
+// SwiftShader software rendering can starve the renderer, so GPS fixes and
+// map camera moves can settle several seconds late. These budgets deliberately
+// overshoot that latency instead of failing early; the assertions themselves
+// are unchanged.
+const LOCATE_TIMEOUT = 20000;
+
 const withNoLocateStorage = (page) =>
     page.addInitScript(() => {
         localStorage.removeItem("onrte_locate_app");
@@ -38,6 +44,16 @@ const dismissAboutModal = async (page) => {
         await modal.waitFor({ state: "hidden" });
     }
 };
+
+/**
+ * Wait until MapLibre has finished rendering tiles and any camera animation
+ * (the map container exposes `data-map-idle="true"`). Clicking during a render
+ * storm can stall input dispatch on the software renderer.
+ */
+const waitForMapIdle = (page) =>
+    expect(page.locator(".onrte-map")).toHaveAttribute("data-map-idle", "true", {
+        timeout: LOCATE_TIMEOUT,
+    });
 
 // ─── Locate / Button ──────────────────────────────────────────────────────────
 
@@ -106,11 +122,11 @@ test.describe("Locate / Confirmation modal", () => {
         await expect(page.getByText("Permission Required")).toBeVisible();
         await page.getByRole("button", { name: "I Understand" }).click();
         await expect(page.getByText("Permission Required")).toBeHidden();
-        await expect
-            .poll(() => page.locator("#locate-button").textContent(), {
-                timeout: 5000,
-            })
-            .toMatch(/Located/);
+        await expect(page.locator("#locate-button")).toHaveAttribute(
+            "aria-pressed",
+            "true",
+            { timeout: LOCATE_TIMEOUT },
+        );
     });
 
     test("confirmation modal is not shown when permission was previously granted", async ({
@@ -168,65 +184,74 @@ test.describe("Locate / Active and Following states", () => {
         await grantGeolocation(page);
         await page.goto("/");
         await page.waitForLoadState("networkidle");
+        await waitForMapIdle(page);
     });
 
     test("button shows Located label after location is acquired", async ({
         page,
     }) => {
         await page.locator("#locate-button").click();
-        await expect
-            .poll(() => page.locator("#locate-button").textContent(), {
-                timeout: 5000,
-            })
-            .toMatch(/Located/);
+        await expect(page.locator("#locate-button")).toContainText("Located", {
+            timeout: LOCATE_TIMEOUT,
+        });
     });
 
     test("button advances to Following on second click", async ({ page }) => {
-        await page.locator("#locate-button").click();
-        await expect
-            .poll(() => page.locator("#locate-button").textContent(), {
-                timeout: 5000,
-            })
-            .toMatch(/Located/);
+        const btn = page.locator("#locate-button");
+        await btn.click();
+        await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
 
-        await page.locator("#locate-button").click();
-        await expect(page.locator("#locate-button")).toContainText("Following");
+        await waitForMapIdle(page);
+        await btn.click();
+        await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
     });
 
     test("button returns to Locate on third click", async ({ page }) => {
-        await page.locator("#locate-button").click();
-        await expect
-            .poll(() => page.locator("#locate-button").textContent(), {
-                timeout: 5000,
-            })
-            .toMatch(/Located/);
+        const btn = page.locator("#locate-button");
+        await btn.click();
+        await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
 
-        await page.locator("#locate-button").click();
-        await page.locator("#locate-button").click();
-        await expect(page.locator("#locate-button")).toContainText("Locate");
+        // Second click → Following, then a third (stop). Wait for the button to
+        // reflect Following before the stop click, and for the map camera to
+        // settle so the click is not stalled by a render storm.
+        await waitForMapIdle(page);
+        await btn.click();
+        await expect(btn).toContainText("Following", {
+            timeout: LOCATE_TIMEOUT,
+        });
+
+        await btn.click();
+        await expect(btn).toContainText("Locate", { timeout: LOCATE_TIMEOUT });
     });
 
     test("position marker appears on the map when active", async ({ page }) => {
         await page.locator("#locate-button").click();
         await expect
             .poll(() => page.locator(".onrte-locate-position").count(), {
-                timeout: 5000,
+                timeout: LOCATE_TIMEOUT,
             })
             .toBeGreaterThan(0);
     });
 
     test("position marker is removed when locate is stopped", async ({ page }) => {
-        await page.locator("#locate-button").click();
+        const btn = page.locator("#locate-button");
+        const marker = page.locator(".onrte-locate-position");
+
+        await btn.click();
         await expect
-            .poll(() => page.locator(".onrte-locate-position").count(), {
-                timeout: 5000,
-            })
+            .poll(() => marker.count(), { timeout: LOCATE_TIMEOUT })
             .toBeGreaterThan(0);
 
-        // Third click stops locate
-        await page.locator("#locate-button").click();
-        await page.locator("#locate-button").click();
-        await expect(page.locator(".onrte-locate-position")).toHaveCount(0);
+        // Second click → Following, then third (stop). Wait for Following and a
+        // settled map before the stop click.
+        await waitForMapIdle(page);
+        await btn.click();
+        await expect(btn).toContainText("Following", {
+            timeout: LOCATE_TIMEOUT,
+        });
+
+        await btn.click();
+        await expect(marker).toHaveCount(0, { timeout: LOCATE_TIMEOUT });
     });
 });
 
@@ -240,18 +265,14 @@ test.describe("Locate / Initial zoom", () => {
         await grantGeolocation(page, { latitude: 51.5, longitude: -0.1 });
         await page.goto("/");
         await page.waitForLoadState("networkidle");
+        await waitForMapIdle(page);
 
         await page.locator("#locate-button").click();
 
-        await expect
-            .poll(() => page.locator("#locate-button").textContent(), {
-                timeout: 5000,
-            })
-            .toMatch(/Located/);
-
-        await expect
-            .poll(() => page.url(), { timeout: 6000 })
-            .toMatch(/#map=16\//);
+        await expect(page.locator("#locate-button")).toContainText("Located", {
+            timeout: LOCATE_TIMEOUT,
+        });
+        await expect(page).toHaveURL(/#map=16\//, { timeout: LOCATE_TIMEOUT });
     });
 
     test("initial zoom fires again when locate is re-activated after stopping", async ({
@@ -261,19 +282,25 @@ test.describe("Locate / Initial zoom", () => {
         await grantGeolocation(page, { latitude: 51.5, longitude: -0.1 });
         await page.goto("/");
         await page.waitForLoadState("networkidle");
+        await waitForMapIdle(page);
+
+        const btn = page.locator("#locate-button");
 
         // First activation — map flies to zoom 16
-        await page.locator("#locate-button").click();
-        await expect
-            .poll(() => page.url(), { timeout: 6000 })
-            .toMatch(/#map=16\//);
+        await btn.click();
+        await expect(page).toHaveURL(/#map=16\//, { timeout: LOCATE_TIMEOUT });
 
-        // Stop locate (active → following → inactive)
-        await page.locator("#locate-button").click();
-        await page.locator("#locate-button").click();
-        await expect(page.locator("#locate-button")).toContainText("Locate");
+        // Stop locate (active → following → inactive), letting the camera
+        // settle between the stop clicks so they are not stalled.
+        await waitForMapIdle(page);
+        await btn.click();
+        await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+        await btn.click();
+        await expect(btn).toContainText("Locate", { timeout: LOCATE_TIMEOUT });
 
-        // Re-activate from a stored view at zoom 10 — initial zoom should fire again
+        // Persist a stored view at zoom 10, then load a HASH-LESS URL so that
+        // storage is actually applied. A hash survives a reload and outranks
+        // storage, which would mask whether the re-activation zoom fired.
         await page.evaluate(() => {
             const stored = JSON.parse(
                 localStorage.getItem("onrte_view_app") || "{}",
@@ -281,19 +308,18 @@ test.describe("Locate / Initial zoom", () => {
             stored.mapView = { center: { lat: 51.5, lng: -0.1 }, zoom: 10 };
             localStorage.setItem("onrte_view_app", JSON.stringify(stored));
         });
-        await page.reload();
+        await page.goto("/");
         await page.waitForLoadState("networkidle");
 
+        // Precondition: the map really is at the stored zoom 10 before the
+        // re-activation, so a later #map=16 proves the initial zoom fired again.
+        await expect(page).toHaveURL(/#map=10\//, { timeout: LOCATE_TIMEOUT });
+        await waitForMapIdle(page);
+
         // Re-activate locate — should zoom back to 16
-        await page.locator("#locate-button").click();
-        await expect
-            .poll(() => page.locator("#locate-button").textContent(), {
-                timeout: 5000,
-            })
-            .toMatch(/Located/);
-        await expect
-            .poll(() => page.url(), { timeout: 6000 })
-            .toMatch(/#map=16\//);
+        await btn.click();
+        await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+        await expect(page).toHaveURL(/#map=16\//, { timeout: LOCATE_TIMEOUT });
     });
 });
 
@@ -310,14 +336,11 @@ test.describe("Locate / Error state", () => {
 
         await page.locator("#locate-button").click();
 
-        await expect
-            .poll(() => page.locator("#locate-button").textContent(), {
-                timeout: 5000,
-            })
-            .toMatch(/Error/);
-
+        await expect(page.locator("#locate-button")).toContainText("Error", {
+            timeout: LOCATE_TIMEOUT,
+        });
         await expect(page.getByText("Location Permission Denied")).toBeVisible({
-            timeout: 5000,
+            timeout: LOCATE_TIMEOUT,
         });
     });
 
@@ -328,11 +351,9 @@ test.describe("Locate / Error state", () => {
 
         await page.locator("#locate-button").click();
 
-        await expect
-            .poll(() => page.getByText("Location Permission Denied").isVisible(), {
-                timeout: 5000,
-            })
-            .toBe(true);
+        await expect(page.getByText("Location Permission Denied")).toBeVisible({
+            timeout: LOCATE_TIMEOUT,
+        });
 
         await expect(page.getByText(/Reloading this page/)).toBeVisible();
     });
@@ -346,11 +367,9 @@ test.describe("Locate / Error state", () => {
 
         await page.locator("#locate-button").click();
 
-        await expect
-            .poll(() => page.getByText("Location Permission Denied").isVisible(), {
-                timeout: 5000,
-            })
-            .toBe(true);
+        await expect(page.getByText("Location Permission Denied")).toBeVisible({
+            timeout: LOCATE_TIMEOUT,
+        });
 
         await page.locator("#locate-error-close").click();
         await expect(page.getByText("Location Permission Denied")).toBeHidden();
@@ -366,11 +385,9 @@ test.describe("Locate / Error state", () => {
 
         await page.locator("#locate-button").click();
 
-        await expect
-            .poll(() => page.locator("#locate-error-close").isVisible(), {
-                timeout: 5000,
-            })
-            .toBe(true);
+        await expect(page.locator("#locate-error-close")).toBeVisible({
+            timeout: LOCATE_TIMEOUT,
+        });
 
         await page.locator("#locate-error-close").click();
         await expect(page.getByText("Location Permission Denied")).toBeHidden();
@@ -402,7 +419,7 @@ test.describe("Locate / Heading marker", () => {
         await page.locator("#locate-button").click();
         await expect
             .poll(() => page.locator(".onrte-locate-position").count(), {
-                timeout: 5000,
+                timeout: LOCATE_TIMEOUT,
             })
             .toBeGreaterThan(0);
 
@@ -425,7 +442,7 @@ test.describe("Locate / Heading marker", () => {
         // The heading marker should appear and be rotated to ~180°, not 0°.
         const headingEl = page.locator(".onrte-locate-heading");
         await expect
-            .poll(() => headingEl.count(), { timeout: 3000 })
+            .poll(() => headingEl.count(), { timeout: LOCATE_TIMEOUT })
             .toBeGreaterThan(0);
 
         const rotation = await headingEl.evaluate((el) => {
@@ -452,7 +469,7 @@ test.describe("Locate / Heading marker", () => {
         await page.locator("#locate-button").click();
         await expect
             .poll(() => page.locator(".onrte-locate-position").count(), {
-                timeout: 5000,
+                timeout: LOCATE_TIMEOUT,
             })
             .toBeGreaterThan(0);
 
@@ -468,7 +485,7 @@ test.describe("Locate / Heading marker", () => {
 
         const headingEl = page.locator(".onrte-locate-heading");
         await expect
-            .poll(() => headingEl.count(), { timeout: 3000 })
+            .poll(() => headingEl.count(), { timeout: LOCATE_TIMEOUT })
             .toBeGreaterThan(0);
 
         const rotation = await headingEl.evaluate((el) => {
@@ -497,11 +514,9 @@ test.describe("Locate / Error modal retry", () => {
         // Trigger error — no geolocation permission in context
         await page.locator("#locate-button").click();
 
-        await expect
-            .poll(() => page.locator("#locate-error-retry").isVisible(), {
-                timeout: 5000,
-            })
-            .toBe(true);
+        await expect(page.locator("#locate-error-retry")).toBeVisible({
+            timeout: LOCATE_TIMEOUT,
+        });
 
         // Grant geolocation so the retry attempt succeeds
         await grantGeolocation(page);
@@ -512,10 +527,8 @@ test.describe("Locate / Error modal retry", () => {
         await expect(page.getByText("Location Permission Denied")).toBeHidden();
 
         // Locate button should exit error state
-        await expect
-            .poll(() => page.locator("#locate-button").textContent(), {
-                timeout: 5000,
-            })
-            .not.toMatch(/Error/);
+        await expect(page.locator("#locate-button")).not.toContainText("Error", {
+            timeout: LOCATE_TIMEOUT,
+        });
     });
 });

@@ -1,14 +1,43 @@
-import { computed, inject } from "vue";
-import { useSettings } from "@/composables/useSettings";
-import en from "@/locales/en.json";
-import fr from "@/locales/fr.json";
+import { computed, inject, ref, watch } from "vue";
 
-const LOCALES = { en, fr };
+// Locale message tables are auto-registered from the files in `src/locales/`.
+// Dropping a new `{code}.json` file in is all that is needed to add a language.
+const modules = import.meta.glob("../locales/*.json", {
+	eager: true,
+	import: "default",
+});
 
-export const LOCALE_NAMES = {
-	en: "English",
-	fr: "Français",
-};
+const LOCALES = Object.fromEntries(
+	Object.entries(modules).map(([path, messages]) => [
+		path.split("/").pop().replace(/\.json$/, ""),
+		messages,
+	]),
+);
+
+/**
+ * Read the browser's preferred languages as an ordered list.
+ * Falls back to `[navigator.language]`, then English, outside a browser.
+ */
+function readNavigatorLanguages() {
+	if (typeof navigator === "undefined") return ["en"];
+	if (Array.isArray(navigator.languages) && navigator.languages.length) {
+		return [...navigator.languages];
+	}
+	return navigator.language ? [navigator.language] : ["en"];
+}
+
+/**
+ * Module-level reactive list of the user's preferred languages — the single
+ * source of truth for locale resolution, kept live by the `languagechange`
+ * event (mirrors `systemDark` in useSettings).
+ */
+export const navigatorLanguages = ref(readNavigatorLanguages());
+
+if (typeof window !== "undefined") {
+	window.addEventListener("languagechange", () => {
+		navigatorLanguages.value = readNavigatorLanguages();
+	});
+}
 
 /**
  * Overrides for cases where the UI locale code does not directly match the
@@ -33,6 +62,26 @@ export function initLocaleCache(instanceId, locale, messages) {
 	}
 }
 
+const LOCALE_CODES = Object.keys(LOCALES);
+
+/**
+ * Resolve a language tag against the registered locale codes using script-prefix
+ * matching: try progressively shorter `-`-separated prefixes, longest first
+ * (e.g. "zh-Hans-CN" → "zh-hans-cn" → "zh-hans" → "zh"), comparing
+ * case-insensitively. Returns the registered code (original casing, e.g.
+ * "zh-Hans") or null when nothing matches. Exported for unit testing.
+ */
+export function matchLocale(tag, codes) {
+	if (!tag || !Array.isArray(codes) || !codes.length) return null;
+	const parts = String(tag).toLowerCase().split("-");
+	for (let length = parts.length; length > 0; length--) {
+		const prefix = parts.slice(0, length).join("-");
+		const found = codes.find((code) => code.toLowerCase() === prefix);
+		if (found) return found;
+	}
+	return null;
+}
+
 /**
  * @param {string} [instanceId] - App instance ID. If omitted, resolved via inject('onrteAppId').
  *   Pass explicitly when calling from outside Vue setup context (e.g. a feature install()).
@@ -47,26 +96,32 @@ export const useLocale = (instanceId) => {
 	}
 
 	const { defaultLocale, customMessages } = cache.get(id);
-	const { language, setLanguage } = useSettings(id);
 
 	const locale = computed(() => {
-		// 1. Explicit user choice stored in settings
-		if (language.value) return language.value;
+		// 1. ?locale= URL param — exact match, then shorter prefixes
+		const fromParam = matchLocale(defaultLocale, LOCALE_CODES);
+		if (fromParam) return fromParam;
 
-		// 2. Default locale from ?locale= URL param
-		if (defaultLocale && LOCALES[defaultLocale]) return defaultLocale;
-
-		// 3. Browser language — try exact match then base code
-		if (typeof navigator !== "undefined" && navigator.language) {
-			const full = navigator.language; // e.g. "fr-CA"
-			const base = full.split("-")[0]; // e.g. "fr"
-			if (LOCALES[full]) return full;
-			if (LOCALES[base]) return base;
+		// 2. Walk the browser's preferred languages in order.
+		for (const code of navigatorLanguages.value) {
+			const match = matchLocale(code, LOCALE_CODES);
+			if (match) return match;
 		}
 
-		// 4. English fallback
+		// 3. English fallback
 		return "en";
 	});
+
+	// Keep <html lang> in sync with the active locale.
+	watch(
+		locale,
+		(value) => {
+			if (typeof document !== "undefined" && document.documentElement) {
+				document.documentElement.lang = value;
+			}
+		},
+		{ immediate: true },
+	);
 
 	/**
 	 * Translate a key. Resolution order:
@@ -79,13 +134,11 @@ export const useLocale = (instanceId) => {
 		return custom[key] ?? msgs[key] ?? LOCALES.en[key] ?? key;
 	};
 
-	const setLocale = (code) => setLanguage(code);
-
 	/**
 	 * The locale code formatted as an OSM `name:xx` tag suffix.
 	 * For most locales this equals `locale.value` directly.
 	 * Use this value when building MapLibre coalesce expressions for
-	 * multilingual map labels (see docs/core/6.locale.md — OSM Multilingual Names).
+	 * multilingual map labels (see docs/6.locale.md — OSM Multilingual Names).
 	 */
 	const mapLanguageTag = computed(
 		() => MAP_LANGUAGE_TAG_OVERRIDES[locale.value] ?? locale.value,
@@ -93,10 +146,7 @@ export const useLocale = (instanceId) => {
 
 	return {
 		locale,
-		locales: Object.keys(LOCALES),
-		localeNames: LOCALE_NAMES,
 		mapLanguageTag,
 		t,
-		setLocale,
 	};
 };

@@ -1,7 +1,4 @@
-/*
- * account E2E spec — commented out: app is in SPA front-end only mode.
- * Re-enable when the auth backend is available.
- */
+// Skip: features are commented out in src/main.js:16-20,113-116 — remove the skip when the features ship.
 import { expect, test } from "@playwright/test";
 
 const withViewStorage = (page) =>
@@ -11,7 +8,7 @@ const withViewStorage = (page) =>
             JSON.stringify({ mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 12 } }),
         ));
 
-test.describe("Account feature", () => {
+test.describe.skip("Account feature", () => {
     test("account tab in sidebar opens account panel", async ({ page }) => {
         await withViewStorage(page);
         await page.route("**/api/auth/session", (route) =>
