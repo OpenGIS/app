@@ -1,4 +1,4 @@
-# On Route App
+# ogis.app
 
 A navigation and mapping tool for everyone, right in the browser.
 
