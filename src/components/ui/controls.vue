@@ -10,8 +10,14 @@ import { getMapInstance } from "@/composables/useMap";
 const instanceId = inject("onrteAppId", "app");
 const buttonsRef = inject("navigatorButtons", shallowRef([]));
 
-const { togglePanel, setActivePanel, openPanel, isPanelVisible, isDesktop } =
-  useUI();
+const {
+  togglePanel,
+  setActivePanel,
+  openPanel,
+  isPanelVisible,
+  isMenuVisible,
+  isDesktop,
+} = useUI();
 const { t } = useLocale();
 
 const bottomRightButtons = computed(() =>
@@ -43,7 +49,7 @@ const handleCustomClick = (btn) => {
         :label="t('nav.menu')"
         :icon-width="20"
         :icon-height="20"
-        :active="isPanelVisible"
+        :active="isMenuVisible"
         @click="togglePanel()"
       />
     </div>

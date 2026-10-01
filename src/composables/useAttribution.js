@@ -20,6 +20,14 @@ export const useAttribution = () => {
 
   const attributionHtml = ref("");
 
+  // Expanded on load, then collapsed on the first user drag — exact parity
+  // with MapLibre's built-in attribution control. It never expands again.
+  // Lives here (not in the chip) so App.vue can drive the root data attribute.
+  const collapsed = ref(false);
+  const onDrag = () => {
+    collapsed.value = true;
+  };
+
   const update = () => {
     const map = getMapInstance(instanceId);
     attributionHtml.value = map ? buildAttribution(map.getStyle()) : "";
@@ -29,6 +37,7 @@ export const useAttribution = () => {
     update();
     map.on("styledata", update);
     map.on("sourcedata", update);
+    map.on("drag", onDrag);
   };
 
   const existing = getMapInstance(instanceId);
@@ -38,7 +47,7 @@ export const useAttribution = () => {
     emitter.once("map:ready", ({ map }) => attach(map));
   }
 
-  const api = { attributionHtml };
+  const api = { attributionHtml, collapsed };
   cache.set(instanceId, api);
   return api;
 };

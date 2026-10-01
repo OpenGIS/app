@@ -3,8 +3,8 @@ import { parseUrlHash, updateUrlHash, formatUrlHash } from "@/composables/useUrl
 
 describe("formatUrlHash", () => {
   it("formats all five segments", () => {
-    expect(formatUrlHash(18, 50.6539, -128.0094, 45, 120)).toBe(
-      "#map=18/50.653900/-128.009400/45/120",
+    expect(formatUrlHash(16, 50.6539, -128.0094, 45, 120)).toBe(
+      "#map=16/50.653900/-128.009400/45/120",
     );
   });
 
@@ -86,10 +86,10 @@ describe("parseUrlHash", () => {
   });
 
   it("parses a five-segment hash with pitch and bearing", () => {
-    window.location.hash = "#map=18/50.653900/-128.009400/45/120";
+    window.location.hash = "#map=16/50.653900/-128.009400/45/120";
     const result = parseUrlHash();
     expect(result).toEqual({
-      zoom: 18,
+      zoom: 16,
       center: [-128.0094, 50.6539],
       pitch: 45,
       bearing: 120,

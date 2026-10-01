@@ -8,8 +8,9 @@ import { test } from "@playwright/test";
  * README preview image.
  */
 
-// Standard test view — Port Hardy area, BC
-const TEST_HASH = "#map=18/50.653900/-128.009400";
+// Standard test view — Port Hardy area, BC. z16 keeps the Esri/Mapterhorn
+// raster sources on real imagery (z18 falls back to placeholder tiles here).
+const TEST_HASH = "#map=16/50.653900/-128.009400";
 
 test.use({ viewport: { width: 1280, height: 720 } });
 

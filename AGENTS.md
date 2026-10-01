@@ -85,7 +85,6 @@ src/
       locate-error.vue  # locate error dialog
     panels/
       info.vue          # Info panel: Map View + About + Privacy + Attribution
-      settings.vue      # Settings panel (read-only OS-derived locale + units)
     ui/
       controls.vue      # corner-controls overlay: menu, locate, feature chips, attribution
       controls/

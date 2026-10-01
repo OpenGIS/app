@@ -124,10 +124,118 @@ describe("useUI / Panel", () => {
 
 	it("setActivePanel updates the activePanel id", async () => {
 		const ui = await freshUseUI();
-		expect(ui.activePanel.value).toBe("info");
+		expect(ui.activePanel.value).toBe("record");
 
-		ui.setActivePanel("settings");
-		expect(ui.activePanel.value).toBe("settings");
+		ui.setActivePanel("offline");
+		expect(ui.activePanel.value).toBe("offline");
+	});
+});
+
+describe("useUI / Pane separation", () => {
+	it("toggleInfo opens the info pane without changing the menu tab", async () => {
+		const ui = await freshUseUI();
+		ui.setActivePanel("record");
+
+		ui.toggleInfo();
+
+		expect(ui.visiblePane.value).toBe("info");
+		expect(ui.isInfoVisible.value).toBe(true);
+		expect(ui.isMenuVisible.value).toBe(false);
+		expect(ui.isPanelVisible.value).toBe(true);
+		expect(ui.activePanel.value).toBe("record");
+	});
+
+	it("toggleInfo closes the info pane on the second call", async () => {
+		const ui = await freshUseUI();
+
+		ui.toggleInfo();
+		expect(ui.isInfoVisible.value).toBe(true);
+
+		ui.toggleInfo();
+		expect(ui.visiblePane.value).toBe(null);
+		expect(ui.isPanelVisible.value).toBe(false);
+	});
+
+	it("togglePanel opens the menu pane and leaves info hidden", async () => {
+		const ui = await freshUseUI();
+
+		ui.togglePanel();
+
+		expect(ui.visiblePane.value).toBe("menu");
+		expect(ui.isMenuVisible.value).toBe(true);
+		expect(ui.isInfoVisible.value).toBe(false);
+	});
+
+	it("togglePanel closes the menu pane when it is already showing", async () => {
+		const ui = await freshUseUI();
+		ui.togglePanel();
+
+		ui.togglePanel();
+
+		expect(ui.visiblePane.value).toBe(null);
+		expect(ui.isPanelVisible.value).toBe(false);
+	});
+
+	it("togglePanel switches from the info pane to the menu pane", async () => {
+		const ui = await freshUseUI();
+		ui.toggleInfo();
+
+		ui.togglePanel();
+
+		expect(ui.visiblePane.value).toBe("menu");
+		expect(ui.isInfoVisible.value).toBe(false);
+	});
+
+	it("toggleInfo switches from the menu pane to the info pane", async () => {
+		const ui = await freshUseUI();
+		ui.togglePanel();
+
+		ui.toggleInfo();
+
+		expect(ui.visiblePane.value).toBe("info");
+		expect(ui.isMenuVisible.value).toBe(false);
+	});
+
+	it("openPanel opens the menu pane without touching info state", async () => {
+		const ui = await freshUseUI();
+
+		ui.openPanel();
+
+		expect(ui.isMenuVisible.value).toBe(true);
+		expect(ui.isInfoVisible.value).toBe(false);
+		expect(ui.activePanel.value).toBe("record");
+	});
+
+	it("openInfo opens the info pane without changing the menu tab", async () => {
+		const ui = await freshUseUI();
+		ui.setActivePanel("offline");
+
+		ui.openInfo();
+
+		expect(ui.isInfoVisible.value).toBe(true);
+		expect(ui.activePanel.value).toBe("offline");
+	});
+
+	it("closePanel closes whichever pane is visible", async () => {
+		const ui = await freshUseUI();
+		ui.toggleInfo();
+
+		ui.closePanel();
+
+		expect(ui.visiblePane.value).toBe(null);
+		expect(ui.isPanelVisible.value).toBe(false);
+	});
+
+	it("keeps the menu tab when visiting info and back to the menu", async () => {
+		const ui = await freshUseUI();
+		ui.openPanel();
+		ui.setActivePanel("routes");
+
+		ui.toggleInfo();
+		ui.togglePanel();
+
+		expect(ui.isMenuVisible.value).toBe(true);
+		expect(ui.activePanel.value).toBe("routes");
 	});
 });
 

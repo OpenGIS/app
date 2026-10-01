@@ -56,6 +56,11 @@ const expectNoConsoleErrors = (page) => {
 
 /** Open the Routes panel via its side panel nav tab. */
 const openRoutesPanel = async (page) => {
+  // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
+  if (!(await page.locator(".panel-nav").isVisible())) {
+    await page.locator("#menu-button").click();
+    await page.locator(".panel-nav").waitFor();
+  }
   await page
     .locator(".panel-nav")
     .getByRole("button", { name: "Routes", exact: true })
@@ -88,6 +93,13 @@ test.describe("Routes / Panel", () => {
 
   test("Routes tab appears in the side panel nav", async ({ page }) => {
     await expect(page.locator(".onrte-panel")).toHaveClass(/show/);
+
+    // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
+    if (!(await page.locator(".panel-nav").isVisible())) {
+      await page.locator("#menu-button").click();
+      await page.locator(".panel-nav").waitFor();
+    }
+
     await expect(
       page.locator(".panel-nav").getByRole("button", { name: "Routes" }),
     ).toBeVisible();

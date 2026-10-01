@@ -2,7 +2,6 @@
   "nav.menu": "Menu",
 
   "menu.info": "Infos",
-  "menu.settings": "Paramètres",
   "menu.account": "Compte",
   "menu.maps": "Cartes",
   "menu.collections": "Collections",
@@ -39,13 +38,6 @@
   "panel.privacy.locationBody": "Si vous utilisez la fonctionnalité Localiser, les coordonnées GPS de votre appareil sont utilisées uniquement pour afficher votre position sur la carte. Les données de localisation ne sont jamais transmises à un serveur.",
   "panel.privacy.noTracking": "Aucun suivi",
   "panel.privacy.noTrackingBody": "Cette application ne contient aucun outil d'analyse, aucune publicité, aucun cookie et aucun script de suivi.",
-
-  "panel.settings.title": "Paramètres",
-  "panel.settings.units": "Unités",
-  "panel.settings.metric": "Métrique (km, m/s)",
-  "panel.settings.imperial": "Impérial (mi, mph)",
-  "panel.settings.language": "Langue",
-  "panel.settings.fromDevice": "Depuis votre appareil",
 
   "panel.account.title": "Compte",
   "panel.account.description": "Connectez-vous avec un lien magique pour relier cette application à vos API de compte On Route.",

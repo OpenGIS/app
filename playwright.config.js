@@ -20,6 +20,12 @@ export default defineConfig({
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: "http://localhost:5184",
 
+    /* Dark is the default scheme for tests/screenshots. The app follows the
+       OS/browser prefers-color-scheme setting (no in-app toggle), so light mode
+       is verified explicitly by a dedicated ui-states spec test rather than by
+       defaulting the whole suite to it. */
+    colorScheme: "dark",
+
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
   },

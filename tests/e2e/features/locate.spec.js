@@ -6,11 +6,31 @@ import { test, expect } from "@playwright/test";
  * Covers the Locate button states, permission flow modals, and map marker.
  */
 
-// SwiftShader software rendering can starve the renderer, so GPS fixes and
-// map camera moves can settle several seconds late. These budgets deliberately
-// overshoot that latency instead of failing early; the assertions themselves
-// are unchanged.
-const LOCATE_TIMEOUT = 20000;
+// Locate's post-activation fly-to lands at z16 with terrain/hillshade. Under
+// SwiftShader + load its FULL tile-render settle (`data-map-idle`) has been
+// measured at ~246–275 s, but most assertions only need the camera to have
+// ARRIVED, not a rendered tile set. The move guards below therefore wait at the
+// moveend / URL-hash level (see waitForCameraSettle); strict map-idle is kept
+// only for the initial cold load, where no prior movement exists to anchor on.
+
+// Per-wait ceiling for the light camera-settle waits. The camera should arrive
+// in seconds; this is a generous backstop, not an expected duration.
+const CAMERA_SETTLE_TIMEOUT = 30000;
+
+// Per-wait ceiling for the strict map-idle wait on the initial cold load. The
+// old 420000 was sized for the post-activation z16 settle; the cold load is
+// lighter, so 180000 stays a real backstop with much more headroom.
+const MAP_IDLE_TIMEOUT = 180000;
+
+// Ceiling for element/state/URL assertions. They are driven by synchronous app
+// state and the moveend hash write (no tile render), so they resolve in seconds.
+const LOCATE_TIMEOUT = 60000;
+
+// Multi-wait/multi-load tests do at most one strict cold-load idle
+// (MAP_IDLE_TIMEOUT) plus camera settles; the file budget covers that with
+// headroom. Reduced from 900000 now that the per-test post-activation tile
+// settles are no longer awaited.
+test.setTimeout(420000);
 
 const withNoLocateStorage = (page) =>
     page.addInitScript(() => {
@@ -46,14 +66,48 @@ const dismissAboutModal = async (page) => {
 };
 
 /**
- * Wait until MapLibre has finished rendering tiles and any camera animation
- * (the map container exposes `data-map-idle="true"`). Clicking during a render
- * storm can stall input dispatch on the software renderer.
+ * Strict wait: MapLibre has finished rendering tiles AND any camera animation
+ * (the map container exposes `data-map-idle="true"`, set on `idle` and cleared
+ * on `movestart`/`zoomstart`). This is reserved for the initial cold load: it is
+ * the one place a fully settled render is genuinely wanted, because there is no
+ * prior camera movement to anchor a lighter wait on, and clicking during that
+ * first render storm can stall input dispatch on the software renderer.
  */
 const waitForMapIdle = (page) =>
     expect(page.locator(".onrte-map")).toHaveAttribute("data-map-idle", "true", {
-        timeout: LOCATE_TIMEOUT,
+        timeout: MAP_IDLE_TIMEOUT,
     });
+
+/**
+ * Light wait: the camera has ARRIVED, without waiting for every tile to render.
+ *
+ * `useMap.js` writes the URL hash on MapLibre `moveend`, so matching the
+ * EXPECTED hash proves the camera has settled. Anchoring on the expected value
+ * (rather than generic hash stability) is what makes this race-safe: while a
+ * fly/pan is pending the pre-move hash differs from `expectedHash`, so the wait
+ * cannot resolve early even when it is called immediately after the click that
+ * triggers the move; if the hash already matches, the move has already
+ * completed and resolving at once is correct.
+ *
+ * `expect.poll` is used rather than `page.waitForURL` because the app updates
+ * the hash with `history.replaceState` (a same-document update).
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {RegExp} expectedHash - hash the camera must reach, e.g. /#map=16\//
+ * @param {number} [timeout]
+ */
+const waitForCameraSettle = async (
+    page,
+    expectedHash,
+    timeout = CAMERA_SETTLE_TIMEOUT,
+) => {
+    await expect
+        .poll(() => page.url(), {
+            timeout,
+            message: `camera did not settle to ${expectedHash}`,
+        })
+        .toMatch(expectedHash);
+};
 
 // ─── Locate / Button ──────────────────────────────────────────────────────────
 
@@ -65,7 +119,7 @@ test.describe("Locate / Button", () => {
         await dismissAboutModal(page);
     });
 
-    test("locate button is visible in the top navigation bar", async ({ page }) => {
+    test("locate chip is visible in the map corner controls", async ({ page }) => {
         await expect(page.locator("#locate-button")).toBeVisible();
     });
 
@@ -184,6 +238,7 @@ test.describe("Locate / Active and Following states", () => {
         await grantGeolocation(page);
         await page.goto("/");
         await page.waitForLoadState("networkidle");
+        // Strict: initial cold load — settle the first render before any input.
         await waitForMapIdle(page);
     });
 
@@ -201,7 +256,9 @@ test.describe("Locate / Active and Following states", () => {
         await btn.click();
         await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
 
-        await waitForMapIdle(page);
+        // Light: the first activation's fly-to z16 only needs the camera to
+        // arrive (moveend/hash), not a full tile render.
+        await waitForCameraSettle(page, /#map=16\//);
         await btn.click();
         await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
     });
@@ -212,9 +269,9 @@ test.describe("Locate / Active and Following states", () => {
         await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
 
         // Second click → Following, then a third (stop). Wait for the button to
-        // reflect Following before the stop click, and for the map camera to
-        // settle so the click is not stalled by a render storm.
-        await waitForMapIdle(page);
+        // reflect Following before the stop click, and for the camera to arrive
+        // (fly-to z16 — moveend/hash level, no tile render).
+        await waitForCameraSettle(page, /#map=16\//);
         await btn.click();
         await expect(btn).toContainText("Following", {
             timeout: LOCATE_TIMEOUT,
@@ -242,9 +299,9 @@ test.describe("Locate / Active and Following states", () => {
             .poll(() => marker.count(), { timeout: LOCATE_TIMEOUT })
             .toBeGreaterThan(0);
 
-        // Second click → Following, then third (stop). Wait for Following and a
-        // settled map before the stop click.
-        await waitForMapIdle(page);
+        // Second click → Following, then third (stop). Wait for the camera to
+        // arrive (fly-to z16 — moveend/hash level, no tile render).
+        await waitForCameraSettle(page, /#map=16\//);
         await btn.click();
         await expect(btn).toContainText("Following", {
             timeout: LOCATE_TIMEOUT,
@@ -265,6 +322,7 @@ test.describe("Locate / Initial zoom", () => {
         await grantGeolocation(page, { latitude: 51.5, longitude: -0.1 });
         await page.goto("/");
         await page.waitForLoadState("networkidle");
+        // Strict: initial cold load baseline before the locate activation.
         await waitForMapIdle(page);
 
         await page.locator("#locate-button").click();
@@ -282,6 +340,7 @@ test.describe("Locate / Initial zoom", () => {
         await grantGeolocation(page, { latitude: 51.5, longitude: -0.1 });
         await page.goto("/");
         await page.waitForLoadState("networkidle");
+        // Strict: initial cold load baseline before the locate activation.
         await waitForMapIdle(page);
 
         const btn = page.locator("#locate-button");
@@ -290,9 +349,10 @@ test.describe("Locate / Initial zoom", () => {
         await btn.click();
         await expect(page).toHaveURL(/#map=16\//, { timeout: LOCATE_TIMEOUT });
 
-        // Stop locate (active → following → inactive), letting the camera
-        // settle between the stop clicks so they are not stalled.
-        await waitForMapIdle(page);
+        // Stop locate (active → following → inactive). The camera already
+        // arrived at z16 (URL asserted above), so settle at the hash level — no
+        // tile render wait, and the Following click below is not blocked by one.
+        await waitForCameraSettle(page, /#map=16\//);
         await btn.click();
         await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
         await btn.click();
@@ -314,7 +374,7 @@ test.describe("Locate / Initial zoom", () => {
         // Precondition: the map really is at the stored zoom 10 before the
         // re-activation, so a later #map=16 proves the initial zoom fired again.
         await expect(page).toHaveURL(/#map=10\//, { timeout: LOCATE_TIMEOUT });
-        await waitForMapIdle(page);
+        await waitForCameraSettle(page, /#map=10\//);
 
         // Re-activate locate — should zoom back to 16
         await btn.click();

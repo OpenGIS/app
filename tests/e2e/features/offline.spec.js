@@ -85,7 +85,11 @@ const withShowRegion = (page) =>
 
 /** Open the Offline Maps panel via its side panel nav tab. */
 const openOfflinePanel = async (page) => {
-  // On desktop the panel opens automatically — just switch to the Offline Maps tab.
+  // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
+  if (!(await page.locator(".panel-nav").isVisible())) {
+    await page.locator("#menu-button").click();
+    await page.locator(".panel-nav").waitFor();
+  }
   await page
     .locator(".panel-nav")
     .getByRole("button", { name: /offline maps/i })
@@ -120,22 +124,27 @@ test.describe("Offline / Panel tab", () => {
     await page.waitForSelector(".onrte-map canvas");
   });
 
-  test("no offline toolbar button in the top navigation bar", async ({
-    page,
-  }) => {
+  test("no offline corner chip is present", async ({ page }) => {
     await expect(page.locator("#offline-button")).toHaveCount(0);
     await expect(page.locator("[data-custom-button=offline]")).toHaveCount(0);
   });
 
   test("Offline Maps tab appears in the side panel nav", async ({ page }) => {
-    // On desktop the panel opens automatically. Dismiss the first-load
-    // welcome modal if it appears (seeded view storage usually prevents it).
+    // Dismiss the first-load welcome modal if it appears (seeded view storage
+    // usually prevents it).
     const modal = page.locator("#about-modal");
     if (await modal.isVisible().catch(() => false)) {
       await page.locator("#about-modal-close").click();
       await modal.waitFor({ state: "hidden" });
     }
     await expect(page.locator(".onrte-panel")).toHaveClass(/show/);
+
+    // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
+    if (!(await page.locator(".panel-nav").isVisible())) {
+      await page.locator("#menu-button").click();
+      await page.locator(".panel-nav").waitFor();
+    }
+
     await expect(
       page.locator(".panel-nav").getByRole("button", { name: /offline maps/i }),
     ).toBeVisible();

@@ -2,7 +2,6 @@
   "nav.menu": "Menu",
 
   "menu.info": "Info",
-  "menu.settings": "Settings",
   "menu.account": "Account",
   "menu.maps": "Maps",
   "menu.collections": "Collections",
@@ -39,13 +38,6 @@
   "panel.privacy.locationBody": "If you use the Locate feature, your device's GPS coordinates are used only to show your position on the map. Location data is never transmitted to any server.",
   "panel.privacy.noTracking": "No tracking",
   "panel.privacy.noTrackingBody": "This app contains no analytics, no advertising, no cookies, and no tracking scripts of any kind.",
-
-  "panel.settings.title": "Settings",
-  "panel.settings.units": "Units",
-  "panel.settings.metric": "Metric (km, m/s)",
-  "panel.settings.imperial": "Imperial (mi, mph)",
-  "panel.settings.language": "Language",
-  "panel.settings.fromDevice": "From your device",
 
   "panel.account.title": "Account",
   "panel.account.description": "Sign in with a magic link to connect this app to your On Route account APIs.",

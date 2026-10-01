@@ -196,7 +196,7 @@ describe("useLocale", () => {
 
       const { useLocale: useFr } = await loadLocale(["fr-FR"]);
       const { result: frResult } = createLocaleInstance(useFr);
-      expect(frResult.t("panel.settings.units")).toBe("Unités");
+      expect(frResult.t("panel.privacy.title")).toBe("Votre vie privée");
     });
   });
 

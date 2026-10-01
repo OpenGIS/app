@@ -34,7 +34,7 @@
 // without touching individual components.
 
 $app-green: #39d353; // GPS marker green  — primary accent
-$app-black: #111111; // near-black        — always-dark top bar
+$app-black: #111111; // near-black        — reserved, currently unused
 $app-white: #ffffff; // clean white       — light-mode panel base
 $app-ink: #1a1f1a; // near-black green  — body text in light mode
 
@@ -296,7 +296,7 @@ $font-size-base: 0.9375rem; // 15 px
 }
 
 .panel-nav .icon-btn {
-  flex: 1 0 calc(100% / 4);
+  flex: 1 0 calc(100% / 3);
 }
 
 // Icon buttons (panel nav tabs + corner control chips)
@@ -457,6 +457,21 @@ $font-size-base: 0.9375rem; // 15 px
 // Keep the MapLibre scale control clear of the bottom-left attribution chip.
 .maplibregl-ctrl-bottom-left {
   bottom: 3.25rem !important;
+}
+
+// On narrow screens the expanded pill wraps to two lines, so the scale needs
+// extra clearance above it. (The collapsed-state rule below still wins.)
+@media (max-width: 767.98px) {
+  .maplibregl-ctrl-bottom-left {
+    bottom: 4.5rem !important;
+  }
+}
+
+// Once the chip collapses to the ⓘ icon, the scale moves inline to its right
+// (same row, vertically centred with the chip). Tune these two values only.
+.onrte-root[data-attrib-collapsed="true"] .maplibregl-ctrl-bottom-left {
+  bottom: 0.6rem !important;
+  left: 3.5rem !important;
 }
 
 // Dark theme: MapLibre's scale control ships as a bright white box, which is

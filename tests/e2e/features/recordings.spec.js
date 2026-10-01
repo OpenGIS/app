@@ -7,6 +7,12 @@ import { test, expect } from "@playwright/test";
  * (start, pause, resume, save, discard), saved list management, and GPX export.
  */
 
+// Reload and chip-click interactions settle slowly under SwiftShader/load —
+// stability checks can take tens of seconds. The default 30 s test budget
+// intermittently fails these tests on slower machines — raise the file budget;
+// assertions are unchanged.
+test.setTimeout(120000);
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Seed localStorage with permission granted and a known map view. */
@@ -61,7 +67,7 @@ test.describe("Recordings / Button", () => {
         await page.waitForLoadState("networkidle");
     });
 
-    test("record button is visible in the top navigation bar", async ({
+    test("record chip is visible in the map corner controls", async ({
         page,
     }) => {
         await expect(page.locator("#recordings-button")).toBeVisible();
@@ -313,8 +319,15 @@ test.describe("Recordings / Saved list management", () => {
         await withOneSavedRecording(page);
         await page.goto("/");
         await page.waitForLoadState("networkidle");
-        // On desktop the panel opens automatically — just switch to Recordings tab
-        await page.getByRole("button", { name: "Recordings" }).click();
+        // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
+        if (!(await page.locator(".panel-nav").isVisible())) {
+            await page.locator("#menu-button").click();
+            await page.locator(".panel-nav").waitFor();
+        }
+        await page
+            .locator(".panel-nav")
+            .getByRole("button", { name: "Recordings" })
+            .click();
         await expect(page.locator(".onrte-panel")).toHaveClass(/show/);
     });
 
@@ -382,8 +395,15 @@ test.describe("Recordings / GPX export", () => {
         await withOneSavedRecording(page);
         await page.goto("/");
         await page.waitForLoadState("networkidle");
-        // On desktop the panel opens automatically — just switch to Recordings tab
-        await page.getByRole("button", { name: "Recordings" }).click();
+        // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
+        if (!(await page.locator(".panel-nav").isVisible())) {
+            await page.locator("#menu-button").click();
+            await page.locator(".panel-nav").waitFor();
+        }
+        await page
+            .locator(".panel-nav")
+            .getByRole("button", { name: "Recordings" })
+            .click();
 
         const [download] = await Promise.all([
             page.waitForEvent("download"),

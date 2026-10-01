@@ -13,9 +13,9 @@ function createState(instanceId) {
         width: ref(window.innerWidth),
         isFirstLoad: ref(firstLoad),
         showAboutModal: ref(firstLoad),
-        isPanelVisible: ref(false),
+        visiblePane: ref(null),
         isPanelExpanded: ref(false),
-        activePanel: ref("info"),
+        activePanel: ref("record"),
     };
 }
 
@@ -50,23 +50,42 @@ export const useUI = () => {
     const isTablet = computed(() => s.width.value >= 768 && s.width.value < 992);
     const isMobile = computed(() => s.width.value < 768);
 
+    // The side column hosts one of two independent panes: the menu (tabbed)
+    // or the info pane, which renders directly without a tab strip.
+    const isPanelVisible = computed(() => s.visiblePane.value !== null);
+    const isMenuVisible = computed(() => s.visiblePane.value === "menu");
+    const isInfoVisible = computed(() => s.visiblePane.value === "info");
+
     // --- Actions ---
 
     const openPanel = () => {
-        s.isPanelVisible.value = true;
+        s.visiblePane.value = "menu";
         s.isPanelExpanded.value = true;
     };
 
     const togglePanel = () => {
-        if (s.isPanelVisible.value) {
-            s.isPanelVisible.value = false;
+        if (s.visiblePane.value === "menu") {
+            s.visiblePane.value = null;
         } else {
             openPanel();
         }
     };
 
     const closePanel = () => {
-        s.isPanelVisible.value = false;
+        s.visiblePane.value = null;
+    };
+
+    const openInfo = () => {
+        s.visiblePane.value = "info";
+        s.isPanelExpanded.value = true;
+    };
+
+    const toggleInfo = () => {
+        if (s.visiblePane.value === "info") {
+            s.visiblePane.value = null;
+        } else {
+            openInfo();
+        }
     };
 
     const togglePanelExpanded = () => {
@@ -100,7 +119,7 @@ export const useUI = () => {
     return {
         // State
         width: s.width,
-        isPanelVisible: s.isPanelVisible,
+        visiblePane: s.visiblePane,
         isPanelExpanded: s.isPanelExpanded,
         activePanel: s.activePanel,
         isFirstLoad: s.isFirstLoad,
@@ -110,11 +129,16 @@ export const useUI = () => {
         isDesktop,
         isTablet,
         isMobile,
+        isPanelVisible,
+        isMenuVisible,
+        isInfoVisible,
 
         // Actions
         openPanel,
         togglePanel,
         closePanel,
+        openInfo,
+        toggleInfo,
         togglePanelExpanded,
         setPanelExpanded,
         setActivePanel,

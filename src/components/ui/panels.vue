@@ -5,19 +5,23 @@ import { useLocale } from "@/composables/useLocale";
 import { getMapInstance } from "@/composables/useMap";
 import IconButton from "@/components/ui/icon-button.vue";
 import InfoPanel from "@/components/panels/info.vue";
-import SettingsPanel from "@/components/panels/settings.vue";
 
 const instanceId = inject("onrteAppId", "app");
 const buttonsRef = inject("navigatorButtons", shallowRef([]));
 const panelsRef = inject("navigatorPanels", shallowRef([]));
 
-const { isPanelVisible, activePanel, setActivePanel, closePanel, isDesktop } = useUI();
+const {
+  isPanelVisible,
+  isInfoVisible,
+  activePanel,
+  setActivePanel,
+  closePanel,
+  isDesktop,
+} = useUI();
 const { t } = useLocale();
 
-const builtInTabs = [
-  { id: "info",     icon: "info-circle", labelKey: "menu.info",     btnId: "info-button" },
-  { id: "settings", icon: "gear",        labelKey: "menu.settings", btnId: "settings-button" },
-];
+// Built-in tabs are empty — the menu is feature-only. Kept as an extension point.
+const builtInTabs = [];
 
 // Custom buttons that have a panel definition become additional tabs
 const buttonTabs = computed(() =>
@@ -47,28 +51,33 @@ const tabs = computed(() => [
   ...panelTabs.value,
 ]);
 
-const panelComponents = {
-  info:     InfoPanel,
-  settings: SettingsPanel,
-};
+// Defensive fallback: if the active tab no longer exists (stale session, feature
+// not installed), show the first available tab so the pane never renders empty.
+const effectivePanel = computed(() => {
+  const ids = tabs.value.map((tab) => tab.id);
+  if (ids.includes(activePanel.value)) return activePanel.value;
+  return ids[0] ?? null;
+});
 
-const isCustomPanel = computed(() => !(activePanel.value in panelComponents));
-const activeComponent = computed(() => panelComponents[activePanel.value] ?? null);
+const panelComponents = {};
+
+const isCustomPanel = computed(() => !(effectivePanel.value in panelComponents));
+const activeComponent = computed(() => panelComponents[effectivePanel.value] ?? null);
 
 // Resolve a Vue component from custom button/panel configs
 const activeCustomComponent = computed(() => {
   if (!isCustomPanel.value) return null;
-  const btn = buttonsRef.value.find((b) => b.id === activePanel.value);
+  const btn = buttonsRef.value.find((b) => b.id === effectivePanel.value);
   if (btn?.panel?.component) return btn.panel.component;
-  const panel = panelsRef.value.find((p) => p.id === activePanel.value);
+  const panel = panelsRef.value.find((p) => p.id === effectivePanel.value);
   if (panel?.component) return panel.component;
   return null;
 });
 
 const activeCustomProps = computed(() => {
-  const btn = buttonsRef.value.find((b) => b.id === activePanel.value);
+  const btn = buttonsRef.value.find((b) => b.id === effectivePanel.value);
   if (btn?.panel?.component) return btn.panel.props || {};
-  const panel = panelsRef.value.find((p) => p.id === activePanel.value);
+  const panel = panelsRef.value.find((p) => p.id === effectivePanel.value);
   if (panel?.component) return panel.props || {};
   return {};
 });
@@ -78,7 +87,7 @@ const customPanelContainer = ref(null);
 
 // When the active panel switches to a custom one with a render function, call it
 watch(
-  [activePanel, customPanelContainer],
+  [effectivePanel, customPanelContainer],
   async () => {
     if (!isCustomPanel.value || !customPanelContainer.value) return;
     if (activeCustomComponent.value) return;
@@ -87,13 +96,13 @@ watch(
     const ctx = { map, instanceId };
 
     // Check button-based panels first, then standalone panels
-    const btn = buttonsRef.value.find((b) => b.id === activePanel.value);
+    const btn = buttonsRef.value.find((b) => b.id === effectivePanel.value);
     if (btn?.panel?.render) {
       customPanelContainer.value.innerHTML = "";
       btn.panel.render(customPanelContainer.value, ctx);
       return;
     }
-    const panel = panelsRef.value.find((p) => p.id === activePanel.value);
+    const panel = panelsRef.value.find((p) => p.id === effectivePanel.value);
     if (panel?.render) {
       customPanelContainer.value.innerHTML = "";
       panel.render(customPanelContainer.value, ctx);
@@ -113,8 +122,11 @@ watch(
     data-bs-backdrop="false"
   >
     <div class="offcanvas-body p-0 d-flex flex-column">
-      <!-- Panel Nav -->
-      <div class="panel-nav border-bottom bg-body">
+      <!-- Menu Pane: tab strip. Rendered whenever the Info pane is not active so
+           the tabbed feature panels stay mounted while the pane is closed
+           (offcanvas `show` class handles visibility). Switching to Info still
+           unmounts them. -->
+      <div v-if="!isInfoVisible" class="panel-nav border-bottom bg-body">
         <template v-for="tab in tabs" :key="tab.id">
           <IconButton
             v-if="tab.labelKey"
@@ -123,7 +135,7 @@ watch(
             :label="t(tab.labelKey)"
             :icon-width="32"
             :icon-height="32"
-            :active="activePanel === tab.id"
+            :active="effectivePanel === tab.id"
             @click="setActivePanel(tab.id)"
           />
           <IconButton
@@ -132,17 +144,23 @@ watch(
             :label="tab.label"
             :icon-width="32"
             :icon-height="32"
-            :active="activePanel === tab.id"
+            :active="effectivePanel === tab.id"
             @click="setActivePanel(tab.id)"
           />
         </template>
       </div>
 
-      <!-- Active Panel Content -->
+      <!-- Pane Content -->
       <div class="flex-grow-1 overflow-auto">
-        <component v-if="activeComponent" :is="activeComponent" />
-        <component v-else-if="activeCustomComponent" :is="activeCustomComponent" v-bind="activeCustomProps" />
-        <div v-else ref="customPanelContainer" class="p-3" />
+        <!-- Info Pane: rendered directly, without the tab strip -->
+        <InfoPanel v-if="isInfoVisible" />
+
+        <!-- Menu Pane: active tab content -->
+        <template v-else>
+          <component v-if="activeComponent" :is="activeComponent" />
+          <component v-else-if="activeCustomComponent" :is="activeCustomComponent" v-bind="activeCustomProps" />
+          <div v-else ref="customPanelContainer" class="p-3" />
+        </template>
       </div>
     </div>
   </div>

@@ -6,7 +6,7 @@
  * #map={zoom}/{lat}/{lng} hash (as written by other map apps) parses with
  * both defaulting to 0. All five segments are always written.
  *
- * Example: #map=18/50.653900/-128.009400/45/120
+ * Example: #map=16/50.653900/-128.009400/45/120
  */
 
 /**

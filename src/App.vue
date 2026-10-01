@@ -10,6 +10,7 @@ import LocateConfirm from "@/components/modals/locate-confirm.vue";
 
 import { useMap } from "@/composables/useMap";
 import { useUI } from "@/composables/useUI";
+import { useAttribution } from "@/composables/useAttribution";
 import { useSettings } from "@/composables/useSettings";
 import { useWakeLock } from "@/composables/useWakeLock";
 
@@ -21,9 +22,13 @@ useMap(mapContainer, {});
 
 const { resolvedTheme } = useSettings();
 
+// Attribution collapse state — mirrored onto the root so theme.scss can place
+// the MapLibre scale control inline beside the collapsed chip.
+const { collapsed: attributionCollapsed } = useAttribution();
+
 // UI Store
 const {
-	openPanel,
+	openInfo,
 	togglePanelExpanded,
 	isPanelVisible,
 	isPanelExpanded,
@@ -39,7 +44,7 @@ const handleMapClick = () => {
 };
 
 if (isDesktop.value) {
-	openPanel();
+	openInfo();
 }
 
 const rootEl = ref(null);
@@ -52,6 +57,7 @@ onMounted(() => initWakeLock());
 		ref="rootEl"
 		class="onrte-root position-fixed top-0 start-0 w-100 h-100 overflow-hidden"
 		:data-bs-theme="resolvedTheme"
+		:data-attrib-collapsed="attributionCollapsed ? 'true' : 'false'"
 	>
 		<div style="display: none" v-html="iconSprite"></div>
 
