@@ -61,8 +61,12 @@ const effectivePanel = computed(() => {
 
 const panelComponents = {};
 
-const isCustomPanel = computed(() => !(effectivePanel.value in panelComponents));
-const activeComponent = computed(() => panelComponents[effectivePanel.value] ?? null);
+const isCustomPanel = computed(
+  () => !(effectivePanel.value in panelComponents),
+);
+const activeComponent = computed(
+  () => panelComponents[effectivePanel.value] ?? null,
+);
 
 // Resolve a Vue component from custom button/panel configs
 const activeCustomComponent = computed(() => {
@@ -158,7 +162,11 @@ watch(
         <!-- Menu Pane: active tab content -->
         <template v-else>
           <component v-if="activeComponent" :is="activeComponent" />
-          <component v-else-if="activeCustomComponent" :is="activeCustomComponent" v-bind="activeCustomProps" />
+          <component
+            v-else-if="activeCustomComponent"
+            :is="activeCustomComponent"
+            v-bind="activeCustomProps"
+          />
           <div v-else ref="customPanelContainer" class="p-3" />
         </template>
       </div>
@@ -172,4 +180,3 @@ watch(
     @click="closePanel()"
   ></div>
 </template>
-

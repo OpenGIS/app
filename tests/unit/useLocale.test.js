@@ -118,19 +118,25 @@ describe("useLocale", () => {
 
     it("uses the ?locale= default when supported", async () => {
       const { useLocale } = await loadLocale(["en-US"]);
-      const { result } = createLocaleInstance(useLocale, { defaultLocale: "fr" });
+      const { result } = createLocaleInstance(useLocale, {
+        defaultLocale: "fr",
+      });
       expect(result.locale.value).toBe("fr");
     });
 
     it("matches the ?locale= default by base code (fr-CA → fr)", async () => {
       const { useLocale } = await loadLocale(["en-US"]);
-      const { result } = createLocaleInstance(useLocale, { defaultLocale: "fr-CA" });
+      const { result } = createLocaleInstance(useLocale, {
+        defaultLocale: "fr-CA",
+      });
       expect(result.locale.value).toBe("fr");
     });
 
     it("falls through to the browser list when ?locale= is unsupported", async () => {
       const { useLocale } = await loadLocale(["fr"]);
-      const { result } = createLocaleInstance(useLocale, { defaultLocale: "de" });
+      const { result } = createLocaleInstance(useLocale, {
+        defaultLocale: "de",
+      });
       expect(result.locale.value).toBe("fr");
     });
 
@@ -162,11 +168,15 @@ describe("useLocale", () => {
 
   describe("matchLocale", () => {
     it("matches a script-region tag against a script-level code", () => {
-      expect(matchLocale("zh-Hans-CN", ["en", "fr", "zh-Hans"])).toBe("zh-Hans");
+      expect(matchLocale("zh-Hans-CN", ["en", "fr", "zh-Hans"])).toBe(
+        "zh-Hans",
+      );
     });
 
     it("matches case-insensitively and returns the registered casing", () => {
-      expect(matchLocale("zh-hans-cn", ["en", "fr", "zh-Hans"])).toBe("zh-Hans");
+      expect(matchLocale("zh-hans-cn", ["en", "fr", "zh-Hans"])).toBe(
+        "zh-Hans",
+      );
     });
 
     it("matches a regional tag against its base code (fr-CA → fr)", () => {
@@ -183,7 +193,9 @@ describe("useLocale", () => {
     });
 
     it("prefers the longest matching prefix", () => {
-      expect(matchLocale("zh-Hans-CN", ["en", "zh", "zh-Hans"])).toBe("zh-Hans");
+      expect(matchLocale("zh-Hans-CN", ["en", "zh", "zh-Hans"])).toBe(
+        "zh-Hans",
+      );
     });
   });
 

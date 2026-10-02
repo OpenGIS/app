@@ -7,11 +7,12 @@
 
 /** Default map constructor options. */
 export const mapDefaults = {
-    // style: "https://tiles.openfreemap.org/styles/bright",
-    style: "https://raw.githubusercontent.com/OpenGIS/outdoors/refs/heads/master/style.json",
-    attributionControl: false,
-    center: [0, 0],
-    zoom: 1,
+  // style: "https://tiles.openfreemap.org/styles/bright",
+  style:
+    "https://raw.githubusercontent.com/OpenGIS/outdoors/refs/heads/master/style.json",
+  attributionControl: false,
+  center: [0, 0],
+  zoom: 1,
 };
 
 /**

@@ -4,12 +4,18 @@
   "type": "module",
   "description": "On Route — Get where you are going.",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OpenGIS/onrte-app.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -22,9 +28,17 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.6",
+    "@semantic-release/npm": "^12.0.2",
+    "@semantic-release/release-notes-generator": "^14.1.1",
     "@vitejs/plugin-vue": "^6.0.5",
     "happy-dom": "^20.8.9",
+    "prettier": "^3.9.9",
     "sass": "^1.98.0",
+    "semantic-release": "^24.2.9",
     "vite": "^8.0.0",
     "vitest": "^4.1.2"
   }

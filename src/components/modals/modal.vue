@@ -31,5 +31,3 @@ defineExpose({ close });
     </template>
   </Teleport>
 </template>
-
-

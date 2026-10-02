@@ -1,0 +1,10 @@
+# Generated / tooling-owned
+node_modules/
+dist/
+playwright-report/
+test-results/
+package-lock.json
+CHANGELOG.md
+
+# Local agent scratch space
+.opencode/

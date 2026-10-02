@@ -25,7 +25,10 @@ async function loadSystemTheme(initialMatches) {
     removeEventListener: () => {},
   };
 
-  vi.stubGlobal("matchMedia", vi.fn(() => mql));
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => mql),
+  );
 
   const { useSettings } = await import("@/composables/useSettings");
   const { emitter } = await import("@/emitter.js");

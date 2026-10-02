@@ -28,23 +28,23 @@ const { collapsed: attributionCollapsed } = useAttribution();
 
 // UI Store
 const {
-	openInfo,
-	togglePanelExpanded,
-	isPanelVisible,
-	isPanelExpanded,
-	isDesktop,
-	isMobile,
+  openInfo,
+  togglePanelExpanded,
+  isPanelVisible,
+  isPanelExpanded,
+  isDesktop,
+  isMobile,
 } = useUI();
 
 const handleMapClick = () => {
-	// If Mobile Panel is visible and expanded, collapse it (minimize it)
-	if (isMobile.value && isPanelVisible.value && isPanelExpanded.value) {
-		togglePanelExpanded();
-	}
+  // If Mobile Panel is visible and expanded, collapse it (minimize it)
+  if (isMobile.value && isPanelVisible.value && isPanelExpanded.value) {
+    togglePanelExpanded();
+  }
 };
 
 if (isDesktop.value) {
-	openInfo();
+  openInfo();
 }
 
 const rootEl = ref(null);
@@ -53,32 +53,32 @@ onMounted(() => initWakeLock());
 </script>
 
 <template>
-	<div
-		ref="rootEl"
-		class="onrte-root position-fixed top-0 start-0 w-100 h-100 overflow-hidden"
-		:data-bs-theme="resolvedTheme"
-		:data-attrib-collapsed="attributionCollapsed ? 'true' : 'false'"
-	>
-		<div style="display: none" v-html="iconSprite"></div>
+  <div
+    ref="rootEl"
+    class="onrte-root position-fixed top-0 start-0 w-100 h-100 overflow-hidden"
+    :data-bs-theme="resolvedTheme"
+    :data-attrib-collapsed="attributionCollapsed ? 'true' : 'false'"
+  >
+    <div style="display: none" v-html="iconSprite"></div>
 
-		<div class="onrte-content">
-			<Panels />
-		</div>
+    <div class="onrte-content">
+      <Panels />
+    </div>
 
-		<!-- Map -->
-		<div
-			ref="mapContainer"
-			class="onrte-map"
-			:data-onrte-id="instanceId"
-			:class="{ 'panel-open': isPanelVisible && isDesktop }"
-			@click="handleMapClick"
-		/>
+    <!-- Map -->
+    <div
+      ref="mapContainer"
+      class="onrte-map"
+      :data-onrte-id="instanceId"
+      :class="{ 'panel-open': isPanelVisible && isDesktop }"
+      @click="handleMapClick"
+    />
 
-		<!-- Corner controls overlay -->
-		<Controls />
+    <!-- Corner controls overlay -->
+    <Controls />
 
-		<!-- Global modals -->
-		<About />
-		<LocateConfirm />
-	</div>
+    <!-- Global modals -->
+    <About />
+    <LocateConfirm />
+  </div>
 </template>

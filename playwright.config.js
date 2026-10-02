@@ -1,5 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Rendering mode is env-gated. CI must keep the deterministic SwiftShader
+// software renderer used on GitHub runners, while local runs prefer the full
+// Chromium build with real GPU acceleration — on macOS via ANGLE/Metal, which
+// cuts post-network render settle from ~3 s to ~0.5 s (≈6×).
+const useSwiftShader = !!process.env.CI || process.env.E2E_SWIFTSHADER === "1";
+
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
@@ -11,7 +17,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
+  /* CI runs a single worker: SwiftShader is contention-sensitive, and 2 workers
+     produced screenshot stalls without speeding the long shard. Local runs keep
+     Playwright's default. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [["html", { open: "never" }]],
@@ -39,8 +47,31 @@ export default defineConfig({
         // Force full animations: with prefers-reduced-motion MapLibre degrades
         // flyTo/easeTo to an instant jumpTo, which changes the #map hash timing.
         reducedMotion: "no-preference",
+        // GPU mode uses the full Chromium build via Playwright's `chromium`
+        // channel; SwiftShader mode leaves the channel unset (bundled build),
+        // exactly as CI has always run.
+        ...(useSwiftShader ? {} : { channel: "chromium" }),
         launchOptions: {
-          args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+          // Two rendering modes:
+          //  - SwiftShader (CI, or E2E_SWIFTSHADER=1): the original, fully
+          //    deterministic software renderer.
+          //  - GPU (local default): real GPU acceleration; on macOS this adds
+          //    ANGLE's Metal backend. Other platforms use the default backend.
+          //
+          // `--deny-permission-prompts` is added in BOTH modes. In headed mode
+          // an unspecified permission (e.g. geolocation) would otherwise raise
+          // an interactive prompt that never resolves, hanging tests. Denying
+          // it up front makes headed behave like headless (denied). Specs that
+          // need a position call context.grantPermissions()/setGeolocation();
+          // the CDP grant overrides this switch.
+          args: [
+            ...(useSwiftShader
+              ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
+              : process.platform === "darwin"
+                ? ["--use-angle=metal"]
+                : []),
+            "--deny-permission-prompts",
+          ],
         },
       },
     },
@@ -59,6 +90,9 @@ export default defineConfig({
   webServer: {
     command: "npm run dev -- --port 5184",
     url: "http://localhost:5184",
+    // Opt the E2E dev server into the app-shell service worker (closest to
+    // production). Spread process.env so PATH and friends are preserved.
+    env: { ...process.env, VITE_SW: "1" },
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },

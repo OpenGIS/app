@@ -15,10 +15,10 @@
 const isDev = import.meta.env.DEV;
 
 export const createDebug = (namespace) => {
-    const prefix = `[onrte:${namespace}]`;
-    return {
-        log:   isDev ? (...args) => console.log(prefix, ...args)   : () => {},
-        warn:  isDev ? (...args) => console.warn(prefix, ...args)  : () => {},
-        error: isDev ? (...args) => console.error(prefix, ...args) : () => {},
-    };
+  const prefix = `[onrte:${namespace}]`;
+  return {
+    log: isDev ? (...args) => console.log(prefix, ...args) : () => {},
+    warn: isDev ? (...args) => console.warn(prefix, ...args) : () => {},
+    error: isDev ? (...args) => console.error(prefix, ...args) : () => {},
+  };
 };

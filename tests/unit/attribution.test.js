@@ -10,7 +10,7 @@ describe("buildAttribution", () => {
       },
     };
 
-    expect(buildAttribution(style)).toBe("© A | © B contributors");
+    expect(buildAttribution(style)).toBe("© A © B contributors");
   });
 
   it("dedupes identical attributions", () => {
@@ -46,7 +46,7 @@ describe("buildAttribution", () => {
     };
 
     expect(buildAttribution(style)).toBe(
-      "© OpenFreeMap | © OpenStreetMap contributors",
+      "© OpenFreeMap © OpenStreetMap contributors",
     );
   });
 
@@ -58,7 +58,7 @@ describe("buildAttribution", () => {
       },
     };
 
-    expect(buildAttribution(style)).toBe("© A | © Long attribution");
+    expect(buildAttribution(style)).toBe("© A © Long attribution");
   });
 
   it("ignores sources without an attribution", () => {

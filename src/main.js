@@ -9,6 +9,7 @@ import { getMapInstance } from "./composables/useMap.js";
 import { useStorage as _useStorage } from "./composables/useStorage.js";
 import { useSettings as _useSettings } from "./composables/useSettings.js";
 import { useLocale as _useLocale } from "./composables/useLocale.js";
+import { setupServiceWorker } from "./utils/serviceWorker.js";
 
 import { RecordingsFeature } from "./features/recordings/index.js";
 import { OfflineFeature } from "./features/offline/index.js";
@@ -119,10 +120,7 @@ RoutesFeature.install(featureCtx);
 app.mount("#app");
 
 // --- Service worker ---
-// App shell service worker for offline support. Registered in every
-// environment (dev included) so the offline shell can be exercised.
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js").catch((error) => {
-    console.error("Service worker registration failed:", error);
-  });
-}
+// Registers the app-shell worker in production (or when opted in with
+// VITE_SW=1). In dev any legacy registration is unregistered and all origin
+// caches are purged so poisoned profiles self-heal. See src/utils/serviceWorker.js.
+setupServiceWorker();

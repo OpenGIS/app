@@ -1,18 +1,18 @@
 // offline/index.js — Offline download feature for On Route App.
 // Provides a side panel for downloading a map region (tiles + glyphs) so it
 // works offline via the service worker map cache.
-import OfflinePanel from './OfflinePanel.vue';
-import { useGeoJSON } from '@/composables/useGeoJSON.js';
+import OfflinePanel from "./OfflinePanel.vue";
+import { useGeoJSON } from "@/composables/useGeoJSON.js";
 import {
   estimateRegion,
   downloadRegion,
   regionUrlsForRegion,
-} from './download.js';
+} from "./download.js";
 
 export const OfflineFeature = {
   install({ useStorage, getMap, provide, addPanel, onMapReady, instanceId }) {
     // Downloaded region metadata, persisted to localStorage.
-    const regions = useStorage('offline-regions', []);
+    const regions = useStorage("offline-regions", []);
 
     // GeoJSON renderer, used to draw a downloaded region's bounds on the map.
     const geoJSON = useGeoJSON(instanceId);
@@ -63,7 +63,9 @@ export const OfflineFeature = {
           resolve(event.data?.deleted ?? 0);
         };
         try {
-          controller.postMessage({ type: 'DELETE_URLS', urls }, [channel.port2]);
+          controller.postMessage({ type: "DELETE_URLS", urls }, [
+            channel.port2,
+          ]);
         } catch (err) {
           clearTimeout(timeout);
           resolve(0);
@@ -108,13 +110,13 @@ export const OfflineFeature = {
         [west, south],
       ];
       geoJSON.setFeature({
-        type: 'Feature',
-        id: 'offline-region',
-        geometry: { type: 'Polygon', coordinates: [ring] },
+        type: "Feature",
+        id: "offline-region",
+        geometry: { type: "Polygon", coordinates: [ring] },
         properties: {
-          'onrte.color': '#39d353',
-          'onrte.fillOpacity': 0.25,
-          'onrte.opacity': 0.9,
+          "onrte.color": "#39d353",
+          "onrte.fillOpacity": 0.25,
+          "onrte.opacity": 0.9,
         },
       });
       const map = getMap();
@@ -165,7 +167,7 @@ export const OfflineFeature = {
       return false;
     };
 
-    provide('offline', {
+    provide("offline", {
       regions,
       estimate,
       download,
@@ -178,9 +180,9 @@ export const OfflineFeature = {
     });
 
     addPanel({
-      id: 'offline',
-      icon: 'file-arrow-down',
-      title: 'Offline Maps',
+      id: "offline",
+      icon: "file-arrow-down",
+      title: "Offline Maps",
       component: OfflinePanel,
     });
   },

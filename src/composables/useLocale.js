@@ -3,15 +3,18 @@ import { computed, inject, ref, watch } from "vue";
 // Locale message tables are auto-registered from the files in `src/locales/`.
 // Dropping a new `{code}.json` file in is all that is needed to add a language.
 const modules = import.meta.glob("../locales/*.json", {
-	eager: true,
-	import: "default",
+  eager: true,
+  import: "default",
 });
 
 const LOCALES = Object.fromEntries(
-	Object.entries(modules).map(([path, messages]) => [
-		path.split("/").pop().replace(/\.json$/, ""),
-		messages,
-	]),
+  Object.entries(modules).map(([path, messages]) => [
+    path
+      .split("/")
+      .pop()
+      .replace(/\.json$/, ""),
+    messages,
+  ]),
 );
 
 /**
@@ -19,11 +22,11 @@ const LOCALES = Object.fromEntries(
  * Falls back to `[navigator.language]`, then English, outside a browser.
  */
 function readNavigatorLanguages() {
-	if (typeof navigator === "undefined") return ["en"];
-	if (Array.isArray(navigator.languages) && navigator.languages.length) {
-		return [...navigator.languages];
-	}
-	return navigator.language ? [navigator.language] : ["en"];
+  if (typeof navigator === "undefined") return ["en"];
+  if (Array.isArray(navigator.languages) && navigator.languages.length) {
+    return [...navigator.languages];
+  }
+  return navigator.language ? [navigator.language] : ["en"];
 }
 
 /**
@@ -34,9 +37,9 @@ function readNavigatorLanguages() {
 export const navigatorLanguages = ref(readNavigatorLanguages());
 
 if (typeof window !== "undefined") {
-	window.addEventListener("languagechange", () => {
-		navigatorLanguages.value = readNavigatorLanguages();
-	});
+  window.addEventListener("languagechange", () => {
+    navigatorLanguages.value = readNavigatorLanguages();
+  });
 }
 
 /**
@@ -57,9 +60,12 @@ const cache = new Map();
  * Called by main.js before features are installed.
  */
 export function initLocaleCache(instanceId, locale, messages) {
-	if (!cache.has(instanceId)) {
-		cache.set(instanceId, { defaultLocale: locale, customMessages: messages ?? {} });
-	}
+  if (!cache.has(instanceId)) {
+    cache.set(instanceId, {
+      defaultLocale: locale,
+      customMessages: messages ?? {},
+    });
+  }
 }
 
 const LOCALE_CODES = Object.keys(LOCALES);
@@ -72,14 +78,14 @@ const LOCALE_CODES = Object.keys(LOCALES);
  * "zh-Hans") or null when nothing matches. Exported for unit testing.
  */
 export function matchLocale(tag, codes) {
-	if (!tag || !Array.isArray(codes) || !codes.length) return null;
-	const parts = String(tag).toLowerCase().split("-");
-	for (let length = parts.length; length > 0; length--) {
-		const prefix = parts.slice(0, length).join("-");
-		const found = codes.find((code) => code.toLowerCase() === prefix);
-		if (found) return found;
-	}
-	return null;
+  if (!tag || !Array.isArray(codes) || !codes.length) return null;
+  const parts = String(tag).toLowerCase().split("-");
+  for (let length = parts.length; length > 0; length--) {
+    const prefix = parts.slice(0, length).join("-");
+    const found = codes.find((code) => code.toLowerCase() === prefix);
+    if (found) return found;
+  }
+  return null;
 }
 
 /**
@@ -87,66 +93,66 @@ export function matchLocale(tag, codes) {
  *   Pass explicitly when calling from outside Vue setup context (e.g. a feature install()).
  */
 export const useLocale = (instanceId) => {
-	const id = instanceId ?? inject("onrteAppId", "app");
+  const id = instanceId ?? inject("onrteAppId", "app");
 
-	if (!cache.has(id)) {
-		const defaultLocale = inject("navigatorLocale", null);
-		const customMessages = inject("navigatorMessages", {});
-		cache.set(id, { defaultLocale, customMessages });
-	}
+  if (!cache.has(id)) {
+    const defaultLocale = inject("navigatorLocale", null);
+    const customMessages = inject("navigatorMessages", {});
+    cache.set(id, { defaultLocale, customMessages });
+  }
 
-	const { defaultLocale, customMessages } = cache.get(id);
+  const { defaultLocale, customMessages } = cache.get(id);
 
-	const locale = computed(() => {
-		// 1. ?locale= URL param — exact match, then shorter prefixes
-		const fromParam = matchLocale(defaultLocale, LOCALE_CODES);
-		if (fromParam) return fromParam;
+  const locale = computed(() => {
+    // 1. ?locale= URL param — exact match, then shorter prefixes
+    const fromParam = matchLocale(defaultLocale, LOCALE_CODES);
+    if (fromParam) return fromParam;
 
-		// 2. Walk the browser's preferred languages in order.
-		for (const code of navigatorLanguages.value) {
-			const match = matchLocale(code, LOCALE_CODES);
-			if (match) return match;
-		}
+    // 2. Walk the browser's preferred languages in order.
+    for (const code of navigatorLanguages.value) {
+      const match = matchLocale(code, LOCALE_CODES);
+      if (match) return match;
+    }
 
-		// 3. English fallback
-		return "en";
-	});
+    // 3. English fallback
+    return "en";
+  });
 
-	// Keep <html lang> in sync with the active locale.
-	watch(
-		locale,
-		(value) => {
-			if (typeof document !== "undefined" && document.documentElement) {
-				document.documentElement.lang = value;
-			}
-		},
-		{ immediate: true },
-	);
+  // Keep <html lang> in sync with the active locale.
+  watch(
+    locale,
+    (value) => {
+      if (typeof document !== "undefined" && document.documentElement) {
+        document.documentElement.lang = value;
+      }
+    },
+    { immediate: true },
+  );
 
-	/**
-	 * Translate a key. Resolution order:
-	 *   custom messages for active locale → active locale → English → key itself
-	 */
-	const t = (key) => {
-		const lang = locale.value;
-		const custom = customMessages[lang] ?? {};
-		const msgs = LOCALES[lang] ?? LOCALES.en;
-		return custom[key] ?? msgs[key] ?? LOCALES.en[key] ?? key;
-	};
+  /**
+   * Translate a key. Resolution order:
+   *   custom messages for active locale → active locale → English → key itself
+   */
+  const t = (key) => {
+    const lang = locale.value;
+    const custom = customMessages[lang] ?? {};
+    const msgs = LOCALES[lang] ?? LOCALES.en;
+    return custom[key] ?? msgs[key] ?? LOCALES.en[key] ?? key;
+  };
 
-	/**
-	 * The locale code formatted as an OSM `name:xx` tag suffix.
-	 * For most locales this equals `locale.value` directly.
-	 * Use this value when building MapLibre coalesce expressions for
-	 * multilingual map labels (see docs/6.locale.md — OSM Multilingual Names).
-	 */
-	const mapLanguageTag = computed(
-		() => MAP_LANGUAGE_TAG_OVERRIDES[locale.value] ?? locale.value,
-	);
+  /**
+   * The locale code formatted as an OSM `name:xx` tag suffix.
+   * For most locales this equals `locale.value` directly.
+   * Use this value when building MapLibre coalesce expressions for
+   * multilingual map labels (see docs/6.locale.md — OSM Multilingual Names).
+   */
+  const mapLanguageTag = computed(
+    () => MAP_LANGUAGE_TAG_OVERRIDES[locale.value] ?? locale.value,
+  );
 
-	return {
-		locale,
-		mapLanguageTag,
-		t,
-	};
+  return {
+    locale,
+    mapLanguageTag,
+    t,
+  };
 };

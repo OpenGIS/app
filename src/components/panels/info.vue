@@ -115,7 +115,9 @@ const copyLink = async () => {
     </div>
 
     <!-- About -->
-    <div class="sidebar-section sidebar-section-body p-3 border-top onrte-about-section">
+    <div
+      class="sidebar-section sidebar-section-body p-3 border-top onrte-about-section"
+    >
       <h5 class="mb-2">{{ t("panel.about.title") }}</h5>
       <p class="mb-2 small text-body-secondary">
         {{ t("panel.about.summary") }}
@@ -149,7 +151,9 @@ const copyLink = async () => {
 
           <div class="d-flex flex-column gap-3">
             <div class="d-flex align-items-center">
-              <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill me-2">
+              <span
+                class="badge bg-danger bg-opacity-10 text-danger rounded-pill me-2"
+              >
                 {{ t("panel.about.mapData") }}
               </span>
               <a
@@ -163,7 +167,9 @@ const copyLink = async () => {
             </div>
 
             <div class="d-flex align-items-center">
-              <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill me-2">
+              <span
+                class="badge bg-primary bg-opacity-10 text-primary rounded-pill me-2"
+              >
                 {{ t("panel.about.tileHosting") }}
               </span>
               <a
@@ -177,7 +183,9 @@ const copyLink = async () => {
             </div>
 
             <div class="d-flex align-items-center">
-              <span class="badge bg-warning bg-opacity-10 text-warning rounded-pill me-2">
+              <span
+                class="badge bg-warning bg-opacity-10 text-warning rounded-pill me-2"
+              >
                 {{ t("panel.about.rendering") }}
               </span>
               <a
@@ -191,7 +199,9 @@ const copyLink = async () => {
             </div>
 
             <div class="d-flex align-items-center">
-              <span class="badge bg-info bg-opacity-10 text-info rounded-pill me-2">
+              <span
+                class="badge bg-info bg-opacity-10 text-info rounded-pill me-2"
+              >
                 {{ t("panel.about.tileSchema") }}
               </span>
               <a
@@ -213,7 +223,9 @@ const copyLink = async () => {
             </div>
 
             <div class="d-flex align-items-center">
-              <span class="badge bg-success bg-opacity-10 text-success rounded-pill me-2">
+              <span
+                class="badge bg-success bg-opacity-10 text-success rounded-pill me-2"
+              >
                 {{ t("panel.about.userInterface") }}
               </span>
               <span class="ms-auto small">
@@ -240,7 +252,9 @@ const copyLink = async () => {
     </div>
 
     <!-- Privacy -->
-    <div class="sidebar-section sidebar-section-body p-3 border-top onrte-privacy-section">
+    <div
+      class="sidebar-section sidebar-section-body p-3 border-top onrte-privacy-section"
+    >
       <h5 class="mb-2">{{ t("panel.privacy.title") }}</h5>
       <p class="mb-2 small text-body-secondary">
         {{ t("panel.privacy.summary") }}
@@ -277,7 +291,9 @@ const copyLink = async () => {
     </div>
 
     <!-- Attribution -->
-    <div class="sidebar-section sidebar-section-body p-3 border-top onrte-attribution-section">
+    <div
+      class="sidebar-section sidebar-section-body p-3 border-top onrte-attribution-section"
+    >
       <h5 class="mb-2">{{ t("panel.info.attribution") }}</h5>
       <p class="mb-0 small onrte-attribution-text" v-html="attributionHtml"></p>
     </div>

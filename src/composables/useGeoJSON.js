@@ -4,24 +4,24 @@ import { emitter } from "@/emitter.js";
 
 // Bright, visually distinct colours for auto-assignment
 const BRIGHT_COLORS = [
-	"#e74c3c",
-	"#3498db",
-	"#2ecc71",
-	"#e67e22",
-	"#9b59b6",
-	"#1abc9c",
-	"#e91e63",
-	"#f1c40f",
-	"#00bcd4",
-	"#ff5722",
+  "#e74c3c",
+  "#3498db",
+  "#2ecc71",
+  "#e67e22",
+  "#9b59b6",
+  "#1abc9c",
+  "#e91e63",
+  "#f1c40f",
+  "#00bcd4",
+  "#ff5722",
 ];
 
 const SOURCE_ID = "onrte-geojson";
 const LAYER_IDS = {
-	polygonFill: "onrte-geojson-polygon-fill",
-	polygonOutline: "onrte-geojson-polygon-outline",
-	line: "onrte-geojson-line",
-	point: "onrte-geojson-point",
+  polygonFill: "onrte-geojson-polygon-fill",
+  polygonOutline: "onrte-geojson-polygon-outline",
+  line: "onrte-geojson-line",
+  point: "onrte-geojson-point",
 };
 
 const LINE_TYPES = new Set(["LineString", "MultiLineString"]);
@@ -29,249 +29,284 @@ const POINT_TYPES = new Set(["Point", "MultiPoint"]);
 const POLYGON_TYPES = new Set(["Polygon", "MultiPolygon"]);
 
 function getGeometryCategory(geometry) {
-	if (!geometry?.type) return null;
-	if (LINE_TYPES.has(geometry.type)) return "line";
-	if (POINT_TYPES.has(geometry.type)) return "point";
-	if (POLYGON_TYPES.has(geometry.type)) return "polygon";
-	return null;
+  if (!geometry?.type) return null;
+  if (LINE_TYPES.has(geometry.type)) return "line";
+  if (POINT_TYPES.has(geometry.type)) return "point";
+  if (POLYGON_TYPES.has(geometry.type)) return "polygon";
+  return null;
 }
 
 function randomBrightColor() {
-	return BRIGHT_COLORS[Math.floor(Math.random() * BRIGHT_COLORS.length)];
+  return BRIGHT_COLORS[Math.floor(Math.random() * BRIGHT_COLORS.length)];
 }
 
 // Module-level cache: instanceId -> manager
 const cache = new Map();
 
 function createManager(instanceId) {
-	const features = new Map(); // id -> processed feature
-	const originalFeatures = new Map(); // id -> original feature (for re-processing on setDefaults)
-	const assignedColors = new Map(); // id -> auto-assigned colour
-	let map = null;
+  const features = new Map(); // id -> processed feature
+  const originalFeatures = new Map(); // id -> original feature (for re-processing on setDefaults)
+  const assignedColors = new Map(); // id -> auto-assigned colour
+  let map = null;
 
-	const defaults = {
-		line: { color: null, width: 3, opacity: 0.85 },
-		point: { color: null, radius: 6, opacity: 1 },
-		polygon: { color: null, fillOpacity: 0.4, opacity: 0.85 },
-	};
+  const defaults = {
+    line: { color: null, width: 3, opacity: 0.85 },
+    point: { color: null, radius: 6, opacity: 1 },
+    polygon: { color: null, fillOpacity: 0.4, opacity: 0.85 },
+  };
 
-	const resolveColor = (id, props, category) => {
-		if (props["onrte.color"]) return props["onrte.color"];
-		if (defaults[category]?.color) return defaults[category].color;
-		if (!assignedColors.has(id)) assignedColors.set(id, randomBrightColor());
-		return assignedColors.get(id);
-	};
+  const resolveColor = (id, props, category) => {
+    if (props["onrte.color"]) return props["onrte.color"];
+    if (defaults[category]?.color) return defaults[category].color;
+    if (!assignedColors.has(id)) assignedColors.set(id, randomBrightColor());
+    return assignedColors.get(id);
+  };
 
-	const processFeature = (feature) => {
-		const category = getGeometryCategory(feature.geometry);
-		if (!category) return null;
+  const processFeature = (feature) => {
+    const category = getGeometryCategory(feature.geometry);
+    if (!category) return null;
 
-		const id = String(feature.id);
-		const rawProps = feature.properties || {};
-		const props = { ...rawProps };
+    const id = String(feature.id);
+    const rawProps = feature.properties || {};
+    const props = { ...rawProps };
 
-		props["onrte.color"] = resolveColor(id, rawProps, category);
+    props["onrte.color"] = resolveColor(id, rawProps, category);
 
-		if (category === "line") {
-			if (props["onrte.width"] == null) props["onrte.width"] = defaults.line.width;
-			if (props["onrte.opacity"] == null) props["onrte.opacity"] = defaults.line.opacity;
-		} else if (category === "point") {
-			if (props["onrte.radius"] == null) props["onrte.radius"] = defaults.point.radius;
-			if (props["onrte.opacity"] == null) props["onrte.opacity"] = defaults.point.opacity;
-		} else if (category === "polygon") {
-			if (props["onrte.fillOpacity"] == null) props["onrte.fillOpacity"] = defaults.polygon.fillOpacity;
-			if (props["onrte.opacity"] == null) props["onrte.opacity"] = defaults.polygon.opacity;
-		}
+    if (category === "line") {
+      if (props["onrte.width"] == null)
+        props["onrte.width"] = defaults.line.width;
+      if (props["onrte.opacity"] == null)
+        props["onrte.opacity"] = defaults.line.opacity;
+    } else if (category === "point") {
+      if (props["onrte.radius"] == null)
+        props["onrte.radius"] = defaults.point.radius;
+      if (props["onrte.opacity"] == null)
+        props["onrte.opacity"] = defaults.point.opacity;
+    } else if (category === "polygon") {
+      if (props["onrte.fillOpacity"] == null)
+        props["onrte.fillOpacity"] = defaults.polygon.fillOpacity;
+      if (props["onrte.opacity"] == null)
+        props["onrte.opacity"] = defaults.polygon.opacity;
+    }
 
-		return { ...feature, properties: props };
-	};
+    return { ...feature, properties: props };
+  };
 
-	const updateSource = () => {
-		if (!map) return;
-		const source = map.getSource(SOURCE_ID);
-		if (!source) return;
-		source.setData({
-			type: "FeatureCollection",
-			features: [...features.values()],
-		});
-	};
+  const updateSource = () => {
+    if (!map) return;
+    const source = map.getSource(SOURCE_ID);
+    if (!source) return;
+    source.setData({
+      type: "FeatureCollection",
+      features: [...features.values()],
+    });
+  };
 
-	const setup = (mapInstance) => {
-		map = mapInstance;
-		mapInstance.addSource(SOURCE_ID, {
-			type: "geojson",
-			data: { type: "FeatureCollection", features: [] },
-		});
+  const setup = (mapInstance) => {
+    map = mapInstance;
+    mapInstance.addSource(SOURCE_ID, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
 
-		// Polygon fill
-		mapInstance.addLayer({
-			id: LAYER_IDS.polygonFill,
-			type: "fill",
-			source: SOURCE_ID,
-			filter: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false],
-			paint: {
-				"fill-color": ["get", "onrte.color"],
-				"fill-opacity": ["get", "onrte.fillOpacity"],
-			},
-		});
+    // Polygon fill
+    mapInstance.addLayer({
+      id: LAYER_IDS.polygonFill,
+      type: "fill",
+      source: SOURCE_ID,
+      filter: [
+        "match",
+        ["geometry-type"],
+        ["Polygon", "MultiPolygon"],
+        true,
+        false,
+      ],
+      paint: {
+        "fill-color": ["get", "onrte.color"],
+        "fill-opacity": ["get", "onrte.fillOpacity"],
+      },
+    });
 
-		// Polygon outline
-		mapInstance.addLayer({
-			id: LAYER_IDS.polygonOutline,
-			type: "line",
-			source: SOURCE_ID,
-			filter: ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false],
-			paint: {
-				"line-color": ["get", "onrte.color"],
-				"line-opacity": ["get", "onrte.opacity"],
-				"line-width": 1.5,
-			},
-		});
+    // Polygon outline
+    mapInstance.addLayer({
+      id: LAYER_IDS.polygonOutline,
+      type: "line",
+      source: SOURCE_ID,
+      filter: [
+        "match",
+        ["geometry-type"],
+        ["Polygon", "MultiPolygon"],
+        true,
+        false,
+      ],
+      paint: {
+        "line-color": ["get", "onrte.color"],
+        "line-opacity": ["get", "onrte.opacity"],
+        "line-width": 1.5,
+      },
+    });
 
-		// Lines — round caps/joins for smooth mobile rendering
-		mapInstance.addLayer({
-			id: LAYER_IDS.line,
-			type: "line",
-			source: SOURCE_ID,
-			filter: ["match", ["geometry-type"], ["LineString", "MultiLineString"], true, false],
-			layout: {
-				"line-cap": "round",
-				"line-join": "round",
-			},
-			paint: {
-				"line-color": ["get", "onrte.color"],
-				"line-width": ["get", "onrte.width"],
-				"line-opacity": ["get", "onrte.opacity"],
-			},
-		});
+    // Lines — round caps/joins for smooth mobile rendering
+    mapInstance.addLayer({
+      id: LAYER_IDS.line,
+      type: "line",
+      source: SOURCE_ID,
+      filter: [
+        "match",
+        ["geometry-type"],
+        ["LineString", "MultiLineString"],
+        true,
+        false,
+      ],
+      layout: {
+        "line-cap": "round",
+        "line-join": "round",
+      },
+      paint: {
+        "line-color": ["get", "onrte.color"],
+        "line-width": ["get", "onrte.width"],
+        "line-opacity": ["get", "onrte.opacity"],
+      },
+    });
 
-		// Points (circles)
-		mapInstance.addLayer({
-			id: LAYER_IDS.point,
-			type: "circle",
-			source: SOURCE_ID,
-			filter: ["match", ["geometry-type"], ["Point", "MultiPoint"], true, false],
-			paint: {
-				"circle-color": ["get", "onrte.color"],
-				"circle-radius": ["get", "onrte.radius"],
-				"circle-opacity": ["get", "onrte.opacity"],
-				"circle-stroke-color": "white",
-				"circle-stroke-width": 1.5,
-			},
-		});
+    // Points (circles)
+    mapInstance.addLayer({
+      id: LAYER_IDS.point,
+      type: "circle",
+      source: SOURCE_ID,
+      filter: [
+        "match",
+        ["geometry-type"],
+        ["Point", "MultiPoint"],
+        true,
+        false,
+      ],
+      paint: {
+        "circle-color": ["get", "onrte.color"],
+        "circle-radius": ["get", "onrte.radius"],
+        "circle-opacity": ["get", "onrte.opacity"],
+        "circle-stroke-color": "white",
+        "circle-stroke-width": 1.5,
+      },
+    });
 
-		// Apply any features that were set before the map was ready
-		updateSource();
-	};
+    // Apply any features that were set before the map was ready
+    updateSource();
+  };
 
-	const cleanup = () => {
-		if (!map) return;
-		for (const layerId of Object.values(LAYER_IDS).reverse()) {
-			if (map.getLayer(layerId)) map.removeLayer(layerId);
-		}
-		if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
-		map = null;
-	};
+  const cleanup = () => {
+    if (!map) return;
+    for (const layerId of Object.values(LAYER_IDS).reverse()) {
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+    }
+    if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
+    map = null;
+  };
 
-	// Hook into map lifecycle
-	const existingMap = getMapInstance(instanceId);
+  // Hook into map lifecycle
+  const existingMap = getMapInstance(instanceId);
 
-	if (existingMap) {
-		setup(existingMap);
-	} else {
-		emitter.once("map:ready", ({ map: m }) => setup(m));
-	}
+  if (existingMap) {
+    setup(existingMap);
+  } else {
+    emitter.once("map:ready", ({ map: m }) => setup(m));
+  }
 
-	emitter.once("destroy", () => {
-		cleanup();
-		cache.delete(instanceId);
-	});
+  emitter.once("destroy", () => {
+    cleanup();
+    cache.delete(instanceId);
+  });
 
-	/**
-	 * Add or update a GeoJSON feature on the map.
-	 *
-	 * The feature must be a GeoJSON `Feature` object with an `id` property.
-	 * Style can be controlled via `onrte.*` properties on the feature:
-	 *
-	 * | Property | Applies to | Default |
-	 * |---|---|---|
-	 * | `onrte.color` | All types | auto (random bright) |
-	 * | `onrte.opacity` | All types | 0.85 (line/polygon), 1 (point) |
-	 * | `onrte.width` | Line | 3 |
-	 * | `onrte.radius` | Point | 6 |
-	 * | `onrte.fillOpacity` | Polygon | 0.4 |
-	 *
-	 * @param {import('geojson').Feature} feature
-	 */
-	const setFeature = (feature) => {
-		if (!feature || feature.type !== "Feature") {
-			console.warn("[useGeoJSON] setFeature() requires a GeoJSON Feature object");
-			return;
-		}
-		if (feature.id == null) {
-			console.warn("[useGeoJSON] Feature must have an id property");
-			return;
-		}
-		if (!getGeometryCategory(feature.geometry)) {
-			console.warn("[useGeoJSON] Feature has unsupported or missing geometry type:", feature.geometry?.type);
-			return;
-		}
+  /**
+   * Add or update a GeoJSON feature on the map.
+   *
+   * The feature must be a GeoJSON `Feature` object with an `id` property.
+   * Style can be controlled via `onrte.*` properties on the feature:
+   *
+   * | Property | Applies to | Default |
+   * |---|---|---|
+   * | `onrte.color` | All types | auto (random bright) |
+   * | `onrte.opacity` | All types | 0.85 (line/polygon), 1 (point) |
+   * | `onrte.width` | Line | 3 |
+   * | `onrte.radius` | Point | 6 |
+   * | `onrte.fillOpacity` | Polygon | 0.4 |
+   *
+   * @param {import('geojson').Feature} feature
+   */
+  const setFeature = (feature) => {
+    if (!feature || feature.type !== "Feature") {
+      console.warn(
+        "[useGeoJSON] setFeature() requires a GeoJSON Feature object",
+      );
+      return;
+    }
+    if (feature.id == null) {
+      console.warn("[useGeoJSON] Feature must have an id property");
+      return;
+    }
+    if (!getGeometryCategory(feature.geometry)) {
+      console.warn(
+        "[useGeoJSON] Feature has unsupported or missing geometry type:",
+        feature.geometry?.type,
+      );
+      return;
+    }
 
-		const id = String(feature.id);
-		const processed = processFeature(feature);
-		originalFeatures.set(id, feature);
-		features.set(id, processed);
-		updateSource();
-	};
+    const id = String(feature.id);
+    const processed = processFeature(feature);
+    originalFeatures.set(id, feature);
+    features.set(id, processed);
+    updateSource();
+  };
 
-	/**
-	 * Remove a feature from the map by its id.
-	 * @param {string|number} id
-	 */
-	const removeFeature = (id) => {
-		const key = String(id);
-		features.delete(key);
-		originalFeatures.delete(key);
-		assignedColors.delete(key);
-		updateSource();
-	};
+  /**
+   * Remove a feature from the map by its id.
+   * @param {string|number} id
+   */
+  const removeFeature = (id) => {
+    const key = String(id);
+    features.delete(key);
+    originalFeatures.delete(key);
+    assignedColors.delete(key);
+    updateSource();
+  };
 
-	/**
-	 * Remove all features from the map.
-	 */
-	const clearFeatures = () => {
-		features.clear();
-		originalFeatures.clear();
-		assignedColors.clear();
-		updateSource();
-	};
+  /**
+   * Remove all features from the map.
+   */
+  const clearFeatures = () => {
+    features.clear();
+    originalFeatures.clear();
+    assignedColors.clear();
+    updateSource();
+  };
 
-	/**
-	 * Set default style values for one or more geometry types.
-	 * Affects all future `setFeature()` calls and re-renders existing features.
-	 *
-	 * @param {{ line?: object, point?: object, polygon?: object }} newDefaults
-	 * @example
-	 * geoJSON.setDefaults({
-	 *   line: { color: '#ff0000', width: 5 },
-	 *   point: { radius: 10 },
-	 * });
-	 */
-	const setDefaults = (newDefaults) => {
-		for (const [type, vals] of Object.entries(newDefaults)) {
-			if (defaults[type]) {
-				Object.assign(defaults[type], vals);
-			}
-		}
-		// Re-process all existing features with the updated defaults
-		for (const [id, original] of originalFeatures) {
-			const processed = processFeature(original);
-			if (processed) features.set(id, processed);
-		}
-		updateSource();
-	};
+  /**
+   * Set default style values for one or more geometry types.
+   * Affects all future `setFeature()` calls and re-renders existing features.
+   *
+   * @param {{ line?: object, point?: object, polygon?: object }} newDefaults
+   * @example
+   * geoJSON.setDefaults({
+   *   line: { color: '#ff0000', width: 5 },
+   *   point: { radius: 10 },
+   * });
+   */
+  const setDefaults = (newDefaults) => {
+    for (const [type, vals] of Object.entries(newDefaults)) {
+      if (defaults[type]) {
+        Object.assign(defaults[type], vals);
+      }
+    }
+    // Re-process all existing features with the updated defaults
+    for (const [id, original] of originalFeatures) {
+      const processed = processFeature(original);
+      if (processed) features.set(id, processed);
+    }
+    updateSource();
+  };
 
-	return { setFeature, removeFeature, clearFeatures, setDefaults };
+  return { setFeature, removeFeature, clearFeatures, setDefaults };
 }
 
 /**
@@ -301,9 +336,9 @@ function createManager(instanceId) {
  * }
  */
 export const useGeoJSON = (instanceId = null) => {
-	const id = instanceId ?? inject("onrteAppId", "app");
-	if (!cache.has(id)) {
-		cache.set(id, createManager(id));
-	}
-	return cache.get(id);
+  const id = instanceId ?? inject("onrteAppId", "app");
+  if (!cache.has(id)) {
+    cache.set(id, createManager(id));
+  }
+  return cache.get(id);
 };

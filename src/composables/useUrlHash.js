@@ -20,7 +20,7 @@
  * @returns {string}
  */
 export function formatUrlHash(zoom, lat, lng, pitch = 0, bearing = 0) {
-    return `#map=${Math.round(zoom)}/${lat.toFixed(6)}/${lng.toFixed(6)}/${Math.round(pitch)}/${Math.round(bearing)}`;
+  return `#map=${Math.round(zoom)}/${lat.toFixed(6)}/${lng.toFixed(6)}/${Math.round(pitch)}/${Math.round(bearing)}`;
 }
 
 /**
@@ -30,16 +30,16 @@ export function formatUrlHash(zoom, lat, lng, pitch = 0, bearing = 0) {
  * @returns {{ zoom: number, center: [number, number], pitch: number, bearing: number } | null}
  */
 export function parseUrlHash() {
-    const match = window.location.hash.match(
-        /^#map=(\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)(?:\/(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?))?/,
-    );
-    if (!match) return null;
-    return {
-        zoom: parseFloat(match[1]),
-        center: [parseFloat(match[3]), parseFloat(match[2])], // MapLibre uses [lng, lat]
-        pitch: match[4] !== undefined ? parseFloat(match[4]) : 0,
-        bearing: match[5] !== undefined ? parseFloat(match[5]) : 0,
-    };
+  const match = window.location.hash.match(
+    /^#map=(\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)(?:\/(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?))?/,
+  );
+  if (!match) return null;
+  return {
+    zoom: parseFloat(match[1]),
+    center: [parseFloat(match[3]), parseFloat(match[2])], // MapLibre uses [lng, lat]
+    pitch: match[4] !== undefined ? parseFloat(match[4]) : 0,
+    bearing: match[5] !== undefined ? parseFloat(match[5]) : 0,
+  };
 }
 
 /**
@@ -51,5 +51,5 @@ export function parseUrlHash() {
  * @param {number} [bearing=0]
  */
 export function updateUrlHash(zoom, lat, lng, pitch = 0, bearing = 0) {
-    history.replaceState(null, "", formatUrlHash(zoom, lat, lng, pitch, bearing));
+  history.replaceState(null, "", formatUrlHash(zoom, lat, lng, pitch, bearing));
 }

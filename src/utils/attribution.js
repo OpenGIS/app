@@ -3,7 +3,7 @@
  *
  * Mirrors MapLibre's AttributionControl assembly: collect each source's
  * `attribution`, dedupe, drop whitespace-only entries, sort by length, remove
- * any entry that is a substring of another entry, then join with " | ".
+ * any entry that is a substring of another entry, then join with a space.
  *
  * @param {Object|null|undefined} style - A style object exposing `sources`
  * @returns {string} The assembled attribution HTML, or "" when there are none
@@ -25,5 +25,5 @@ export const buildAttribution = (style) => {
     return true;
   });
 
-  return entries.join(" | ");
+  return entries.join(" ");
 };

@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { parseUrlHash, updateUrlHash, formatUrlHash } from "@/composables/useUrlHash";
+import {
+  parseUrlHash,
+  updateUrlHash,
+  formatUrlHash,
+} from "@/composables/useUrlHash";
 
 describe("formatUrlHash", () => {
   it("formats all five segments", () => {

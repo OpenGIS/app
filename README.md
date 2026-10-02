@@ -9,6 +9,12 @@ Built with the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem. Specia
 > [!NOTE]
 > The app is currently in **SPA front-end only mode** — the account, maps and collections features (which require a backend) are disabled in the UI.
 
+## Screenshots
+
+![On Route — dark theme](screenshots/readme/dark.jpg)
+
+![On Route — light theme](screenshots/readme/light.jpg)
+
 ## Features
 
 - Detailed, free global map — no install, no account
@@ -43,13 +49,13 @@ Built with the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem. Specia
 
 ## Thanks Open Source!
 
-| Component | Source |
-|-----------|--------|
-| **Map Data** | &copy; [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) |
-| **Tile Hosting** | [OpenFreeMap](https://openfreemap.org) |
-| **Rendering** | [MapLibre GL JS](https://maplibre.org/) |
-| **Tile Schema** | [OpenMapTiles](https://www.openmaptiles.org/) / [OSM Bright](https://github.com/openmaptiles/osm-bright-gl-style) |
-| **User Interface** | [Vue JS](https://vuejs.org/) / [Bootstrap](https://getbootstrap.com/) |
+| Component          | Source                                                                                                            |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| **Map Data**       | &copy; [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)                                      |
+| **Tile Hosting**   | [OpenFreeMap](https://openfreemap.org)                                                                            |
+| **Rendering**      | [MapLibre GL JS](https://maplibre.org/)                                                                           |
+| **Tile Schema**    | [OpenMapTiles](https://www.openmaptiles.org/) / [OSM Bright](https://github.com/openmaptiles/osm-bright-gl-style) |
+| **User Interface** | [Vue JS](https://vuejs.org/) / [Bootstrap](https://getbootstrap.com/)                                             |
 
 ## Development
 
@@ -83,6 +89,10 @@ npm run test:e2e                                  # full E2E suite
 ```
 
 See [docs/8.testing.md](docs/8.testing.md) for the testing strategy.
+
+### Continuous integration
+
+CI runs the Vitest suite (including a Prettier format check) and the Playwright suite in parallel on every push to `master` and every pull request, and uploads the Playwright report and screenshot matrix as build artefacts. Releases are automated from [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) — semantic-release bumps the version, updates the changelog, and deploys to GitHub Pages on `master`. See [docs/11.ci.md](docs/11.ci.md).
 
 ### Build
 

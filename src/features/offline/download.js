@@ -6,13 +6,13 @@ import {
   enumerateTiles,
   resolveSourceTiles,
   tileUrlTemplateToUrl,
-} from './tiles.js';
+} from "./tiles.js";
 
 // Average size of a single tile, per source type, used for estimates.
 const AVERAGE_BYTES = {
   vector: 60 * 1024, // ~60KB
   raster: 25 * 1024, // ~25KB
-  'raster-dem': 30 * 1024, // ~30KB
+  "raster-dem": 30 * 1024, // ~30KB
   geojson: 60 * 1024,
   image: 25 * 1024,
   video: 25 * 1024,
@@ -66,7 +66,7 @@ export function collectFontstacks(layers) {
   const seen = new Set();
   const stacks = [];
   for (const layer of layers) {
-    const fonts = layer.layout?.['text-font'];
+    const fonts = layer.layout?.["text-font"];
     if (!Array.isArray(fonts) || fonts.length === 0) continue;
     const key = JSON.stringify(fonts);
     if (!seen.has(key)) {
@@ -87,14 +87,16 @@ export function collectFontstacks(layers) {
 export function glyphUrlsForTemplate(glyphTemplate, fontstacks) {
   const urls = [];
   for (const stack of fontstacks) {
-    const fontstack = stack.join(',');
+    const fontstack = stack.join(",");
     for (
       let range = GLYPH_FIRST_RANGE;
       range <= GLYPH_LAST_RANGE;
       range += GLYPH_RANGE_STEP
     ) {
       urls.push(
-        glyphTemplate.replace('{fontstack}', fontstack).replace('{range}', range),
+        glyphTemplate
+          .replace("{fontstack}", fontstack)
+          .replace("{range}", range),
       );
     }
   }
@@ -122,7 +124,7 @@ export async function fetchAll(urls, onProgress = () => {}, signal) {
       // Drain the body so the response can be cached fully and connections reused.
       await response.arrayBuffer();
     } catch (err) {
-      if (err.name === 'AbortError') throw err;
+      if (err.name === "AbortError") throw err;
       // Ignore per-URL failures — do not abort the whole download.
     } finally {
       done++;
@@ -168,7 +170,7 @@ async function runWorker(queue, worker) {
  */
 export async function buildRegionUrls({ bounds, minZoom, maxZoom, getMap }) {
   const map = getMap();
-  if (!map) throw new Error('Map is not ready');
+  if (!map) throw new Error("Map is not ready");
 
   const style = map.getStyle();
   const sources = style.sources || {};
@@ -195,7 +197,7 @@ export async function buildRegionUrls({ bounds, minZoom, maxZoom, getMap }) {
 
   // Glyphs: pre-fetch every range for every distinct fontstack so labels work offline.
   const fontstacks = collectFontstacks(layers);
-  const glyphTemplate = style.glyphs || '';
+  const glyphTemplate = style.glyphs || "";
   const glyphUrls = glyphTemplate
     ? glyphUrlsForTemplate(glyphTemplate, fontstacks)
     : [];
@@ -218,7 +220,12 @@ export async function buildRegionUrls({ bounds, minZoom, maxZoom, getMap }) {
  * @param {() => import('maplibre-gl').Map | null} params.getMap
  * @returns {Promise<{ tileUrls: Array<string>, glyphUrls: Array<string>, allUrls: Array<string> }>}
  */
-export async function regionUrlsForRegion({ bounds, minZoom, maxZoom, getMap }) {
+export async function regionUrlsForRegion({
+  bounds,
+  minZoom,
+  maxZoom,
+  getMap,
+}) {
   return buildRegionUrls({ bounds, minZoom, maxZoom, getMap });
 }
 

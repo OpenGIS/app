@@ -1,8 +1,8 @@
 <!-- RecordingsPanel.vue — side-panel content for the Recordings feature -->
 <script setup>
-import { inject, computed } from 'vue';
-import { useSettings } from '@/composables/useSettings.js';
-import { formatDuration, formatDistance } from './index.js';
+import { inject, computed } from "vue";
+import { useSettings } from "@/composables/useSettings.js";
+import { formatDuration, formatDistance } from "./index.js";
 
 const { isMetric } = useSettings();
 
@@ -17,7 +17,7 @@ const {
   deleteRecording,
   downloadGPX,
   showOnMap,
-} = inject('recordings');
+} = inject("recordings");
 
 const isActive = computed(() => state.isRecording || state.isPaused);
 </script>
@@ -44,7 +44,7 @@ const isActive = computed(() => state.isRecording || state.isPaused);
           :class="state.isRecording ? 'btn-warning' : 'btn-primary'"
           @click="state.isRecording ? pause() : resume()"
         >
-          {{ state.isRecording ? 'Pause' : 'Resume' }}
+          {{ state.isRecording ? "Pause" : "Resume" }}
         </button>
         <button class="btn btn-sm btn-success" @click="save">Save</button>
         <button class="btn btn-sm btn-outline-danger" @click="discard">
@@ -69,10 +69,7 @@ const isActive = computed(() => state.isRecording || state.isPaused);
         <span>{{ formatDistance(rec.distance, isMetric) }}</span>
       </div>
       <div class="d-flex gap-1 mt-1">
-        <button
-          class="btn btn-sm btn-outline-primary"
-          @click="showOnMap(rec)"
-        >
+        <button class="btn btn-sm btn-outline-primary" @click="showOnMap(rec)">
           Show
         </button>
         <button

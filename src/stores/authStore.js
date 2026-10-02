@@ -5,41 +5,43 @@ import { useMagicLinkAuth } from "@/composables/auth/useMagicLinkAuth";
 const cache = new Map();
 
 export function useAuthStore(instanceId) {
-    const id = instanceId ?? inject("onrteAppId", "app");
+  const id = instanceId ?? inject("onrteAppId", "app");
 
-    if (!cache.has(id)) {
-        cache.set(id, {
-            session: useAuthSession(id),
-            magicLink: useMagicLinkAuth(id),
-        });
-    }
-
-    const store = cache.get(id);
-
-    const status = computed(() => {
-        if (store.session.loading.value) return "loading";
-        return store.session.isAuthenticated.value ? "authenticated" : "guest";
+  if (!cache.has(id)) {
+    cache.set(id, {
+      session: useAuthSession(id),
+      magicLink: useMagicLinkAuth(id),
     });
+  }
 
-    const error = computed(() => store.session.error.value || store.magicLink.error.value);
+  const store = cache.get(id);
 
-    return {
-        user: store.session.user,
-        loading: store.session.loading,
-        sessionError: store.session.error,
-        isAuthenticated: store.session.isAuthenticated,
-        status,
+  const status = computed(() => {
+    if (store.session.loading.value) return "loading";
+    return store.session.isAuthenticated.value ? "authenticated" : "guest";
+  });
 
-        submittingMagicLink: store.magicLink.submitting,
-        magicLinkMessage: store.magicLink.message,
-        magicLinkError: store.magicLink.error,
-        magicLinkRetryAfter: store.magicLink.retryAfter,
-        error,
+  const error = computed(
+    () => store.session.error.value || store.magicLink.error.value,
+  );
 
-        refreshSession: store.session.fetchSession,
-        clearSession: store.session.clearSession,
-        logout: store.session.logout,
-        requestMagicLink: store.magicLink.requestMagicLink,
-        clearFeedback: store.magicLink.clearFeedback,
-    };
+  return {
+    user: store.session.user,
+    loading: store.session.loading,
+    sessionError: store.session.error,
+    isAuthenticated: store.session.isAuthenticated,
+    status,
+
+    submittingMagicLink: store.magicLink.submitting,
+    magicLinkMessage: store.magicLink.message,
+    magicLinkError: store.magicLink.error,
+    magicLinkRetryAfter: store.magicLink.retryAfter,
+    error,
+
+    refreshSession: store.session.fetchSession,
+    clearSession: store.session.clearSession,
+    logout: store.session.logout,
+    requestMagicLink: store.magicLink.requestMagicLink,
+    clearFeedback: store.magicLink.clearFeedback,
+  };
 }

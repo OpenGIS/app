@@ -9,6 +9,10 @@ import { test, expect } from "@playwright/test";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// Bounded budget for the asynchronous GPX import to render its row. Generous
+// enough for a starved software renderer, but a real backstop, not a wait.
+const ROUTE_IMPORT_TIMEOUT = 15000;
+
 /** Seed localStorage with permission granted and a known map view. */
 const withGrantedStorage = (page) =>
   page.addInitScript(() => {
@@ -44,7 +48,13 @@ const trackConsoleErrors = (page) => {
     // expected network noise, not app errors.
     const url = msg.location()?.url ?? "";
     if (url.includes("tiles.mapterhorn.com")) return;
-    page.__consoleErrors.push(msg.text());
+    // Ignore external ogis.org basemap/sprite fetch failures: the sprite/basemap
+    // CDN occasionally fails on its side (CORS-blocked or network ERR_FAILED),
+    // sometimes surfacing the URL only in the message text. This is transient
+    // external noise, not an app error — so match both console sources.
+    const text = msg.text();
+    if (url.includes("ogis.org") || text.includes("ogis.org")) return;
+    page.__consoleErrors.push(text);
   });
 };
 
@@ -74,7 +84,36 @@ const importFixture = async (page) => {
   await page
     .locator('input[type="file"]')
     .setInputFiles("tests/e2e/fixtures/route.gpx");
-  await expect(page.getByText("Test Loop")).toBeVisible();
+  // The import reads the file asynchronously, so the row can lag behind the
+  // setInputFiles call under a starved software renderer; wait for the
+  // concrete condition with a bounded budget rather than the 5 s default.
+  await expect(page.getByText("Test Loop")).toBeVisible({
+    timeout: ROUTE_IMPORT_TIMEOUT,
+  });
+};
+
+/**
+ * Wait for the app to be ready: the chrome is mounted, the map's style is
+ * loaded and its instance published (`data-map-ready`), and the side panel's
+ * Bootstrap show transition has settled. All cheap, deterministic conditions —
+ * no network wait and no map render settle.
+ */
+const waitForMapReady = async (page) => {
+  await page.locator("#menu-button").waitFor({ state: "visible" });
+  // `data-map-ready` is set by useMap when the style has loaded and the map
+  // instance is published (the app's own `map:ready` point), so features are
+  // wired up and the map is usable. Unlike MapLibre's render-bound `load`
+  // event (~26 s under SwiftShader) or the full `data-map-idle` settle, this
+  // is cheap and deterministic.
+  await expect(page.locator(".onrte-map")).toHaveAttribute(
+    "data-map-ready",
+    "true",
+    { timeout: 30000 },
+  );
+  // Bootstrap auto-shows the .offcanvas on window load and holds it in a
+  // `showing` state until its transition completes; its queued callback
+  // re-adds `show`, so interacting mid-transition corrupts panel state.
+  await expect(page.locator(".onrte-panel")).not.toHaveClass(/showing|hiding/);
 };
 
 // ─── Routes / Panel ──────────────────────────────────────────────────────────
@@ -84,7 +123,7 @@ test.describe("Routes / Panel", () => {
     trackConsoleErrors(page);
     await withGrantedStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
   });
 
   test.afterEach(async ({ page }) => {
@@ -118,7 +157,7 @@ test.describe("Routes / Import", () => {
     trackConsoleErrors(page);
     await withGrantedStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
     await openRoutesPanel(page);
   });
 
@@ -171,7 +210,7 @@ test.describe("Routes / Delete", () => {
     trackConsoleErrors(page);
     await withGrantedStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
     await openRoutesPanel(page);
     await importFixture(page);
   });
@@ -203,7 +242,7 @@ test.describe("Routes / Navigate", () => {
     await withGrantedStorage(page);
     await grantGeolocation(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
     await openRoutesPanel(page);
     await importFixture(page);
   });
@@ -234,7 +273,7 @@ test.describe("Routes / Persist across reload", () => {
     trackConsoleErrors(page);
     await withGrantedStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
     await openRoutesPanel(page);
     await importFixture(page);
   });
@@ -245,7 +284,7 @@ test.describe("Routes / Persist across reload", () => {
 
   test("imported route persists across a page reload", async ({ page }) => {
     await page.reload();
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     await openRoutesPanel(page);
 

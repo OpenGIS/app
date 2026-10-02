@@ -16,28 +16,28 @@ This document describes how to implement and hand over an external Vue SPA (same
 
 ### Auth endpoints
 
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| `GET` | `/sanctum/csrf-cookie` | Initializes CSRF cookie before credentialed POST/PUT/PATCH/DELETE |
-| `POST` | `/api/auth/magic-link` | Requests magic-link email (always generic response) |
-| `GET` | `/api/auth/session` | Returns authenticated user (`username`, `created_at`) |
-| `POST` | `/api/auth/logout` | Logs out session |
-| `GET` | `/auth/verify/{user}` | Magic-link verification target; creates session and redirects to `intended` URL when allow-listed |
+| Method | Endpoint               | Purpose                                                                                           |
+| ------ | ---------------------- | ------------------------------------------------------------------------------------------------- |
+| `GET`  | `/sanctum/csrf-cookie` | Initializes CSRF cookie before credentialed POST/PUT/PATCH/DELETE                                 |
+| `POST` | `/api/auth/magic-link` | Requests magic-link email (always generic response)                                               |
+| `GET`  | `/api/auth/session`    | Returns authenticated user (`username`, `created_at`)                                             |
+| `POST` | `/api/auth/logout`     | Logs out session                                                                                  |
+| `GET`  | `/auth/verify/{user}`  | Magic-link verification target; creates session and redirects to `intended` URL when allow-listed |
 
 ### Resource endpoints
 
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/user/maps` | List current user's maps |
-| `POST` | `/api/user/maps` | Create map |
-| `GET` | `/api/user/maps/{map}` | Fetch map details |
-| `PUT/PATCH` | `/api/user/maps/{map}` | Update map |
-| `DELETE` | `/api/user/maps/{map}` | Delete map |
-| `GET` | `/api/user/collections` | List current user's root collections |
-| `POST` | `/api/user/collections` | Create collection |
-| `GET` | `/api/user/collections/{collection}` | Fetch collection |
-| `PUT/PATCH` | `/api/user/collections/{collection}` | Update collection |
-| `DELETE` | `/api/user/collections/{collection}` | Delete collection |
+| Method      | Endpoint                             | Purpose                              |
+| ----------- | ------------------------------------ | ------------------------------------ |
+| `GET`       | `/api/user/maps`                     | List current user's maps             |
+| `POST`      | `/api/user/maps`                     | Create map                           |
+| `GET`       | `/api/user/maps/{map}`               | Fetch map details                    |
+| `PUT/PATCH` | `/api/user/maps/{map}`               | Update map                           |
+| `DELETE`    | `/api/user/maps/{map}`               | Delete map                           |
+| `GET`       | `/api/user/collections`              | List current user's root collections |
+| `POST`      | `/api/user/collections`              | Create collection                    |
+| `GET`       | `/api/user/collections/{collection}` | Fetch collection                     |
+| `PUT/PATCH` | `/api/user/collections/{collection}` | Update collection                    |
+| `DELETE`    | `/api/user/collections/{collection}` | Delete collection                    |
 
 ## Recommended SPA module structure
 
@@ -69,14 +69,14 @@ Use one shared Axios instance configured for cookie-based auth.
 
 ```ts
 // src/api/client.ts
-import axios from 'axios';
+import axios from "axios";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL, // https://api.example.com
   withCredentials: true,
   headers: {
-    'X-Requested-With': 'XMLHttpRequest',
-    Accept: 'application/json',
+    "X-Requested-With": "XMLHttpRequest",
+    Accept: "application/json",
   },
 });
 
@@ -87,7 +87,7 @@ export async function ensureCsrfCookie(): Promise<void> {
     return;
   }
 
-  await api.get('/sanctum/csrf-cookie');
+  await api.get("/sanctum/csrf-cookie");
   csrfReady = true;
 }
 ```
@@ -104,8 +104,8 @@ Responsibilities:
 
 ```ts
 // src/composables/auth/useMagicLinkAuth.ts
-import { ref } from 'vue';
-import { api, ensureCsrfCookie } from '@/api/client';
+import { ref } from "vue";
+import { api, ensureCsrfCookie } from "@/api/client";
 
 export function useMagicLinkAuth() {
   const submitting = ref(false);
@@ -118,13 +118,13 @@ export function useMagicLinkAuth() {
 
     try {
       await ensureCsrfCookie();
-      await api.post('/api/auth/magic-link', {
+      await api.post("/api/auth/magic-link", {
         email,
         intended: callbackUrl, // must be allow-listed by AUTH_FRONTEND_REDIRECT_ORIGINS
       });
-      message.value = 'Magic link sent! Check your email.';
+      message.value = "Magic link sent! Check your email.";
     } catch (e) {
-      error.value = 'Unable to request login link.';
+      error.value = "Unable to request login link.";
     } finally {
       submitting.value = false;
     }
@@ -144,8 +144,8 @@ Responsibilities:
 
 ```ts
 // src/composables/auth/useAuthSession.ts
-import { computed, ref } from 'vue';
-import { api, ensureCsrfCookie } from '@/api/client';
+import { computed, ref } from "vue";
+import { api, ensureCsrfCookie } from "@/api/client";
 
 export function useAuthSession() {
   const user = ref<{ username: string; created_at: string } | null>(null);
@@ -156,7 +156,7 @@ export function useAuthSession() {
   async function fetchSession() {
     loading.value = true;
     try {
-      const { data } = await api.get('/api/auth/session');
+      const { data } = await api.get("/api/auth/session");
       user.value = data;
     } catch {
       user.value = null;
@@ -167,7 +167,7 @@ export function useAuthSession() {
 
   async function logout() {
     await ensureCsrfCookie();
-    await api.post('/api/auth/logout');
+    await api.post("/api/auth/logout");
     user.value = null;
   }
 
@@ -197,35 +197,38 @@ export function useAuthSession() {
 ### `useMapsApi`
 
 ```ts
-import { api, ensureCsrfCookie } from '@/api/client';
+import { api, ensureCsrfCookie } from "@/api/client";
 
 export function useMapsApi() {
-  const list = () => api.get('/api/user/maps');
+  const list = () => api.get("/api/user/maps");
   const show = (id: string) => api.get(`/api/user/maps/${id}`);
 
   const create = async (payload: {
     title: string;
     slug: string;
     description?: string | null;
-    visibility: 'public' | 'private';
+    visibility: "public" | "private";
     geojson: unknown;
     collections?: string[];
   }) => {
     await ensureCsrfCookie();
-    return api.post('/api/user/maps', {
+    return api.post("/api/user/maps", {
       ...payload,
       geojson: JSON.stringify(payload.geojson), // backend expects JSON string
     });
   };
 
-  const update = async (id: string, payload: {
-    title: string;
-    slug: string;
-    description?: string | null;
-    visibility: 'public' | 'private';
-    geojson: unknown;
-    collections?: string[];
-  }) => {
+  const update = async (
+    id: string,
+    payload: {
+      title: string;
+      slug: string;
+      description?: string | null;
+      visibility: "public" | "private";
+      geojson: unknown;
+      collections?: string[];
+    },
+  ) => {
     await ensureCsrfCookie();
     return api.put(`/api/user/maps/${id}`, {
       ...payload,
@@ -257,13 +260,13 @@ export function useMapsApi() {
 
 ## Validation and error handling contract
 
-| Status | Meaning | SPA behavior |
-| --- | --- | --- |
-| `401` | Not authenticated | Clear local auth state, route to login |
-| `404` | Not found or hidden forbidden resource | Show not-found UX, do not leak existence assumptions |
-| `422` | Validation errors | Display field errors from response |
-| `429` | Magic-link rate limit | Show retry-after UX message |
-| `419` | CSRF/session issue | Re-run `ensureCsrfCookie()`, retry once |
+| Status | Meaning                                | SPA behavior                                         |
+| ------ | -------------------------------------- | ---------------------------------------------------- |
+| `401`  | Not authenticated                      | Clear local auth state, route to login               |
+| `404`  | Not found or hidden forbidden resource | Show not-found UX, do not leak existence assumptions |
+| `422`  | Validation errors                      | Display field errors from response                   |
+| `429`  | Magic-link rate limit                  | Show retry-after UX message                          |
+| `419`  | CSRF/session issue                     | Re-run `ensureCsrfCookie()`, retry once              |
 
 ## Sync strategy recommendation (`useResourceSync`)
 

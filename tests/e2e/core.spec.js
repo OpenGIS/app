@@ -20,27 +20,57 @@ const withViewStorage = (page) =>
   page.addInitScript(() =>
     localStorage.setItem(
       "onrte_view_app",
-      JSON.stringify({ mapView: { center: { lat: 51.5, lng: -0.1 }, zoom: 10 } }),
+      JSON.stringify({
+        mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 10 },
+      }),
     ),
   );
+
+/**
+ * Wait for the app to be ready: the chrome is mounted, the map's style is
+ * loaded and its instance published (`data-map-ready`), and the side panel's
+ * Bootstrap show transition has settled. All cheap, deterministic conditions —
+ * no network wait and no map render settle.
+ */
+const waitForMapReady = async (page) => {
+  await page.locator("#menu-button").waitFor({ state: "visible" });
+  // `data-map-ready` is set by useMap when the style has loaded and the map
+  // instance is published (the app's own `map:ready` point), so features are
+  // wired up and the map is usable. Unlike MapLibre's render-bound `load`
+  // event (~26 s under SwiftShader) or the full `data-map-idle` settle, this
+  // is cheap and deterministic.
+  await expect(page.locator(".onrte-map")).toHaveAttribute(
+    "data-map-ready",
+    "true",
+    { timeout: 30000 },
+  );
+  // Bootstrap auto-shows the .offcanvas on window load and holds it in a
+  // `showing` state until its transition completes; its queued callback
+  // re-adds `show`, so interacting mid-transition corrupts panel state.
+  await expect(page.locator(".onrte-panel")).not.toHaveClass(/showing|hiding/);
+};
 
 // ─── First load / Welcome modal ───────────────────────────────────────────────
 
 test.describe("First load / Welcome modal", () => {
-  test("modal is visible on first visit with welcome text", async ({ page }) => {
+  test("modal is visible on first visit with welcome text", async ({
+    page,
+  }) => {
     await withNoViewStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     await expect(page.locator("#about-modal")).toBeVisible();
     await expect(page.locator("#about-modal-title")).toBeVisible();
-    await expect(page.locator("#about-modal .modal-body")).toContainText("A map for exploring");
+    await expect(page.locator("#about-modal .modal-body")).toContainText(
+      "A map for exploring",
+    );
   });
 
   test("modal can be dismissed with Get Started button", async ({ page }) => {
     await withNoViewStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     await expect(page.locator("#about-modal")).toBeVisible();
     await page.locator("#about-modal-close").click();
@@ -50,7 +80,7 @@ test.describe("First load / Welcome modal", () => {
   test("modal can be dismissed with close button", async ({ page }) => {
     await withNoViewStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     await expect(page.locator("#about-modal")).toBeVisible();
     await page.locator("#about-modal .btn-close").click();
@@ -64,7 +94,7 @@ test.describe("First load / Language", () => {
   test("welcome modal has no language picker", async ({ page }) => {
     await withNoViewStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     await expect(page.locator("#about-language")).toHaveCount(0);
   });
@@ -72,10 +102,12 @@ test.describe("First load / Language", () => {
   test.describe("browser language — French (fr-FR)", () => {
     test.use({ locale: "fr-FR" });
 
-    test("welcome modal content follows the browser language", async ({ page }) => {
+    test("welcome modal content follows the browser language", async ({
+      page,
+    }) => {
       await withNoViewStorage(page);
       await page.goto("/");
-      await page.waitForLoadState("networkidle");
+      await waitForMapReady(page);
 
       await expect(page.locator("#about-modal .modal-body")).toContainText(
         "Une carte pour explorer",
@@ -90,7 +122,7 @@ test.describe("First load / Units", () => {
   test("welcome modal has no units picker", async ({ page }) => {
     await withNoViewStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     await expect(page.locator("#about-units")).toHaveCount(0);
   });
@@ -102,16 +134,18 @@ test.describe("First load / Returning visits", () => {
   test("modal is absent on returning visit", async ({ page }) => {
     await withViewStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     await expect(page.locator("#about-modal")).toHaveCount(0);
   });
 
-  test("modal is absent after view storage is written and page is reloaded", async ({ page }) => {
+  test("modal is absent after view storage is written and page is reloaded", async ({
+    page,
+  }) => {
     const VIEW_KEY = "onrte_view_app";
 
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     await expect(page.locator("#about-modal")).toBeVisible();
 
@@ -121,12 +155,14 @@ test.describe("First load / Returning visits", () => {
     await page.evaluate((k) => {
       localStorage.setItem(
         k,
-        JSON.stringify({ mapView: { center: { lat: 51.5, lng: -0.1 }, zoom: 10 } }),
+        JSON.stringify({
+          mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 10 },
+        }),
       );
     }, VIEW_KEY);
 
     await page.reload();
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     await expect(page.locator("#about-modal")).toHaveCount(0);
   });
@@ -138,7 +174,7 @@ test.describe("Info pane / Pane separation", () => {
   test("Info is not a tab in the menu", async ({ page }) => {
     await withViewStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     await expect(page.locator(".onrte-panel")).toBeVisible({ timeout: 5000 });
 
@@ -159,7 +195,7 @@ test.describe("Info pane / Pane separation", () => {
   }) => {
     await withViewStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     // Desktop auto-opens the Info pane, so the first click closes it.
     await expect(page.locator(".onrte-info-panel")).toBeVisible();
@@ -175,7 +211,7 @@ test.describe("Info pane / Pane separation", () => {
   test("visiting Info keeps the active menu tab", async ({ page }) => {
     await withViewStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     await expect(page.locator(".onrte-panel")).toBeVisible({ timeout: 5000 });
 
@@ -210,7 +246,7 @@ test.describe("Info panel", () => {
   }) => {
     await withViewStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     // Desktop auto-opens the Info pane, so no chip click is needed.
     const panel = page.locator(".onrte-info-panel");
@@ -238,7 +274,7 @@ test.describe("Info panel", () => {
   test("Attribution chip opens the Info panel", async ({ page }) => {
     await withViewStorage(page);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForMapReady(page);
 
     // Close the auto-opened Info pane, then reopen it via the chip.
     await expect(page.locator(".onrte-info-panel")).toBeVisible();
@@ -250,4 +286,3 @@ test.describe("Info panel", () => {
     await expect(page.locator(".onrte-info-panel")).toBeVisible();
   });
 });
-
