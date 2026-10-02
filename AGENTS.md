@@ -46,18 +46,20 @@ The app is a fully installable PWA. It includes a Web App Manifest (`public/mani
 npm run dev          # start Vite dev server (app at http://localhost:5173)
 npm run build        # build the app for distribution
 npm run test:unit    # run vitest unit tests (<10 s)
-npm run test:e2e -- tests/e2e/{spec}.spec.js   # run only the relevant E2E spec (recommended)
-npm run test:e2e -- --workers=4                # full E2E suite, parallel (manual run)
-npm test             # run unit tests only (final check before confirming a task done)
+npm run test:e2e -- tests/e2e/{spec}.spec.js   # run only the relevant E2E spec (development)
+npm run test:e2e -- --workers=4                # full E2E suite incl. screenshots — local final verification
+npm test             # run unit tests only (rapid development)
 npm run format:check # Prettier format gate (the same check CI runs)
 npm run format       # rewrite files with Prettier
 ```
 
 ### Running tests — timing guidance
 
-`npm test` runs the unit suite (Vitest) only: ~230 tests, completing in under 10 seconds.
+`npm test` runs the unit suite (Vitest) only: ~230 tests, completing in under 10 seconds. Use it, plus targeted single-spec E2E runs, during rapid development.
 
-E2E tests are available separately via `npm run test:e2e` and are not required as part of the standard task completion check. Run them manually when validating browser integration or complex user flows. E2E does run in CI alongside the unit suite (see `docs/11.ci.md`).
+CI is a quick gate: unit tests, Prettier, and the **functional** E2E suite only — the screenshot matrix is excluded (`--grep-invert @screenshots`) and sharded three ways. Functional shards are expected to finish in single-digit minutes (measured at ~8 min before the screenshot exclusion). See `docs/11.ci.md`.
+
+**Final verification before declaring a task complete is the full local E2E run** (`npm run test:e2e -- --workers=4`). It includes the `@screenshots` matrix and regenerates the committed `screenshots/` artefacts. Visual verification belongs on the development machine: GitHub runners render with SwiftShader, where a capture costs ~50–60 s versus ~15 s locally, and the full matrix would need ~60–75 minutes of runner CPU.
 
 Formatting is gated by Prettier: CI's `unit` job runs `npm run format:check`. Run `npm run format` before completing a task; [`.prettierignore`](.prettierignore) excludes generated output (build directories, the lockfile, `CHANGELOG.md`, `.opencode/`).
 
@@ -217,7 +219,7 @@ Features are plain objects with an `install(ctx)` method. A feature lives in `sr
 2. Create `src/features/{name}/{Name}Button.vue` and `{Name}Panel.vue` as needed
 3. Register in `src/main.js`: `MyFeature.install(featureCtx)`
 4. Create `tests/e2e/features/{name}.spec.js`
-5. Run `npm run test:e2e -- tests/e2e/features/{name}.spec.js` during development; `npm test` as final check
+5. Run `npm run test:e2e -- tests/e2e/features/{name}.spec.js` during development; run the full local E2E suite (`npm run test:e2e -- --workers=4`) as final verification
 
 ---
 

@@ -84,15 +84,15 @@ npm run dev
 
 ```bash
 npm test                                          # unit tests (vitest, < 10 s)
-npm run test:e2e -- tests/e2e/{spec}.spec.js      # single E2E spec
-npm run test:e2e                                  # full E2E suite
+npm run test:e2e -- tests/e2e/{spec}.spec.js      # single E2E spec during development
+npm run test:e2e                                  # full E2E suite incl. screenshots — local final verification
 ```
 
 See [docs/8.testing.md](docs/8.testing.md) for the testing strategy.
 
 ### Continuous integration
 
-CI runs the Vitest suite (including a Prettier format check) and the Playwright suite in parallel on every push to `master` and every pull request, and uploads the Playwright report and screenshot matrix as build artefacts. Releases are automated from [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) — semantic-release bumps the version, updates the changelog, and deploys to GitHub Pages on `master`. See [docs/11.ci.md](docs/11.ci.md).
+CI runs the Vitest suite (including a Prettier format check) and the functional Playwright suite (screenshot specs excluded) in parallel on every push to `master` and every pull request, and uploads the Playwright report as a build artefact. The screenshot matrix runs only in the full local E2E suite — the final verification before declaring a task complete. Releases are automated from [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) — semantic-release bumps the version, updates the changelog, and deploys to GitHub Pages on `master`. See [docs/11.ci.md](docs/11.ci.md).
 
 ### Build
 
