@@ -20,7 +20,7 @@ const isActive = computed(() => isInfoVisible.value);
   <button
     type="button"
     id="attribution-button"
-    class="icon-btn icon-btn--chip onrte-attribution-chip d-flex align-items-center flex-row"
+    class="icon-btn icon-btn--chip ogis-attribution-chip d-flex align-items-center flex-row"
     :aria-pressed="isActive"
     :aria-label="t('menu.info')"
     @click="toggleInfo()"
@@ -30,7 +30,7 @@ const isActive = computed(() => isInfoVisible.value);
     </div>
     <span
       v-if="!collapsed"
-      class="icon-btn__label onrte-attribution-chip__text"
+      class="icon-btn__label ogis-attribution-chip__text"
       v-html="attributionHtml"
     ></span>
   </button>

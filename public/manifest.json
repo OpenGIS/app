@@ -1,7 +1,7 @@
 {
-  "name": "On Route",
-  "short_name": "On Route",
-  "description": "On Route — a navigation app for the real world.",
+  "name": "ogis.app",
+  "short_name": "OGIS",
+  "description": "ogis.app — a navigation app for the real world.",
   "start_url": ".",
   "display": "standalone",
   "orientation": "any",

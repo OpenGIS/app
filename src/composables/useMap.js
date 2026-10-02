@@ -79,7 +79,7 @@ function applyMapLanguage(map, tag) {
  * @param {Object} [options={}] - MapLibre MapOptions to merge with defaults
  */
 export const useMap = (containerRef = null, options = {}) => {
-  const instanceId = inject("onrteAppId", "app");
+  const instanceId = inject("ogisAppId", "app");
 
   if (!mapCache.has(instanceId)) {
     mapCache.set(instanceId, {

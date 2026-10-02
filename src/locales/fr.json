@@ -6,7 +6,7 @@
   "menu.maps": "Cartes",
   "menu.collections": "Collections",
 
-  "modal.welcome.title": "On Route",
+  "modal.welcome.title": "ogis.app",
   "modal.welcome.introOne": "Une carte pour explorer, naviguer et enregistrer vos aventures.",
   "modal.welcome.introTwo": "Pas d'app stores, pas de comptes, pas de suivi. Propulsé par l'Open Source.",
   "modal.welcome.locateInfo": "Affichez votre position actuelle en appuyant sur Localiser. Votre autorisation est requise, mais aucune donnée de localisation ne quitte jamais votre appareil.",
@@ -28,7 +28,7 @@
   "panel.privacy.noTrackingBody": "Cette application ne contient aucun outil d'analyse, aucune publicité, aucun cookie et aucun script de suivi.",
 
   "panel.account.title": "Compte",
-  "panel.account.description": "Connectez-vous avec un lien magique pour relier cette application à vos API de compte On Route.",
+  "panel.account.description": "Connectez-vous avec un lien magique pour relier cette application à vos API de compte ogis.app.",
   "panel.account.loading": "Vérification de la session du compte…",
   "panel.account.emailLabel": "E-mail",
   "panel.account.emailPlaceholder": "vous@exemple.com",

@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 const withViewStorage = (page) =>
   page.addInitScript(() =>
     localStorage.setItem(
-      "onrte_view_app",
+      "ogis_view_app",
       JSON.stringify({
         mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 12 },
       }),
@@ -19,13 +19,13 @@ test.describe.skip("Account feature", () => {
     );
 
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
     await page
       .locator(".panel-nav")
       .getByRole("button", { name: /account/i })
       .click();
 
-    await expect(page.locator(".onrte-account-panel")).toBeVisible();
+    await expect(page.locator(".ogis-account-panel")).toBeVisible();
     await expect(page.locator("#account-email")).toBeVisible();
   });
 
@@ -48,7 +48,7 @@ test.describe.skip("Account feature", () => {
     });
 
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
     await page
       .locator(".panel-nav")
       .getByRole("button", { name: /account/i })
@@ -91,7 +91,7 @@ test.describe.skip("Account feature", () => {
     );
 
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
     await page
       .locator(".panel-nav")
       .getByRole("button", { name: /account/i })

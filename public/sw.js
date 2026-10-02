@@ -1,10 +1,10 @@
-// On Route app shell service worker.
+// ogis.app shell service worker.
 // Hand-rolled, no Workbox. The cache is populated progressively as the app
 // loads: install seeds "/" and "/index.html", then the fetch handler caches
 // same-origin assets (hashed JS/CSS bundles) on first fetch.
 
-const SHELL_CACHE = "onrte-shell-v1";
-const MAP_CACHE = "onrte-map-v1";
+const SHELL_CACHE = "ogis-shell-v1";
+const MAP_CACHE = "ogis-map-v1";
 const CACHE_ALLOWLIST = [SHELL_CACHE, MAP_CACHE];
 const SHELL_URL = "/index.html";
 

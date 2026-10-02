@@ -3,7 +3,7 @@ import { useAuthSession } from "@/composables/auth/useAuthSession";
 import { useSyncStore } from "@/stores/syncStore";
 
 export function useResourceSync(instanceId) {
-  const id = instanceId ?? inject("onrteAppId", "app");
+  const id = instanceId ?? inject("ogisAppId", "app");
   const auth = useAuthSession(id);
   const syncStore = useSyncStore(id);
   const processing = ref(false);

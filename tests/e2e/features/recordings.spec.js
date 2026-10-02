@@ -19,11 +19,11 @@ test.setTimeout(120000);
 const withGrantedStorage = (page) =>
   page.addInitScript(() => {
     localStorage.setItem(
-      "onrte_locate_app",
+      "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
     );
     localStorage.setItem(
-      "onrte_view_app",
+      "ogis_view_app",
       JSON.stringify({
         mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
       }),
@@ -33,9 +33,9 @@ const withGrantedStorage = (page) =>
 /** Clear all app storage so the About modal / permission flow appear fresh. */
 const withNoStorage = (page) =>
   page.addInitScript(() => {
-    localStorage.removeItem("onrte_locate_app");
-    localStorage.removeItem("onrte_view_app");
-    localStorage.removeItem("onrte_recordings_app");
+    localStorage.removeItem("ogis_locate_app");
+    localStorage.removeItem("ogis_view_app");
+    localStorage.removeItem("ogis_recordings_app");
   });
 
 /** Grant browser geolocation permission and set a fixed position. */
@@ -77,7 +77,7 @@ const waitForMapReady = async (page) => {
   // wired up and the map is usable. Unlike MapLibre's render-bound `load`
   // event (~26 s under SwiftShader) or the full `data-map-idle` settle, this
   // is cheap and deterministic.
-  await expect(page.locator(".onrte-map")).toHaveAttribute(
+  await expect(page.locator(".ogis-map")).toHaveAttribute(
     "data-map-ready",
     "true",
     { timeout: 30000 },
@@ -85,7 +85,7 @@ const waitForMapReady = async (page) => {
   // Bootstrap auto-shows the .offcanvas on window load and holds it in a
   // `showing` state until its transition completes; its queued callback
   // re-adds `show`, so interacting mid-transition corrupts panel state.
-  await expect(page.locator(".onrte-panel")).not.toHaveClass(/showing|hiding/);
+  await expect(page.locator(".ogis-panel")).not.toHaveClass(/showing|hiding/);
 };
 
 // ─── Recordings / Button ─────────────────────────────────────────────────────
@@ -285,7 +285,7 @@ test.describe("Recordings / Save and Discard", () => {
 
     // Verify saved to storage
     const stored = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem("onrte_recordings_app") || "{}"),
+      JSON.parse(localStorage.getItem("ogis_recordings_app") || "{}"),
     );
     expect(stored.saved).toHaveLength(1);
 
@@ -304,11 +304,11 @@ test.describe("Recordings / Saved list management", () => {
   const withOneSavedRecording = (page) =>
     page.addInitScript(() => {
       localStorage.setItem(
-        "onrte_locate_app",
+        "ogis_locate_app",
         JSON.stringify({ permissionGranted: true }),
       );
       localStorage.setItem(
-        "onrte_view_app",
+        "ogis_view_app",
         JSON.stringify({
           mapView: {
             center: { lat: 50.6539, lng: -128.0094 },
@@ -317,7 +317,7 @@ test.describe("Recordings / Saved list management", () => {
         }),
       );
       localStorage.setItem(
-        "onrte_recordings_app",
+        "ogis_recordings_app",
         JSON.stringify({
           saved: [
             {
@@ -349,7 +349,7 @@ test.describe("Recordings / Saved list management", () => {
       .locator(".panel-nav")
       .getByRole("button", { name: "Recordings" })
       .click();
-    await expect(page.locator(".onrte-panel")).toHaveClass(/show/);
+    await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
   });
 
   test("saved recording is listed in the panel", async ({ page }) => {
@@ -370,7 +370,7 @@ test.describe("Recordings / Saved list management", () => {
   test("Show button displays the track on the map", async ({ page }) => {
     await page.getByRole("button", { name: "Show" }).click();
     // The GeoJSON line layer should be present on the map canvas
-    await expect(page.locator(".onrte-map canvas")).toBeVisible();
+    await expect(page.locator(".ogis-map canvas")).toBeVisible();
   });
 });
 
@@ -380,11 +380,11 @@ test.describe("Recordings / GPX export", () => {
   const withOneSavedRecording = (page) =>
     page.addInitScript(() => {
       localStorage.setItem(
-        "onrte_locate_app",
+        "ogis_locate_app",
         JSON.stringify({ permissionGranted: true }),
       );
       localStorage.setItem(
-        "onrte_view_app",
+        "ogis_view_app",
         JSON.stringify({
           mapView: {
             center: { lat: 50.6539, lng: -128.0094 },
@@ -393,7 +393,7 @@ test.describe("Recordings / GPX export", () => {
         }),
       );
       localStorage.setItem(
-        "onrte_recordings_app",
+        "ogis_recordings_app",
         JSON.stringify({
           saved: [
             {

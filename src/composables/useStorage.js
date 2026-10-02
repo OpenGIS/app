@@ -1,17 +1,17 @@
 import { reactive, watch, inject } from "vue";
 
 /**
- * Reactive localStorage wrapper scoped to an On Route App instance.
+ * Reactive localStorage wrapper scoped to an ogis.app instance.
  *
  * @param {string} namespace - Storage namespace (e.g. 'settings', 'recordings')
  * @param {Object} [defaultState={}] - Default state shape
- * @param {string} [instanceId] - App instance ID. If omitted, resolved via inject('onrteAppId').
+ * @param {string} [instanceId] - App instance ID. If omitted, resolved via inject('ogisAppId').
  *   Pass explicitly when calling from a plugin install() or other non-setup context.
  * @returns {import('vue').UnwrapNestedRefs<Object>}
  */
 export function useStorage(namespace, defaultState = {}, instanceId) {
-  const id = instanceId ?? inject("onrteAppId", "app");
-  const key = `onrte_${namespace}_${id}`;
+  const id = instanceId ?? inject("ogisAppId", "app");
+  const key = `ogis_${namespace}_${id}`;
   const state = Array.isArray(defaultState)
     ? reactive([...defaultState])
     : reactive({ ...defaultState });

@@ -1,4 +1,4 @@
-// routes/gpx.js — pure GPX parser for On Route App
+// routes/gpx.js — pure GPX parser for ogis.app
 // Dependency-free: uses the browser's native DOMParser. No Vue, no storage.
 
 const parser = new DOMParser();

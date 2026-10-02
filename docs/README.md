@@ -1,6 +1,6 @@
-# On Route App — Docs
+# ogis.app — Docs
 
-Developer documentation for the On Route App codebase.
+Developer documentation for the ogis.app codebase.
 
 > [!NOTE]
 > The app is currently in **SPA front-end only mode** — the account, maps and collections features (which require a backend) are disabled in the UI.

@@ -1,4 +1,4 @@
-// recordings/index.js — Recordings core feature for On Route App
+// recordings/index.js — Recordings core feature for ogis.app
 import { reactive, ref, computed } from "vue";
 import { useGeoJSON } from "@/composables/useGeoJSON.js";
 import { useLocate } from "@/composables/useLocate.js";
@@ -28,7 +28,7 @@ function toGPX(recording) {
     .join("\n");
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    '<gpx version="1.1" creator="On Route">',
+    '<gpx version="1.1" creator="ogis.app">',
     "  <trk>",
     `    <name>Recording ${new Date(recording.timestamp).toLocaleString()}</name>`,
     "    <trkseg>",
@@ -84,9 +84,9 @@ export const RecordingsFeature = {
         id: TRACK_ID,
         geometry: { type: "LineString", coordinates: coords },
         properties: {
-          "onrte.color": state.isPaused ? COLOR_PAUSED : COLOR_ACTIVE,
-          "onrte.width": 3,
-          "onrte.opacity": 0.85,
+          "ogis.color": state.isPaused ? COLOR_PAUSED : COLOR_ACTIVE,
+          "ogis.width": 3,
+          "ogis.opacity": 0.85,
         },
       });
     };
@@ -231,9 +231,9 @@ export const RecordingsFeature = {
         id: TRACK_ID,
         geometry: { type: "LineString", coordinates: coords },
         properties: {
-          "onrte.color": COLOR_ACTIVE,
-          "onrte.width": 3,
-          "onrte.opacity": 0.85,
+          "ogis.color": COLOR_ACTIVE,
+          "ogis.width": 3,
+          "ogis.opacity": 0.85,
         },
       });
       const map = getMap();

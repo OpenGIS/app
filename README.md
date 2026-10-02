@@ -11,9 +11,9 @@ Built with the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem. Specia
 
 ## Screenshots
 
-![On Route — dark theme](screenshots/readme/dark.jpg)
+![ogis.app — dark theme](screenshots/readme/dark.jpg)
 
-![On Route — light theme](screenshots/readme/light.jpg)
+![ogis.app — light theme](screenshots/readme/light.jpg)
 
 ## Features
 

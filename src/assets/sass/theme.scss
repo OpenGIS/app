@@ -1,5 +1,5 @@
 // ============================================================
-// On Route App Theme  ·  src/assets/sass/theme.scss
+// ogis.app Theme  ·  src/assets/sass/theme.scss
 //
 // A GPS-trail-inspired Bootstrap 5.3 theme with a green accent
 // and dark navbar, making the UI feel native to the map beneath it.
@@ -113,13 +113,13 @@ $font-size-base: 0.9375rem; // 15 px
 // panel width without needing to access the offcanvas element.
 
 :root {
-  --onrte-panel-width: #{$offcanvas-horizontal-width};
+  --ogis-panel-width: #{$offcanvas-horizontal-width};
 }
 
 // #6b  Side panel (Bootstrap Offcanvas)
 // ─────────────────────────────────────────────────────────────
 
-.onrte-panel {
+.ogis-panel {
   --bs-offcanvas-bg: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
@@ -127,7 +127,7 @@ $font-size-base: 0.9375rem; // 15 px
   box-shadow: 3px 0 28px rgba(0, 0, 0, 0.08);
 }
 
-[data-bs-theme="dark"] .onrte-panel {
+[data-bs-theme="dark"] .ogis-panel {
   --bs-offcanvas-bg: rgba(10, 18, 10, 0.82);
   border-right: 1px solid rgba(255, 255, 255, 0.07) !important;
   box-shadow: 3px 0 28px rgba(0, 0, 0, 0.4);
@@ -158,7 +158,7 @@ $font-size-base: 0.9375rem; // 15 px
 }
 
 // About section branding logo
-.onrte-about-logo {
+.ogis-about-logo {
   height: 44px;
   width: auto;
 }
@@ -188,7 +188,7 @@ $font-size-base: 0.9375rem; // 15 px
 // #6f  Share URL textarea
 // ─────────────────────────────────────────────────────────────
 
-.onrte-share-textarea {
+.ogis-share-textarea {
   resize: none;
   font-size: 0.78rem;
   line-height: 1.55;
@@ -215,7 +215,7 @@ $font-size-base: 0.9375rem; // 15 px
 //     import "maplibre-gl/dist/maplibre-gl.css"
 
 // Map container
-.onrte-map {
+.ogis-map {
   z-index: 1;
   position: absolute;
   top: 0;
@@ -232,9 +232,9 @@ $font-size-base: 0.9375rem; // 15 px
     width 0.3s ease;
 }
 
-.onrte-map.panel-open {
-  left: var(--onrte-panel-width, 340px);
-  width: calc(100% - var(--onrte-panel-width, 340px));
+.ogis-map.panel-open {
+  left: var(--ogis-panel-width, 340px);
+  width: calc(100% - var(--ogis-panel-width, 340px));
 }
 
 // #6a  Corner controls overlay
@@ -243,7 +243,7 @@ $font-size-base: 0.9375rem; // 15 px
 // control clusters. The overlay mirrors the map's panel shift so
 // controls stay on the visible map area when the panel is open.
 
-.onrte-controls {
+.ogis-controls {
   z-index: 1030;
   position: absolute;
   top: 0;
@@ -256,12 +256,12 @@ $font-size-base: 0.9375rem; // 15 px
     width 0.3s ease;
 }
 
-.onrte-controls.panel-open {
-  left: var(--onrte-panel-width, 340px);
-  width: calc(100% - var(--onrte-panel-width, 340px));
+.ogis-controls.panel-open {
+  left: var(--ogis-panel-width, 340px);
+  width: calc(100% - var(--ogis-panel-width, 340px));
 }
 
-.onrte-corner {
+.ogis-corner {
   position: absolute;
   display: flex;
   align-items: center;
@@ -270,22 +270,22 @@ $font-size-base: 0.9375rem; // 15 px
   pointer-events: auto;
 }
 
-.onrte-corner--tl {
+.ogis-corner--tl {
   top: 0;
   left: 0;
 }
 
-.onrte-corner--tr {
+.ogis-corner--tr {
   top: 0;
   right: 0;
 }
 
-.onrte-corner--br {
+.ogis-corner--br {
   bottom: 0;
   right: 0;
 }
 
-.onrte-corner--bl {
+.ogis-corner--bl {
   bottom: 0;
   left: 0;
 }
@@ -389,19 +389,19 @@ $font-size-base: 0.9375rem; // 15 px
 }
 
 // GPS locate markers (rendered into the MapLibre map)
-.onrte-locate-position,
-.onrte-locate-heading {
+.ogis-locate-position,
+.ogis-locate-heading {
   color: var(--bs-primary);
   line-height: 0;
   pointer-events: none;
 }
 
 // Modal z-index — must sit above the panel and corner controls
-.onrte-modal-backdrop {
+.ogis-modal-backdrop {
   z-index: 1065;
 }
 
-.onrte-modal {
+.ogis-modal {
   z-index: 1070;
 }
 
@@ -411,12 +411,12 @@ $font-size-base: 0.9375rem; // 15 px
 // an icon-only pill on the first map drag. Its text wraps rather than
 // spanning the viewport, and its links are decoration only.
 
-.onrte-attribution-chip {
+.ogis-attribution-chip {
   max-width: min(70ch, calc(100vw - 8rem));
   align-items: center;
 }
 
-.onrte-attribution-chip .onrte-attribution-chip__text {
+.ogis-attribution-chip .ogis-attribution-chip__text {
   white-space: normal;
   font-size: 0.6875rem;
   font-weight: 500;
@@ -426,22 +426,22 @@ $font-size-base: 0.9375rem; // 15 px
   pointer-events: none;
 }
 
-.onrte-attribution-chip a {
+.ogis-attribution-chip a {
   pointer-events: none;
 }
 
 // Info panel fills the scroll container so its sticky footer can pin to
 // the bottom edge even when the content is short.
-.onrte-info-panel {
+.ogis-info-panel {
   min-height: 100%;
 }
 
 // Info panel attribution links — interactive here, unlike the chip.
-.onrte-attribution-section a {
+.ogis-attribution-section a {
   color: var(--bs-primary);
 }
 
-.onrte-attribution-section {
+.ogis-attribution-section {
   margin-top: auto;
   position: sticky;
   bottom: 0;
@@ -451,12 +451,12 @@ $font-size-base: 0.9375rem; // 15 px
   -webkit-backdrop-filter: blur(20px) saturate(160%);
 }
 
-[data-bs-theme="dark"] .onrte-attribution-section {
+[data-bs-theme="dark"] .ogis-attribution-section {
   background: rgba(10, 18, 10, 0.92);
 }
 
 // Native <details> disclosure with a simple [+]/[−] marker.
-.onrte-disclosure > summary {
+.ogis-disclosure > summary {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -467,28 +467,28 @@ $font-size-base: 0.9375rem; // 15 px
   font-weight: 600;
 }
 
-.onrte-disclosure > summary::-webkit-details-marker {
+.ogis-disclosure > summary::-webkit-details-marker {
   display: none;
 }
 
-.onrte-disclosure > summary::before {
+.ogis-disclosure > summary::before {
   content: "[+]";
   font-family: var(--bs-font-monospace);
 }
 
-.onrte-disclosure[open] > summary::before {
+.ogis-disclosure[open] > summary::before {
   content: "[−]";
 }
 
-.onrte-disclosure-less {
+.ogis-disclosure-less {
   display: none;
 }
 
-.onrte-disclosure[open] .onrte-disclosure-more {
+.ogis-disclosure[open] .ogis-disclosure-more {
   display: none;
 }
 
-.onrte-disclosure[open] .onrte-disclosure-less {
+.ogis-disclosure[open] .ogis-disclosure-less {
   display: inline;
 }
 
@@ -507,7 +507,7 @@ $font-size-base: 0.9375rem; // 15 px
 
 // Once the chip collapses to the ⓘ icon, the scale moves inline to its right
 // (same row, vertically centred with the chip). Tune these two values only.
-.onrte-root[data-attrib-collapsed="true"] .maplibregl-ctrl-bottom-left {
+.ogis-root[data-attrib-collapsed="true"] .maplibregl-ctrl-bottom-left {
   bottom: 0.6rem !important;
   left: 3.5rem !important;
 }

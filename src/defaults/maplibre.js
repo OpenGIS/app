@@ -1,5 +1,5 @@
 /**
- * Default MapLibre GL JS options for On Route.
+ * Default MapLibre GL JS options for ogis.app.
  *
  * Centralised here so they can be imported by composables and features
  * without duplicating magic values.

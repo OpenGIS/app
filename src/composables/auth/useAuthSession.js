@@ -12,7 +12,7 @@ function createState() {
 }
 
 export function useAuthSession(instanceId) {
-  const id = instanceId ?? inject("onrteAppId", "app");
+  const id = instanceId ?? inject("ogisAppId", "app");
 
   if (!cache.has(id)) {
     cache.set(id, createState());

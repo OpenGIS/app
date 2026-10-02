@@ -7,7 +7,7 @@ const resizeCleanups = new Map();
 
 function createState(instanceId) {
   // isFirstLoad is true when the map view has never been persisted for this instance.
-  const storageKey = `onrte_view_${instanceId}`;
+  const storageKey = `ogis_view_${instanceId}`;
   const firstLoad = !localStorage.getItem(storageKey);
   return {
     width: ref(window.innerWidth),
@@ -26,7 +26,7 @@ function createState(instanceId) {
  * detection. State is shared across all callers within the app.
  */
 export const useUI = () => {
-  const instanceId = inject("onrteAppId", "app");
+  const instanceId = inject("ogisAppId", "app");
 
   if (!instances.has(instanceId)) {
     instances.set(instanceId, createState(instanceId));

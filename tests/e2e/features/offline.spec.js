@@ -13,25 +13,25 @@ import { test, expect } from "@playwright/test";
 const withViewStorage = (page) =>
   page.addInitScript(() => {
     localStorage.setItem(
-      "onrte_view_app",
+      "ogis_view_app",
       JSON.stringify({
         mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
       }),
     );
-    localStorage.removeItem("onrte_offline-regions_app");
+    localStorage.removeItem("ogis_offline-regions_app");
   });
 
 /** Seed one downloaded region directly into localStorage. */
 const withOneRegion = (page) =>
   page.addInitScript(() => {
     localStorage.setItem(
-      "onrte_view_app",
+      "ogis_view_app",
       JSON.stringify({
         mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
       }),
     );
     localStorage.setItem(
-      "onrte_offline-regions_app",
+      "ogis_offline-regions_app",
       JSON.stringify([
         {
           id: "test-region-1",
@@ -56,13 +56,13 @@ const withOneRegion = (page) =>
 const withShowRegion = (page) =>
   page.addInitScript(() => {
     localStorage.setItem(
-      "onrte_view_app",
+      "ogis_view_app",
       JSON.stringify({
         mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
       }),
     );
     localStorage.setItem(
-      "onrte_offline-regions_app",
+      "ogis_offline-regions_app",
       JSON.stringify([
         {
           id: "show-region-1",
@@ -94,7 +94,7 @@ const openOfflinePanel = async (page) => {
     .locator(".panel-nav")
     .getByRole("button", { name: /offline maps/i })
     .click();
-  await expect(page.locator(".onrte-panel")).toHaveClass(/show/);
+  await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
   await expect(
     page.getByRole("heading", { name: "Offline Maps" }),
   ).toBeVisible();
@@ -102,7 +102,7 @@ const openOfflinePanel = async (page) => {
 
 /** Drag a small box on the map canvas to select a region. */
 const drawRegion = async (page) => {
-  const canvas = page.locator(".onrte-map canvas");
+  const canvas = page.locator(".ogis-map canvas");
   await canvas.waitFor({ state: "visible" });
   const box = await canvas.boundingBox();
   const x0 = box.x + box.width * 0.35;
@@ -121,7 +121,7 @@ test.describe("Offline / Panel tab", () => {
   test.beforeEach(async ({ page }) => {
     await withViewStorage(page);
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
   });
 
   test("no offline corner chip is present", async ({ page }) => {
@@ -137,7 +137,7 @@ test.describe("Offline / Panel tab", () => {
       await page.locator("#about-modal-close").click();
       await modal.waitFor({ state: "hidden" });
     }
-    await expect(page.locator(".onrte-panel")).toHaveClass(/show/);
+    await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
 
     // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
     if (!(await page.locator(".panel-nav").isVisible())) {
@@ -177,7 +177,7 @@ test.describe("Offline / Estimate", () => {
   test.beforeEach(async ({ page }) => {
     await withViewStorage(page);
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
     await openOfflinePanel(page);
   });
 
@@ -203,7 +203,7 @@ test.describe("Offline / Download", () => {
   test.beforeEach(async ({ page }) => {
     await withViewStorage(page);
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
     await openOfflinePanel(page);
   });
 
@@ -243,7 +243,7 @@ test.describe("Offline / Delete", () => {
   test.beforeEach(async ({ page }) => {
     await withOneRegion(page);
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
     await openOfflinePanel(page);
   });
 
@@ -266,7 +266,7 @@ test.describe("Offline / Show", () => {
   test.beforeEach(async ({ page }) => {
     await withShowRegion(page);
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
     await openOfflinePanel(page);
   });
 
@@ -277,7 +277,7 @@ test.describe("Offline / Show", () => {
     await expect(page.getByText("Test Region")).toBeVisible();
     await expect(
       page
-        .locator(".onrte-panel")
+        .locator(".ogis-panel")
         .getByRole("button", { name: "Show", exact: true }),
     ).toBeVisible();
 
@@ -287,10 +287,10 @@ test.describe("Offline / Show", () => {
       .toMatch(/#map=14\/50\.653900\/-128\.009400/);
 
     // The map canvas is visible while the panel is open
-    await expect(page.locator(".onrte-map canvas")).toBeVisible();
+    await expect(page.locator(".ogis-map canvas")).toBeVisible();
 
     await page
-      .locator(".onrte-panel")
+      .locator(".ogis-panel")
       .getByRole("button", { name: "Show", exact: true })
       .click();
 
@@ -321,7 +321,7 @@ test.describe("Offline / Mobile (touch)", () => {
   /** Open the side panel via the hamburger, then switch to the Offline Maps tab. */
   const openOfflinePanelMobile = async (page) => {
     await page.getByRole("button", { name: "Menu" }).click();
-    await expect(page.locator(".onrte-panel")).toHaveClass(/show/);
+    await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
     await page
       .locator(".panel-nav")
       .getByRole("button", { name: /offline maps/i })
@@ -334,7 +334,7 @@ test.describe("Offline / Mobile (touch)", () => {
   /** Wait for the offcanvas slide-out transition so it no longer intercepts touches. */
   const waitForPanelHidden = async (page) => {
     await page.waitForFunction(() => {
-      const panel = document.querySelector(".onrte-panel");
+      const panel = document.querySelector(".ogis-panel");
       if (!panel) return true;
       return panel.getBoundingClientRect().right <= 0;
     });
@@ -343,7 +343,7 @@ test.describe("Offline / Mobile (touch)", () => {
   test.beforeEach(async ({ page }) => {
     await withViewStorage(page);
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
   });
 
   test("Select region closes the panel on mobile", async ({ page }) => {
@@ -355,17 +355,17 @@ test.describe("Offline / Mobile (touch)", () => {
     await page.getByRole("button", { name: "Select region" }).click();
 
     // The panel closes, revealing the map; the mobile backdrop disappears.
-    await expect(page.locator(".onrte-panel")).not.toHaveClass(/show/);
+    await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
     await expect(page.locator(".offcanvas-backdrop")).toHaveCount(0);
   });
 
   test("touch-drag draws a region and the panel reopens", async ({ page }) => {
     await openOfflinePanelMobile(page);
     await page.getByRole("button", { name: "Select region" }).click();
-    await expect(page.locator(".onrte-panel")).not.toHaveClass(/show/);
+    await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
     await waitForPanelHidden(page);
 
-    const canvas = page.locator(".onrte-map canvas");
+    const canvas = page.locator(".ogis-map canvas");
     const box = await canvas.boundingBox();
     const x0 = box.x + box.width * 0.35;
     const y0 = box.y + box.height * 0.35;
@@ -392,22 +392,22 @@ test.describe("Offline / Mobile (touch)", () => {
     });
 
     // The panel auto-reopens with the selected region shown.
-    await expect(page.locator(".onrte-panel")).toHaveClass(/show/);
+    await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
     await expect(page.getByText("Selected region")).toBeVisible();
   });
 
   test("tap without drag does NOT select a region", async ({ page }) => {
     await openOfflinePanelMobile(page);
     await page.getByRole("button", { name: "Select region" }).click();
-    await expect(page.locator(".onrte-panel")).not.toHaveClass(/show/);
+    await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
     await waitForPanelHidden(page);
 
-    const canvas = page.locator(".onrte-map canvas");
+    const canvas = page.locator(".ogis-map canvas");
     const box = await canvas.boundingBox();
     await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
 
     // A <4px tap aborts the draw: the panel stays closed, no region shown.
-    await expect(page.locator(".onrte-panel")).not.toHaveClass(/show/);
+    await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
     await expect(page.getByText("Selected region")).toHaveCount(0);
   });
 });

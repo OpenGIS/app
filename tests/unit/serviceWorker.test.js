@@ -30,7 +30,7 @@ describe("setupServiceWorker", () => {
 
   it("no-ops without throwing when the serviceWorker API is absent", async () => {
     const nav = createNav({ supported: false });
-    const cacheStorage = createCacheStorage(["onrte-shell-v1"]);
+    const cacheStorage = createCacheStorage(["ogis-shell-v1"]);
 
     const summary = await setupServiceWorker({ env: {}, nav, cacheStorage });
 
@@ -62,7 +62,7 @@ describe("setupServiceWorker", () => {
     ];
     const getRegistrations = vi.fn().mockResolvedValue(registrations);
     const nav = createNav({ register, registrations: getRegistrations });
-    const cacheStorage = createCacheStorage(["onrte-shell-v1", "onrte-map-v1"]);
+    const cacheStorage = createCacheStorage(["ogis-shell-v1", "ogis-map-v1"]);
 
     const summary = await setupServiceWorker({ env: {}, nav, cacheStorage });
 
@@ -73,8 +73,8 @@ describe("setupServiceWorker", () => {
     }
     expect(cacheStorage.keys).toHaveBeenCalledTimes(1);
     expect(cacheStorage.delete).toHaveBeenCalledTimes(2);
-    expect(cacheStorage.delete).toHaveBeenCalledWith("onrte-shell-v1");
-    expect(cacheStorage.delete).toHaveBeenCalledWith("onrte-map-v1");
+    expect(cacheStorage.delete).toHaveBeenCalledWith("ogis-shell-v1");
+    expect(cacheStorage.delete).toHaveBeenCalledWith("ogis-map-v1");
     expect(summary).toEqual({
       registered: false,
       cleanedRegistrations: 2,
@@ -86,7 +86,7 @@ describe("setupServiceWorker", () => {
     const register = vi.fn().mockResolvedValue({ scope: "/" });
     const getRegistrations = vi.fn().mockResolvedValue([]);
     const nav = createNav({ register, registrations: getRegistrations });
-    const cacheStorage = createCacheStorage(["onrte-shell-v1"]);
+    const cacheStorage = createCacheStorage(["ogis-shell-v1"]);
 
     const summary = await setupServiceWorker({
       env: { VITE_SW: "1" },
@@ -109,7 +109,7 @@ describe("setupServiceWorker", () => {
     const register = vi.fn().mockResolvedValue({ scope: "/" });
     const getRegistrations = vi.fn().mockResolvedValue([]);
     const nav = createNav({ register, registrations: getRegistrations });
-    const cacheStorage = createCacheStorage(["onrte-shell-v1"]);
+    const cacheStorage = createCacheStorage(["ogis-shell-v1"]);
 
     const summary = await setupServiceWorker({
       env: { PROD: true },
@@ -151,7 +151,7 @@ describe("setupServiceWorker", () => {
       .fn()
       .mockRejectedValue(new Error("cleanup boom"));
     const nav = createNav({ registrations: getRegistrations });
-    const cacheStorage = createCacheStorage(["onrte-shell-v1"]);
+    const cacheStorage = createCacheStorage(["ogis-shell-v1"]);
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});

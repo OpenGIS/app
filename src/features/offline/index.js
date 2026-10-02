@@ -1,4 +1,4 @@
-// offline/index.js — Offline download feature for On Route App.
+// offline/index.js — Offline download feature for ogis.app.
 // Provides a side panel for downloading a map region (tiles + glyphs) so it
 // works offline via the service worker map cache.
 import OfflinePanel from "./OfflinePanel.vue";
@@ -114,9 +114,9 @@ export const OfflineFeature = {
         id: "offline-region",
         geometry: { type: "Polygon", coordinates: [ring] },
         properties: {
-          "onrte.color": "#39d353",
-          "onrte.fillOpacity": 0.25,
-          "onrte.opacity": 0.9,
+          "ogis.color": "#39d353",
+          "ogis.fillOpacity": 0.25,
+          "ogis.opacity": 0.9,
         },
       });
       const map = getMap();

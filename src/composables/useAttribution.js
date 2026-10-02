@@ -14,7 +14,7 @@ const cache = new Map();
  * `sourcedata` events MapLibre's own AttributionControl listens to.
  */
 export const useAttribution = () => {
-  const instanceId = inject("onrteAppId", "app");
+  const instanceId = inject("ogisAppId", "app");
 
   if (cache.has(instanceId)) return cache.get(instanceId);
 

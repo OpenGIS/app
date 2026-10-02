@@ -142,7 +142,7 @@ const dismissAboutModal = async (page) => {
 
 /** Wait for MapLibre to finish rendering tiles (generous under SwiftShader). */
 const waitForMapIdle = (page) =>
-  expect(page.locator(".onrte-map")).toHaveAttribute("data-map-idle", "true", {
+  expect(page.locator(".ogis-map")).toHaveAttribute("data-map-idle", "true", {
     timeout: 30000,
   });
 
@@ -154,7 +154,7 @@ const waitForMapIdle = (page) =>
 const seedLocatePermission = (page) =>
   page.addInitScript(() => {
     localStorage.setItem(
-      "onrte_locate_app",
+      "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
     );
   });
@@ -163,11 +163,11 @@ const seedLocatePermission = (page) =>
 const withGrantedStorage = (page) =>
   page.addInitScript(() => {
     localStorage.setItem(
-      "onrte_locate_app",
+      "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
     );
     localStorage.setItem(
-      "onrte_view_app",
+      "ogis_view_app",
       JSON.stringify({
         mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
       }),
@@ -188,7 +188,7 @@ const grantGeolocation = (page) =>
 
 /** Mouse-drag the map canvas horizontally to collapse the attribution chip. */
 const dragMap = async (page, dx = 200) => {
-  const canvas = page.locator(".onrte-map canvas");
+  const canvas = page.locator(".ogis-map canvas");
   await canvas.waitFor({ state: "visible" });
   const box = await canvas.boundingBox();
   const x = box.x + box.width / 2;
@@ -202,7 +202,7 @@ const dragMap = async (page, dx = 200) => {
 /** True when the side panel currently has the Bootstrap `show` class. */
 const isPanelShown = (page) =>
   page
-    .locator(".onrte-panel.show")
+    .locator(".ogis-panel.show")
     .count()
     .then((n) => n > 0);
 
@@ -219,12 +219,12 @@ const closePanel = async (page) => {
     // click is intercepted. Dispatch the click straight at the backdrop, whose
     // Vue handler closes the panel.
     await backdrop.dispatchEvent("click");
-  } else if ((await page.locator(".onrte-info-panel").count()) > 0) {
+  } else if ((await page.locator(".ogis-info-panel").count()) > 0) {
     await page.locator("#attribution-button").click();
   } else {
     await page.locator("#menu-button").click();
   }
-  await expect(page.locator(".onrte-panel")).not.toHaveClass(/show/);
+  await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
 };
 
 /** Open a named tab in the side panel nav (desktop auto-opens the Info pane). */
@@ -234,7 +234,7 @@ const openPanelTab = async (page, roleOptions) => {
     await page.locator(".panel-nav").waitFor();
   }
   await page.locator(".panel-nav").getByRole("button", roleOptions).click();
-  await expect(page.locator(".onrte-panel")).toHaveClass(/show/);
+  await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
 };
 
 // ─── Core chrome states — one test per viewport, looping states ──────────────
@@ -261,7 +261,7 @@ for (const vp of VIEWPORTS) {
       // dark default resolves the dark theme.
       await expect(page.locator("#about-modal")).toBeVisible({ timeout: 8000 });
       await waitForMapIdle(page);
-      await expect(page.locator(".onrte-root")).toHaveAttribute(
+      await expect(page.locator(".ogis-root")).toHaveAttribute(
         "data-bs-theme",
         "dark",
       );
@@ -276,7 +276,7 @@ for (const vp of VIEWPORTS) {
       // menu-open — the tab strip (menu pane). Opened from a closed panel so
       // the menu button is always accessible, even on narrow screens.
       await page.locator("#menu-button").click();
-      await expect(page.locator(".onrte-panel")).toHaveClass(/show/);
+      await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
       await expect(page.locator(".panel-nav")).toBeVisible();
       await page.waitForTimeout(350);
       await capture(page, dir, "menu-open");
@@ -286,7 +286,7 @@ for (const vp of VIEWPORTS) {
       await closePanel(page);
       await page.waitForTimeout(200);
       await page.locator("#attribution-button").click();
-      await expect(page.locator(".onrte-info-panel")).toBeVisible();
+      await expect(page.locator(".ogis-info-panel")).toBeVisible();
       await expect(page.locator(".panel-nav")).toHaveCount(0);
       await page.waitForTimeout(350);
       await capture(page, dir, "info-open");
@@ -299,13 +299,13 @@ for (const vp of VIEWPORTS) {
       // Collapse is signalled by the root data attribute; under SwiftShader the
       // drag→collapse transition can lag, so poll that real signal first, then
       // assert the text has been removed.
-      await expect(page.locator(".onrte-root")).toHaveAttribute(
+      await expect(page.locator(".ogis-root")).toHaveAttribute(
         "data-attrib-collapsed",
         "true",
         { timeout: 20000 },
       );
       await expect(
-        page.locator("#attribution-button .onrte-attribution-chip__text"),
+        page.locator("#attribution-button .ogis-attribution-chip__text"),
       ).toHaveCount(0, { timeout: 20000 });
       await page.waitForTimeout(150);
       await capture(page, dir, "drag-collapsed");
@@ -364,15 +364,15 @@ test.describe("Feature states — desktop landscape", () => {
 
     await openPanelTab(page, { name: "Routes", exact: true });
     await page
-      .locator('.onrte-panel input[type="file"]')
+      .locator('.ogis-panel input[type="file"]')
       .setInputFiles("tests/e2e/fixtures/route.gpx");
     await expect(
-      page.locator(".onrte-panel").getByText("Test Loop"),
+      page.locator(".ogis-panel").getByText("Test Loop"),
     ).toBeVisible();
 
     // Render the imported route on the map.
     await page
-      .locator(".onrte-panel")
+      .locator(".ogis-panel")
       .getByRole("button", { name: "Show", exact: true })
       .click();
     await waitForMapIdle(page);
@@ -380,7 +380,7 @@ test.describe("Feature states — desktop landscape", () => {
 
     // Start navigation — the panel reports the active navigation banner.
     await page
-      .locator(".onrte-panel")
+      .locator(".ogis-panel")
       .getByRole("button", { name: "Navigate", exact: true })
       .click();
     await expect(page.getByText(/Navigation active/)).toBeVisible();
@@ -392,13 +392,13 @@ test.describe("Feature states — desktop landscape", () => {
     // Seed one downloaded region so the panel shows its list state.
     await page.addInitScript(() => {
       localStorage.setItem(
-        "onrte_view_app",
+        "ogis_view_app",
         JSON.stringify({
           mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
         }),
       );
       localStorage.setItem(
-        "onrte_offline-regions_app",
+        "ogis_offline-regions_app",
         JSON.stringify([
           {
             id: "test-region-1",
@@ -425,7 +425,7 @@ test.describe("Feature states — desktop landscape", () => {
 
     await openPanelTab(page, { name: /offline maps/i });
     await expect(
-      page.locator(".onrte-panel").getByText("Test Region"),
+      page.locator(".ogis-panel").getByText("Test Region"),
     ).toBeVisible();
     await page.waitForTimeout(350);
     await capture(page, FEATURE_DIR, "feature-offline");
@@ -435,17 +435,17 @@ test.describe("Feature states — desktop landscape", () => {
     // Seed one saved recording so the panel lists it with its actions.
     await page.addInitScript(() => {
       localStorage.setItem(
-        "onrte_locate_app",
+        "ogis_locate_app",
         JSON.stringify({ permissionGranted: true }),
       );
       localStorage.setItem(
-        "onrte_view_app",
+        "ogis_view_app",
         JSON.stringify({
           mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
         }),
       );
       localStorage.setItem(
-        "onrte_recordings_app",
+        "ogis_recordings_app",
         JSON.stringify({
           saved: [
             {
@@ -470,12 +470,12 @@ test.describe("Feature states — desktop landscape", () => {
 
     await openPanelTab(page, { name: "Recordings", exact: true });
     await expect(
-      page.locator(".onrte-panel").locator(".border-top"),
+      page.locator(".ogis-panel").locator(".border-top"),
     ).toBeVisible();
 
     // Show the saved recording's track on the map.
     await page
-      .locator(".onrte-panel")
+      .locator(".ogis-panel")
       .getByRole("button", { name: "Show", exact: true })
       .click();
     await waitForMapIdle(page);

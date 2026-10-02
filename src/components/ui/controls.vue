@@ -7,7 +7,7 @@ import LocateButton from "@/components/ui/controls/locate.vue";
 import AttributionControl from "@/components/ui/controls/attribution.vue";
 import { getMapInstance } from "@/composables/useMap";
 
-const instanceId = inject("onrteAppId", "app");
+const instanceId = inject("ogisAppId", "app");
 const buttonsRef = inject("navigatorButtons", shallowRef([]));
 
 const {
@@ -38,10 +38,10 @@ const handleCustomClick = (btn) => {
 
 <template>
   <div
-    class="onrte-controls"
+    class="ogis-controls"
     :class="{ 'panel-open': isPanelVisible && isDesktop }"
   >
-    <div class="onrte-corner onrte-corner--tl">
+    <div class="ogis-corner ogis-corner--tl">
       <IconButton
         id="menu-button"
         chip
@@ -54,11 +54,11 @@ const handleCustomClick = (btn) => {
       />
     </div>
 
-    <div class="onrte-corner onrte-corner--tr">
+    <div class="ogis-corner ogis-corner--tr">
       <LocateButton />
     </div>
 
-    <div class="onrte-corner onrte-corner--br">
+    <div class="ogis-corner ogis-corner--br">
       <template v-for="btn in bottomRightButtons" :key="btn.id">
         <component
           v-if="btn.component"
@@ -76,7 +76,7 @@ const handleCustomClick = (btn) => {
       </template>
     </div>
 
-    <div class="onrte-corner onrte-corner--bl">
+    <div class="ogis-corner ogis-corner--bl">
       <AttributionControl />
     </div>
   </div>

@@ -89,11 +89,11 @@ export function matchLocale(tag, codes) {
 }
 
 /**
- * @param {string} [instanceId] - App instance ID. If omitted, resolved via inject('onrteAppId').
+ * @param {string} [instanceId] - App instance ID. If omitted, resolved via inject('ogisAppId').
  *   Pass explicitly when calling from outside Vue setup context (e.g. a feature install()).
  */
 export const useLocale = (instanceId) => {
-  const id = instanceId ?? inject("onrteAppId", "app");
+  const id = instanceId ?? inject("ogisAppId", "app");
 
   if (!cache.has(id)) {
     const defaultLocale = inject("navigatorLocale", null);

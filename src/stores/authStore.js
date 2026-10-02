@@ -5,7 +5,7 @@ import { useMagicLinkAuth } from "@/composables/auth/useMagicLinkAuth";
 const cache = new Map();
 
 export function useAuthStore(instanceId) {
-  const id = instanceId ?? inject("onrteAppId", "app");
+  const id = instanceId ?? inject("ogisAppId", "app");
 
   if (!cache.has(id)) {
     cache.set(id, {

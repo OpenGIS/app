@@ -83,7 +83,7 @@ describe("api/client", () => {
     expect(requestMock).toHaveBeenCalledWith(
       expect.objectContaining({
         url: "/api/auth/logout",
-        __onrteCsrfRetried: true,
+        __ogisCsrfRetried: true,
       }),
     );
     expect(result).toEqual({ data: { ok: true } });

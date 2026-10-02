@@ -13,10 +13,10 @@ defineExpose({ close });
 <template>
   <Teleport to="body">
     <template v-if="modelValue">
-      <div class="modal-backdrop fade show onrte-modal-backdrop"></div>
+      <div class="modal-backdrop fade show ogis-modal-backdrop"></div>
       <div
         :id="id"
-        class="modal fade show d-block onrte-modal"
+        class="modal fade show d-block ogis-modal"
         tabindex="-1"
         role="dialog"
         aria-modal="true"

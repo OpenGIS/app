@@ -44,7 +44,7 @@ const copyLink = async () => {
       copied.value = false;
     }, 2000);
   } catch {
-    const el = document.querySelector(".onrte-share-textarea");
+    const el = document.querySelector(".ogis-share-textarea");
     if (el) {
       el.select();
       document.execCommand("copy");
@@ -54,12 +54,12 @@ const copyLink = async () => {
 </script>
 
 <template>
-  <div class="onrte-info-panel d-flex flex-column flex-grow-1">
+  <div class="ogis-info-panel d-flex flex-column flex-grow-1">
     <div class="sidebar-section sidebar-section-body p-3">
       <textarea
-        id="onrte-share-url"
-        name="onrte-share-url"
-        class="onrte-share-textarea form-control form-control-sm font-monospace mb-2"
+        id="ogis-share-url"
+        name="ogis-share-url"
+        class="ogis-share-textarea form-control form-control-sm font-monospace mb-2"
         :value="shareUrl"
         readonly
         rows="3"
@@ -107,7 +107,7 @@ const copyLink = async () => {
 
     <!-- About -->
     <div
-      class="sidebar-section sidebar-section-body p-3 border-top onrte-about-section"
+      class="sidebar-section sidebar-section-body p-3 border-top ogis-about-section"
     >
       <div class="d-flex align-items-center gap-3">
         <p class="lead mb-0">
@@ -122,26 +122,26 @@ const copyLink = async () => {
         <img
           src="/favicon.png"
           alt="OpenGIS"
-          class="ms-auto flex-shrink-0 onrte-about-logo rounded-1"
+          class="ms-auto flex-shrink-0 ogis-about-logo rounded-1"
         />
       </div>
     </div>
 
     <!-- Privacy -->
     <div
-      class="sidebar-section sidebar-section-body p-3 border-top onrte-privacy-section"
+      class="sidebar-section sidebar-section-body p-3 border-top ogis-privacy-section"
     >
       <h5 class="mb-2">{{ t("panel.privacy.title") }}</h5>
       <p class="mb-2 small text-body-secondary">
         {{ t("panel.privacy.summary") }}
       </p>
 
-      <details class="onrte-disclosure">
+      <details class="ogis-disclosure">
         <summary>
-          <span class="onrte-disclosure-more">{{
+          <span class="ogis-disclosure-more">{{
             t("panel.info.readMore")
           }}</span>
-          <span class="onrte-disclosure-less">{{
+          <span class="ogis-disclosure-less">{{
             t("panel.info.readLess")
           }}</span>
         </summary>
@@ -175,9 +175,9 @@ const copyLink = async () => {
 
     <!-- Attribution -->
     <div
-      class="sidebar-section sidebar-section-body px-3 py-2 border-top onrte-attribution-section"
+      class="sidebar-section sidebar-section-body px-3 py-2 border-top ogis-attribution-section"
     >
-      <p class="mb-0 small onrte-attribution-text" v-html="attributionHtml"></p>
+      <p class="mb-0 small ogis-attribution-text" v-html="attributionHtml"></p>
     </div>
   </div>
 </template>

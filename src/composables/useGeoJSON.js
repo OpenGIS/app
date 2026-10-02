@@ -16,12 +16,12 @@ const BRIGHT_COLORS = [
   "#ff5722",
 ];
 
-const SOURCE_ID = "onrte-geojson";
+const SOURCE_ID = "ogis-geojson";
 const LAYER_IDS = {
-  polygonFill: "onrte-geojson-polygon-fill",
-  polygonOutline: "onrte-geojson-polygon-outline",
-  line: "onrte-geojson-line",
-  point: "onrte-geojson-point",
+  polygonFill: "ogis-geojson-polygon-fill",
+  polygonOutline: "ogis-geojson-polygon-outline",
+  line: "ogis-geojson-line",
+  point: "ogis-geojson-point",
 };
 
 const LINE_TYPES = new Set(["LineString", "MultiLineString"]);
@@ -56,7 +56,7 @@ function createManager(instanceId) {
   };
 
   const resolveColor = (id, props, category) => {
-    if (props["onrte.color"]) return props["onrte.color"];
+    if (props["ogis.color"]) return props["ogis.color"];
     if (defaults[category]?.color) return defaults[category].color;
     if (!assignedColors.has(id)) assignedColors.set(id, randomBrightColor());
     return assignedColors.get(id);
@@ -70,23 +70,23 @@ function createManager(instanceId) {
     const rawProps = feature.properties || {};
     const props = { ...rawProps };
 
-    props["onrte.color"] = resolveColor(id, rawProps, category);
+    props["ogis.color"] = resolveColor(id, rawProps, category);
 
     if (category === "line") {
-      if (props["onrte.width"] == null)
-        props["onrte.width"] = defaults.line.width;
-      if (props["onrte.opacity"] == null)
-        props["onrte.opacity"] = defaults.line.opacity;
+      if (props["ogis.width"] == null)
+        props["ogis.width"] = defaults.line.width;
+      if (props["ogis.opacity"] == null)
+        props["ogis.opacity"] = defaults.line.opacity;
     } else if (category === "point") {
-      if (props["onrte.radius"] == null)
-        props["onrte.radius"] = defaults.point.radius;
-      if (props["onrte.opacity"] == null)
-        props["onrte.opacity"] = defaults.point.opacity;
+      if (props["ogis.radius"] == null)
+        props["ogis.radius"] = defaults.point.radius;
+      if (props["ogis.opacity"] == null)
+        props["ogis.opacity"] = defaults.point.opacity;
     } else if (category === "polygon") {
-      if (props["onrte.fillOpacity"] == null)
-        props["onrte.fillOpacity"] = defaults.polygon.fillOpacity;
-      if (props["onrte.opacity"] == null)
-        props["onrte.opacity"] = defaults.polygon.opacity;
+      if (props["ogis.fillOpacity"] == null)
+        props["ogis.fillOpacity"] = defaults.polygon.fillOpacity;
+      if (props["ogis.opacity"] == null)
+        props["ogis.opacity"] = defaults.polygon.opacity;
     }
 
     return { ...feature, properties: props };
@@ -122,8 +122,8 @@ function createManager(instanceId) {
         false,
       ],
       paint: {
-        "fill-color": ["get", "onrte.color"],
-        "fill-opacity": ["get", "onrte.fillOpacity"],
+        "fill-color": ["get", "ogis.color"],
+        "fill-opacity": ["get", "ogis.fillOpacity"],
       },
     });
 
@@ -140,8 +140,8 @@ function createManager(instanceId) {
         false,
       ],
       paint: {
-        "line-color": ["get", "onrte.color"],
-        "line-opacity": ["get", "onrte.opacity"],
+        "line-color": ["get", "ogis.color"],
+        "line-opacity": ["get", "ogis.opacity"],
         "line-width": 1.5,
       },
     });
@@ -163,9 +163,9 @@ function createManager(instanceId) {
         "line-join": "round",
       },
       paint: {
-        "line-color": ["get", "onrte.color"],
-        "line-width": ["get", "onrte.width"],
-        "line-opacity": ["get", "onrte.opacity"],
+        "line-color": ["get", "ogis.color"],
+        "line-width": ["get", "ogis.width"],
+        "line-opacity": ["get", "ogis.opacity"],
       },
     });
 
@@ -182,9 +182,9 @@ function createManager(instanceId) {
         false,
       ],
       paint: {
-        "circle-color": ["get", "onrte.color"],
-        "circle-radius": ["get", "onrte.radius"],
-        "circle-opacity": ["get", "onrte.opacity"],
+        "circle-color": ["get", "ogis.color"],
+        "circle-radius": ["get", "ogis.radius"],
+        "circle-opacity": ["get", "ogis.opacity"],
         "circle-stroke-color": "white",
         "circle-stroke-width": 1.5,
       },
@@ -221,15 +221,15 @@ function createManager(instanceId) {
    * Add or update a GeoJSON feature on the map.
    *
    * The feature must be a GeoJSON `Feature` object with an `id` property.
-   * Style can be controlled via `onrte.*` properties on the feature:
+   * Style can be controlled via `ogis.*` properties on the feature:
    *
    * | Property | Applies to | Default |
    * |---|---|---|
-   * | `onrte.color` | All types | auto (random bright) |
-   * | `onrte.opacity` | All types | 0.85 (line/polygon), 1 (point) |
-   * | `onrte.width` | Line | 3 |
-   * | `onrte.radius` | Point | 6 |
-   * | `onrte.fillOpacity` | Polygon | 0.4 |
+   * | `ogis.color` | All types | auto (random bright) |
+   * | `ogis.opacity` | All types | 0.85 (line/polygon), 1 (point) |
+   * | `ogis.width` | Line | 3 |
+   * | `ogis.radius` | Point | 6 |
+   * | `ogis.fillOpacity` | Polygon | 0.4 |
    *
    * @param {import('geojson').Feature} feature
    */
@@ -336,7 +336,7 @@ function createManager(instanceId) {
  * }
  */
 export const useGeoJSON = (instanceId = null) => {
-  const id = instanceId ?? inject("onrteAppId", "app");
+  const id = instanceId ?? inject("ogisAppId", "app");
   if (!cache.has(id)) {
     cache.set(id, createManager(id));
   }

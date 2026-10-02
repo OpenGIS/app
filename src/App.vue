@@ -14,7 +14,7 @@ import { useAttribution } from "@/composables/useAttribution";
 import { useSettings } from "@/composables/useSettings";
 import { useWakeLock } from "@/composables/useWakeLock";
 
-const instanceId = inject("onrteAppId", "app");
+const instanceId = inject("ogisAppId", "app");
 
 // Map — template ref passed so useMap manages the full lifecycle
 const mapContainer = ref(null);
@@ -55,21 +55,21 @@ onMounted(() => initWakeLock());
 <template>
   <div
     ref="rootEl"
-    class="onrte-root position-fixed top-0 start-0 w-100 h-100 overflow-hidden"
+    class="ogis-root position-fixed top-0 start-0 w-100 h-100 overflow-hidden"
     :data-bs-theme="resolvedTheme"
     :data-attrib-collapsed="attributionCollapsed ? 'true' : 'false'"
   >
     <div style="display: none" v-html="iconSprite"></div>
 
-    <div class="onrte-content">
+    <div class="ogis-content">
       <Panels />
     </div>
 
     <!-- Map -->
     <div
       ref="mapContainer"
-      class="onrte-map"
-      :data-onrte-id="instanceId"
+      class="ogis-map"
+      :data-ogis-id="instanceId"
       :class="{ 'panel-open': isPanelVisible && isDesktop }"
       @click="handleMapClick"
     />

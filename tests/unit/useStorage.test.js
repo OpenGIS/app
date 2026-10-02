@@ -25,27 +25,27 @@ beforeEach(() => {
 
 describe("useStorage", () => {
   describe("key format", () => {
-    it("generates key as onrte_{namespace}_{instanceId}", () => {
+    it("generates key as ogis_{namespace}_{instanceId}", () => {
       __setInjectReturn("my-app");
       useStorage("view", {});
       const keys = Object.keys(localStorage);
       // The key is read via localStorage.getItem — check inject was called correctly
-      expect(inject).toHaveBeenCalledWith("onrteAppId", "app");
+      expect(inject).toHaveBeenCalledWith("ogisAppId", "app");
     });
 
-    it("reads from the correct key: onrte_{namespace}_{id}", () => {
+    it("reads from the correct key: ogis_{namespace}_{id}", () => {
       __setInjectReturn("app");
       const data = { mapView: { center: { lat: 51.5, lng: -0.1 }, zoom: 10 } };
-      localStorage.setItem("onrte_view_app", JSON.stringify(data));
+      localStorage.setItem("ogis_view_app", JSON.stringify(data));
 
       const state = useStorage("view", { mapView: null });
       expect(state.mapView).toEqual(data.mapView);
     });
 
-    it("uses default instanceId 'app' when no onrteAppId is provided", () => {
+    it("uses default instanceId 'app' when no ogisAppId is provided", () => {
       __setInjectReturn("app");
       const data = { value: 42 };
-      localStorage.setItem("onrte_test_app", JSON.stringify(data));
+      localStorage.setItem("ogis_test_app", JSON.stringify(data));
 
       const state = useStorage("test", { value: 0 });
       expect(state.value).toBe(42);
@@ -53,8 +53,8 @@ describe("useStorage", () => {
 
     it("scopes keys by instance id — different ids produce different keys", () => {
       __setInjectReturn("map-a");
-      localStorage.setItem("onrte_view_map-a", JSON.stringify({ zoom: 10 }));
-      localStorage.setItem("onrte_view_map-b", JSON.stringify({ zoom: 5 }));
+      localStorage.setItem("ogis_view_map-a", JSON.stringify({ zoom: 10 }));
+      localStorage.setItem("ogis_view_map-b", JSON.stringify({ zoom: 5 }));
 
       const stateA = useStorage("view", { zoom: 1 });
       expect(stateA.zoom).toBe(10);
@@ -73,17 +73,14 @@ describe("useStorage", () => {
     });
 
     it("merges stored values over defaults", () => {
-      localStorage.setItem(
-        "onrte_prefs_app",
-        JSON.stringify({ theme: "dark" }),
-      );
+      localStorage.setItem("ogis_prefs_app", JSON.stringify({ theme: "dark" }));
       const state = useStorage("prefs", { theme: "light", units: "metric" });
       expect(state.theme).toBe("dark");
       expect(state.units).toBe("metric");
     });
 
     it("handles corrupted JSON gracefully", () => {
-      localStorage.setItem("onrte_bad_app", "not-json!!!");
+      localStorage.setItem("ogis_bad_app", "not-json!!!");
       const consoleSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
@@ -114,7 +111,7 @@ describe("useStorage", () => {
       const [, callback] = watch.mock.calls[0];
       callback({ count: 5 });
 
-      const stored = JSON.parse(localStorage.getItem("onrte_data_app"));
+      const stored = JSON.parse(localStorage.getItem("ogis_data_app"));
       expect(stored.count).toBe(5);
     });
   });
@@ -137,7 +134,7 @@ describe("useStorage", () => {
       callback([{ id: 1, name: "Region 1" }]);
 
       const stored = JSON.parse(
-        localStorage.getItem("onrte_offline-regions_app"),
+        localStorage.getItem("ogis_offline-regions_app"),
       );
       expect(Array.isArray(stored)).toBe(true);
       expect(stored).toEqual([{ id: 1, name: "Region 1" }]);

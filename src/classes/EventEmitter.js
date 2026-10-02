@@ -1,5 +1,5 @@
 /**
- * Lightweight event emitter for the On Route App.
+ * Lightweight event emitter for ogis.app.
  *
  * Supports on/off/emit with optional one-time listeners via once().
  */

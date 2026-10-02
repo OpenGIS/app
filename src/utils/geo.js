@@ -1,4 +1,4 @@
-// utils/geo.js — shared geo helpers for On Route App
+// utils/geo.js — shared geo helpers for ogis.app
 
 /** Haversine distance between two { lat, lng } points, in metres. */
 export function haversine(a, b) {

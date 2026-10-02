@@ -301,7 +301,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="onrte-collections-panel">
+  <div class="ogis-collections-panel">
     <div class="sidebar-section sidebar-section-body p-3 pb-0">
       <h5 class="mb-0">{{ t("panel.collections.title") }}</h5>
     </div>

@@ -44,7 +44,7 @@ const expectNoConsoleErrors = (page) => {
 const withViewStorage = (page) =>
   page.addInitScript(() => {
     localStorage.setItem(
-      "onrte_view_app",
+      "ogis_view_app",
       JSON.stringify({
         mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
       }),
@@ -53,7 +53,7 @@ const withViewStorage = (page) =>
 
 /** Wait for MapLibre to finish rendering tiles. */
 const waitForMapIdle = (page) =>
-  expect(page.locator(".onrte-map")).toHaveAttribute("data-map-idle", "true", {
+  expect(page.locator(".ogis-map")).toHaveAttribute("data-map-idle", "true", {
     timeout: 30000,
   });
 

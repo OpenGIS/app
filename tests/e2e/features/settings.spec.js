@@ -3,9 +3,9 @@ import { test, expect } from "@playwright/test";
 // Seed view storage so the About modal does not appear on fresh contexts
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    if (!localStorage.getItem("onrte_view_app")) {
+    if (!localStorage.getItem("ogis_view_app")) {
       localStorage.setItem(
-        "onrte_view_app",
+        "ogis_view_app",
         JSON.stringify({
           mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 10 },
         }),
@@ -16,9 +16,9 @@ test.beforeEach(async ({ page }) => {
 
 /** Returns the app theme root (the wrapper with data-bs-theme). */
 function themeRoot(page) {
-  // Theme binding lives on .onrte-root only: it carries
+  // Theme binding lives on .ogis-root only: it carries
   // :data-bs-theme="resolvedTheme" for the whole UI (panel, chips, modals).
-  return page.locator(".onrte-root");
+  return page.locator(".ogis-root");
 }
 
 /** Simulates the browser/OS changing its preferred language at runtime. */
@@ -42,7 +42,7 @@ test.describe("Appearance", () => {
 
     test("data-bs-theme is dark when the OS prefers dark", async ({ page }) => {
       await page.goto("/");
-      await page.waitForSelector(".onrte-map canvas");
+      await page.waitForSelector(".ogis-map canvas");
 
       await expect(themeRoot(page)).toHaveAttribute("data-bs-theme", "dark");
     });
@@ -55,7 +55,7 @@ test.describe("Appearance", () => {
       page,
     }) => {
       await page.goto("/");
-      await page.waitForSelector(".onrte-map canvas");
+      await page.waitForSelector(".ogis-map canvas");
 
       await expect(themeRoot(page)).toHaveAttribute("data-bs-theme", "light");
     });
@@ -65,7 +65,7 @@ test.describe("Appearance", () => {
     // Start in light, then simulate the OS switching to dark while the app is open.
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
 
     const root = themeRoot(page);
     await expect(root).toHaveAttribute("data-bs-theme", "light");
@@ -117,7 +117,7 @@ test.describe("Units", () => {
       page,
     }) => {
       await page.goto("/");
-      await page.waitForSelector(".onrte-map canvas");
+      await page.waitForSelector(".ogis-map canvas");
       await page.waitForSelector(".maplibregl-ctrl-scale");
 
       await expect(page.locator(".maplibregl-ctrl-scale")).toContainText("mi");
@@ -137,7 +137,7 @@ test.describe("Language", () => {
       page,
     }) => {
       await page.goto("/");
-      await page.waitForSelector(".onrte-map canvas");
+      await page.waitForSelector(".ogis-map canvas");
 
       await expect(page.locator("#locate-button")).toContainText("Localiser");
     });
@@ -150,7 +150,7 @@ test.describe("Language", () => {
       page,
     }) => {
       await page.goto("/");
-      await page.waitForSelector(".onrte-map canvas");
+      await page.waitForSelector(".ogis-map canvas");
 
       const locate = page.locator("#locate-button");
       await expect(locate).toContainText("Locate");
@@ -165,7 +165,7 @@ test.describe("Language", () => {
 test.describe("Settings panel removed", () => {
   test("no Settings tab or panel exists", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
 
     await expect(page.locator("#settings-button")).toHaveCount(0);
 
@@ -184,10 +184,10 @@ test.describe("Settings panel removed", () => {
 test.describe("Persistence", () => {
   test("no settings storage key is written", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
 
     const stored = await page.evaluate(() =>
-      localStorage.getItem("onrte_settings_app"),
+      localStorage.getItem("ogis_settings_app"),
     );
     expect(stored).toBeNull();
   });

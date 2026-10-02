@@ -6,8 +6,8 @@ const TEST_MODE = import.meta.env.MODE === "test";
 const envBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").trim();
 const runtimeBaseUrl = (
   typeof window !== "undefined" &&
-  typeof window.__ONRTE_API_BASE_URL__ === "string"
-    ? window.__ONRTE_API_BASE_URL__
+  typeof window.__OGIS_API_BASE_URL__ === "string"
+    ? window.__OGIS_API_BASE_URL__
     : ""
 ).trim();
 
@@ -15,7 +15,7 @@ const apiBaseUrl = envBaseUrl || runtimeBaseUrl;
 
 if (!apiBaseUrl && !TEST_MODE) {
   throw new Error(
-    "Missing API base URL. Set VITE_API_BASE_URL (or window.__ONRTE_API_BASE_URL__) to your backend origin, e.g. https://api.example.com.",
+    "Missing API base URL. Set VITE_API_BASE_URL (or window.__OGIS_API_BASE_URL__) to your backend origin, e.g. https://api.example.com.",
   );
 }
 
@@ -37,7 +37,7 @@ let csrfPromise = null;
 const toPathname = (url = "") => {
   if (!url) return "";
   try {
-    return new URL(url, "https://onrte.local").pathname;
+    return new URL(url, "https://ogis.local").pathname;
   } catch {
     return url;
   }
@@ -83,13 +83,13 @@ api.interceptors.response.use(
     if (
       status !== 419 ||
       !requestConfig ||
-      requestConfig.__onrteCsrfRetried ||
+      requestConfig.__ogisCsrfRetried ||
       path === CSRF_COOKIE_ENDPOINT
     ) {
       throw error;
     }
 
-    requestConfig.__onrteCsrfRetried = true;
+    requestConfig.__ogisCsrfRetried = true;
     await ensureCsrfCookie({ force: true });
     return api.request(requestConfig);
   },

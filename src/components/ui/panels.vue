@@ -6,7 +6,7 @@ import { getMapInstance } from "@/composables/useMap";
 import IconButton from "@/components/ui/icon-button.vue";
 import InfoPanel from "@/components/panels/info.vue";
 
-const instanceId = inject("onrteAppId", "app");
+const instanceId = inject("ogisAppId", "app");
 const buttonsRef = inject("navigatorButtons", shallowRef([]));
 const panelsRef = inject("navigatorPanels", shallowRef([]));
 
@@ -118,7 +118,7 @@ watch(
 
 <template>
   <div
-    class="offcanvas offcanvas-start onrte-panel"
+    class="offcanvas offcanvas-start ogis-panel"
     :class="{ show: isPanelVisible }"
     tabindex="-1"
     aria-labelledby="offcanvasLabel"

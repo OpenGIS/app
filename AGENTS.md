@@ -1,4 +1,4 @@
-# AGENTS.md — On Route App
+# AGENTS.md — ogis.app
 
 Context for agentic coding tools. Read this before making any changes to the codebase.
 
@@ -34,7 +34,7 @@ Breaking changes use `!` after the type/scope (`feat(api)!: …`) or a `BREAKING
 
 ## What is this project?
 
-On Route App is a standalone mapping PWA. It wraps [MapLibre GL JS](https://maplibre.org/) and [Vue 3](https://vuejs.org/) into a full-screen map app with GPS locate, route recording, and a green-themed UI. The app entry point is `src/main.js` and it is built as a standard Vite app (not a library).
+ogis.app is a standalone mapping PWA. It wraps [MapLibre GL JS](https://maplibre.org/) and [Vue 3](https://vuejs.org/) into a full-screen map app with GPS locate, route recording, and a green-themed UI. The app entry point is `src/main.js` and it is built as a standard Vite app (not a library).
 
 The app is a fully installable PWA. It includes a Web App Manifest (`public/manifest.json`), PWA icons (`public/icon-*.png`), and viewport meta tags that disable page-level zoom so MapLibre handles all zooming.
 
@@ -130,15 +130,15 @@ src/
 
 ### Instance isolation
 
-The `instanceId` is read from the `?id=` URL param (default `'app'`) and passed via `app.provide('onrteAppId', instanceId)`. Composables that persist state call `inject('onrteAppId', 'app')` to scope their localStorage keys; `useLocale` scopes a per-instance in-memory cache the same way, and `useSettings` is storage-free (OS-derived). This supports iframe isolation — each iframe gets its own `?id=` and its own storage namespace.
+The `instanceId` is read from the `?id=` URL param (default `'app'`) and passed via `app.provide('ogisAppId', instanceId)`. Composables that persist state call `inject('ogisAppId', 'app')` to scope their localStorage keys; `useLocale` scopes a per-instance in-memory cache the same way, and `useSettings` is storage-free (OS-derived). This supports iframe isolation — each iframe gets its own `?id=` and its own storage namespace.
 
 ### localStorage key format
 
 ```
-onrte_{namespace}_{instanceId}
+ogis_{namespace}_{instanceId}
 ```
 
-Examples: `onrte_view_app`, `onrte_recordings_app`. The instance id is always last — this makes keys easy to read in browser DevTools.
+Examples: `ogis_view_app`, `ogis_recordings_app`. The instance id is always last — this makes keys easy to read in browser DevTools.
 
 ### Composable pattern
 
@@ -148,7 +148,7 @@ Logic lives in composables, not components. Per-instance state is cached in a mo
 const cache = new Map();
 
 export const useMyFeature = () => {
-  const instanceId = inject("onrteAppId", "app");
+  const instanceId = inject("ogisAppId", "app");
 
   if (!cache.has(instanceId)) {
     cache.set(instanceId, {
@@ -162,17 +162,17 @@ export const useMyFeature = () => {
 
 ### CSS selectors
 
-Core elements use `.onrte-*` classes:
+Core elements use `.ogis-*` classes:
 
-- `.onrte-map` — MapLibre container
-- `.onrte-controls` — corner-controls overlay (`.onrte-corner--tl/tr/br/bl` clusters)
-- `.onrte-attribution-chip` — bottom-left attribution chip
-- `.onrte-panel` — Bootstrap offcanvas side panel
-- `--onrte-panel-width` — CSS custom property for panel width
+- `.ogis-map` — MapLibre container
+- `.ogis-controls` — corner-controls overlay (`.ogis-corner--tl/tr/br/bl` clusters)
+- `.ogis-attribution-chip` — bottom-left attribution chip
+- `.ogis-panel` — Bootstrap offcanvas side panel
+- `--ogis-panel-width` — CSS custom property for panel width
 
 ### GeoJSON property keys
 
-GeoJSON features use `onrte.*` properties for styles: `onrte.color`, `onrte.width`, `onrte.opacity`, `onrte.radius`, `onrte.fillOpacity`. These are used in MapLibre layer expressions and in feature data.
+GeoJSON features use `ogis.*` properties for styles: `ogis.color`, `ogis.width`, `ogis.opacity`, `ogis.radius`, `ogis.fillOpacity`. These are used in MapLibre layer expressions and in feature data.
 
 ### Default Coordinates
 

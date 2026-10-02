@@ -31,7 +31,7 @@ function smoothAngle(current, next, factor) {
  * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, cycle: Function, confirmLocate: Function, stop: Function, retryOrientation: Function, retryPosition: Function }}
  */
 export const useLocate = (explicitInstanceId) => {
-  const instanceId = explicitInstanceId ?? inject("onrteAppId", "app");
+  const instanceId = explicitInstanceId ?? inject("ogisAppId", "app");
 
   if (!locateCache.has(instanceId)) {
     locateCache.set(instanceId, {
@@ -62,14 +62,14 @@ export const useLocate = (explicitInstanceId) => {
 
   const createPositionElement = () => {
     const el = document.createElement("div");
-    el.className = "onrte-locate-position";
+    el.className = "ogis-locate-position";
     el.innerHTML = `<svg width="48" height="48" fill="currentColor"><use href="#position"/></svg>`;
     return el;
   };
 
   const createHeadingElement = () => {
     const el = document.createElement("div");
-    el.className = "onrte-locate-heading";
+    el.className = "ogis-locate-heading";
     el.innerHTML = `<svg width="48" height="48" fill="currentColor"><use href="#position-heading"/></svg>`;
     return el;
   };

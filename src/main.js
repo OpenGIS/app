@@ -33,7 +33,7 @@ initLocaleCache(instanceId, locale, {});
 
 const app = createApp(App);
 
-app.provide("onrteAppId", instanceId);
+app.provide("ogisAppId", instanceId);
 app.provide("navigatorLocale", locale);
 app.provide("navigatorMessages", {});
 

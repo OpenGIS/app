@@ -1,8 +1,8 @@
 {
-  "name": "onrte-app",
+  "name": "ogis-app",
   "version": "3.5.0",
   "type": "module",
-  "description": "On Route — Get where you are going.",
+  "description": "ogis.app — Get where you are going.",
   "private": true,
   "repository": {
     "type": "git",

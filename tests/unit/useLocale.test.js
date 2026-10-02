@@ -74,7 +74,7 @@ function createLocaleInstance(useLocale, options = {}) {
     template: "<div></div>",
   });
 
-  app.provide("onrteAppId", instanceId);
+  app.provide("ogisAppId", instanceId);
   app.provide("navigatorLocale", defaultLocale);
   app.provide("navigatorMessages", customMessages);
 

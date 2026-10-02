@@ -8,14 +8,14 @@
  *   debug.warn("request denied", err);
  *   debug.error("unexpected state");
  *
- * Logs are prefixed with [onrte:namespace] for easy filtering in DevTools:
- *   Filter: [onrte:wake-lock]
+ * Logs are prefixed with [ogis:namespace] for easy filtering in DevTools:
+ *   Filter: [ogis:wake-lock]
  */
 
 const isDev = import.meta.env.DEV;
 
 export const createDebug = (namespace) => {
-  const prefix = `[onrte:${namespace}]`;
+  const prefix = `[ogis:${namespace}]`;
   return {
     log: isDev ? (...args) => console.log(prefix, ...args) : () => {},
     warn: isDev ? (...args) => console.warn(prefix, ...args) : () => {},

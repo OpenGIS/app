@@ -17,11 +17,11 @@ const ROUTE_IMPORT_TIMEOUT = 15000;
 const withGrantedStorage = (page) =>
   page.addInitScript(() => {
     localStorage.setItem(
-      "onrte_locate_app",
+      "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
     );
     localStorage.setItem(
-      "onrte_view_app",
+      "ogis_view_app",
       JSON.stringify({
         mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
       }),
@@ -75,7 +75,7 @@ const openRoutesPanel = async (page) => {
     .locator(".panel-nav")
     .getByRole("button", { name: "Routes", exact: true })
     .click();
-  await expect(page.locator(".onrte-panel")).toHaveClass(/show/);
+  await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
   await expect(page.getByRole("heading", { name: "Routes" })).toBeVisible();
 };
 
@@ -105,7 +105,7 @@ const waitForMapReady = async (page) => {
   // wired up and the map is usable. Unlike MapLibre's render-bound `load`
   // event (~26 s under SwiftShader) or the full `data-map-idle` settle, this
   // is cheap and deterministic.
-  await expect(page.locator(".onrte-map")).toHaveAttribute(
+  await expect(page.locator(".ogis-map")).toHaveAttribute(
     "data-map-ready",
     "true",
     { timeout: 30000 },
@@ -113,7 +113,7 @@ const waitForMapReady = async (page) => {
   // Bootstrap auto-shows the .offcanvas on window load and holds it in a
   // `showing` state until its transition completes; its queued callback
   // re-adds `show`, so interacting mid-transition corrupts panel state.
-  await expect(page.locator(".onrte-panel")).not.toHaveClass(/showing|hiding/);
+  await expect(page.locator(".ogis-panel")).not.toHaveClass(/showing|hiding/);
 };
 
 // ─── Routes / Panel ──────────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ test.describe("Routes / Panel", () => {
   });
 
   test("Routes tab appears in the side panel nav", async ({ page }) => {
-    await expect(page.locator(".onrte-panel")).toHaveClass(/show/);
+    await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
 
     // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
     if (!(await page.locator(".panel-nav").isVisible())) {
@@ -180,7 +180,7 @@ test.describe("Routes / Import", () => {
 
     // Route is persisted to localStorage as an array of route objects
     const stored = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem("onrte_routes_app")),
+      JSON.parse(localStorage.getItem("ogis_routes_app")),
     );
     expect(stored).toHaveLength(1);
     expect(stored[0].name).toBe("Test Loop");
@@ -228,7 +228,7 @@ test.describe("Routes / Delete", () => {
     ).toBeVisible();
 
     const stored = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem("onrte_routes_app")),
+      JSON.parse(localStorage.getItem("ogis_routes_app")),
     );
     expect(stored).toEqual([]);
   });

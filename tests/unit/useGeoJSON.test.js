@@ -76,7 +76,7 @@ const lineFeature = (id = "line-1", color = null) => ({
       [-127, 51],
     ],
   },
-  properties: color ? { "onrte.color": color } : {},
+  properties: color ? { "ogis.color": color } : {},
 });
 
 const pointFeature = (id = "point-1") => ({
@@ -112,15 +112,15 @@ describe("useGeoJSON / map lifecycle", () => {
     simulateMapReady(geoJSON);
 
     expect(mockMap.addSource).toHaveBeenCalledWith(
-      "onrte-geojson",
+      "ogis-geojson",
       expect.objectContaining({ type: "geojson" }),
     );
     expect(mockMap.addLayer).toHaveBeenCalledTimes(4);
     const layerIds = mockMap.addLayer.mock.calls.map((c) => c[0].id);
-    expect(layerIds).toContain("onrte-geojson-polygon-fill");
-    expect(layerIds).toContain("onrte-geojson-polygon-outline");
-    expect(layerIds).toContain("onrte-geojson-line");
-    expect(layerIds).toContain("onrte-geojson-point");
+    expect(layerIds).toContain("ogis-geojson-polygon-fill");
+    expect(layerIds).toContain("ogis-geojson-polygon-outline");
+    expect(layerIds).toContain("ogis-geojson-line");
+    expect(layerIds).toContain("ogis-geojson-point");
   });
 
   it("queues features set before map:ready and flushes on setup", async () => {
@@ -156,7 +156,7 @@ describe("useGeoJSON / map lifecycle", () => {
   it("cleans up layers and source on destroy", async () => {
     mockMap.getLayer.mockReturnValue(true); // all layers exist
     mockMap.getSource.mockImplementation((id) => {
-      if (id === "onrte-geojson") return { setData: mockSetData };
+      if (id === "ogis-geojson") return { setData: mockSetData };
       return null;
     });
 
@@ -166,7 +166,7 @@ describe("useGeoJSON / map lifecycle", () => {
     emitterCallbacks["destroy"]?.();
 
     expect(mockMap.removeLayer).toHaveBeenCalledTimes(4);
-    expect(mockMap.removeSource).toHaveBeenCalledWith("onrte-geojson");
+    expect(mockMap.removeSource).toHaveBeenCalledWith("ogis-geojson");
   });
 });
 
@@ -225,7 +225,7 @@ describe("useGeoJSON / setFeature", () => {
 
     const fc = mockSetData.mock.calls[mockSetData.mock.calls.length - 1][0];
     expect(fc.features).toHaveLength(1);
-    expect(fc.features[0].properties["onrte.color"]).toBe("#ff0000");
+    expect(fc.features[0].properties["ogis.color"]).toBe("#ff0000");
   });
 
   it("stores multiple features independently", async () => {
@@ -370,14 +370,14 @@ describe("useGeoJSON / clearFeatures", () => {
     geoJSON.setFeature(lineFeature("x"));
     const first =
       mockSetData.mock.calls[mockSetData.mock.calls.length - 1][0].features[0]
-        .properties["onrte.color"];
+        .properties["ogis.color"];
 
     geoJSON.clearFeatures();
     geoJSON.setFeature(lineFeature("x")); // same id, fresh colour
 
     const second =
       mockSetData.mock.calls[mockSetData.mock.calls.length - 1][0].features[0]
-        .properties["onrte.color"];
+        .properties["ogis.color"];
 
     // Both should be valid colour strings (exact values may differ)
     expect(first).toMatch(/^#/);
@@ -386,7 +386,7 @@ describe("useGeoJSON / clearFeatures", () => {
 });
 
 describe("useGeoJSON / style defaults", () => {
-  it("auto-assigns a colour when onrte.color is absent", async () => {
+  it("auto-assigns a colour when ogis.color is absent", async () => {
     const geoJSON = await freshUseGeoJSON();
     simulateMapReady(geoJSON);
     mockSetData.mockClear();
@@ -394,11 +394,11 @@ describe("useGeoJSON / style defaults", () => {
     geoJSON.setFeature(lineFeature("l"));
 
     const fc = mockSetData.mock.calls[0][0];
-    const color = fc.features[0].properties["onrte.color"];
+    const color = fc.features[0].properties["ogis.color"];
     expect(color).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
-  it("uses explicit onrte.color when provided", async () => {
+  it("uses explicit ogis.color when provided", async () => {
     const geoJSON = await freshUseGeoJSON();
     simulateMapReady(geoJSON);
     mockSetData.mockClear();
@@ -406,7 +406,7 @@ describe("useGeoJSON / style defaults", () => {
     geoJSON.setFeature(lineFeature("l", "#aabbcc"));
 
     const fc = mockSetData.mock.calls[0][0];
-    expect(fc.features[0].properties["onrte.color"]).toBe("#aabbcc");
+    expect(fc.features[0].properties["ogis.color"]).toBe("#aabbcc");
   });
 
   it("preserves the same auto-colour across updates of the same id", async () => {
@@ -416,11 +416,11 @@ describe("useGeoJSON / style defaults", () => {
 
     geoJSON.setFeature(lineFeature("track"));
     const first =
-      mockSetData.mock.calls[0][0].features[0].properties["onrte.color"];
+      mockSetData.mock.calls[0][0].features[0].properties["ogis.color"];
 
     geoJSON.setFeature(lineFeature("track")); // no explicit colour
     const second =
-      mockSetData.mock.calls[1][0].features[0].properties["onrte.color"];
+      mockSetData.mock.calls[1][0].features[0].properties["ogis.color"];
 
     expect(first).toBe(second);
   });
@@ -433,8 +433,8 @@ describe("useGeoJSON / style defaults", () => {
     geoJSON.setFeature(lineFeature("l"));
 
     const props = mockSetData.mock.calls[0][0].features[0].properties;
-    expect(props["onrte.width"]).toBe(3);
-    expect(props["onrte.opacity"]).toBe(0.85);
+    expect(props["ogis.width"]).toBe(3);
+    expect(props["ogis.opacity"]).toBe(0.85);
   });
 
   it("applies default point radius and opacity when not specified", async () => {
@@ -445,8 +445,8 @@ describe("useGeoJSON / style defaults", () => {
     geoJSON.setFeature(pointFeature("p"));
 
     const props = mockSetData.mock.calls[0][0].features[0].properties;
-    expect(props["onrte.radius"]).toBe(6);
-    expect(props["onrte.opacity"]).toBe(1);
+    expect(props["ogis.radius"]).toBe(6);
+    expect(props["ogis.opacity"]).toBe(1);
   });
 
   it("applies default polygon fillOpacity and opacity when not specified", async () => {
@@ -457,8 +457,8 @@ describe("useGeoJSON / style defaults", () => {
     geoJSON.setFeature(polygonFeature("p"));
 
     const props = mockSetData.mock.calls[0][0].features[0].properties;
-    expect(props["onrte.fillOpacity"]).toBe(0.4);
-    expect(props["onrte.opacity"]).toBe(0.85);
+    expect(props["ogis.fillOpacity"]).toBe(0.4);
+    expect(props["ogis.opacity"]).toBe(0.85);
   });
 
   it("does not override explicitly provided navigator.* style values", async () => {
@@ -468,17 +468,17 @@ describe("useGeoJSON / style defaults", () => {
 
     geoJSON.setFeature({
       ...lineFeature("l"),
-      properties: { "onrte.width": 8, "onrte.opacity": 0.5 },
+      properties: { "ogis.width": 8, "ogis.opacity": 0.5 },
     });
 
     const props = mockSetData.mock.calls[0][0].features[0].properties;
-    expect(props["onrte.width"]).toBe(8);
-    expect(props["onrte.opacity"]).toBe(0.5);
+    expect(props["ogis.width"]).toBe(8);
+    expect(props["ogis.opacity"]).toBe(0.5);
   });
 });
 
 describe("useGeoJSON / setDefaults", () => {
-  it("setDefaults colour is used for new features with no onrte.color", async () => {
+  it("setDefaults colour is used for new features with no ogis.color", async () => {
     const geoJSON = await freshUseGeoJSON();
     simulateMapReady(geoJSON);
 
@@ -486,7 +486,7 @@ describe("useGeoJSON / setDefaults", () => {
     geoJSON.setFeature(lineFeature("l"));
 
     const fc = mockSetData.mock.calls[mockSetData.mock.calls.length - 1][0];
-    expect(fc.features[0].properties["onrte.color"]).toBe("#123456");
+    expect(fc.features[0].properties["ogis.color"]).toBe("#123456");
   });
 
   it("setDefaults re-processes existing features", async () => {
@@ -498,10 +498,10 @@ describe("useGeoJSON / setDefaults", () => {
     geoJSON.setDefaults({ line: { color: "#abcdef" } });
 
     const fc = mockSetData.mock.calls[mockSetData.mock.calls.length - 1][0];
-    expect(fc.features[0].properties["onrte.color"]).toBe("#abcdef");
+    expect(fc.features[0].properties["ogis.color"]).toBe("#abcdef");
   });
 
-  it("setDefaults does not override explicit onrte.color on existing feature", async () => {
+  it("setDefaults does not override explicit ogis.color on existing feature", async () => {
     const geoJSON = await freshUseGeoJSON();
     simulateMapReady(geoJSON);
 
@@ -509,7 +509,7 @@ describe("useGeoJSON / setDefaults", () => {
     geoJSON.setDefaults({ line: { color: "#default" } });
 
     const fc = mockSetData.mock.calls[mockSetData.mock.calls.length - 1][0];
-    expect(fc.features[0].properties["onrte.color"]).toBe("#explicit");
+    expect(fc.features[0].properties["ogis.color"]).toBe("#explicit");
   });
 
   it("setDefaults updates width and opacity for existing features", async () => {
@@ -521,8 +521,8 @@ describe("useGeoJSON / setDefaults", () => {
 
     const fc = mockSetData.mock.calls[mockSetData.mock.calls.length - 1][0];
     const props = fc.features[0].properties;
-    expect(props["onrte.width"]).toBe(10);
-    expect(props["onrte.opacity"]).toBe(0.5);
+    expect(props["ogis.width"]).toBe(10);
+    expect(props["ogis.opacity"]).toBe(0.5);
   });
 
   it("ignores unknown geometry type keys in setDefaults", async () => {
@@ -542,7 +542,7 @@ describe("useGeoJSON / layer configuration", () => {
     simulateMapReady(geoJSON);
 
     const lineLayerCall = mockMap.addLayer.mock.calls.find(
-      (c) => c[0].id === "onrte-geojson-line",
+      (c) => c[0].id === "ogis-geojson-line",
     );
     expect(lineLayerCall[0].layout["line-cap"]).toBe("round");
     expect(lineLayerCall[0].layout["line-join"]).toBe("round");
@@ -553,9 +553,9 @@ describe("useGeoJSON / layer configuration", () => {
     simulateMapReady(geoJSON);
 
     const lineLayer = mockMap.addLayer.mock.calls.find(
-      (c) => c[0].id === "onrte-geojson-line",
+      (c) => c[0].id === "ogis-geojson-line",
     )[0];
-    expect(lineLayer.paint["line-color"]).toEqual(["get", "onrte.color"]);
+    expect(lineLayer.paint["line-color"]).toEqual(["get", "ogis.color"]);
   });
 
   it("all geometry-type layers have correct filters", async () => {
@@ -565,21 +565,21 @@ describe("useGeoJSON / layer configuration", () => {
     const getFilter = (id) =>
       mockMap.addLayer.mock.calls.find((c) => c[0].id === id)?.[0].filter;
 
-    expect(getFilter("onrte-geojson-line")).toEqual([
+    expect(getFilter("ogis-geojson-line")).toEqual([
       "match",
       ["geometry-type"],
       ["LineString", "MultiLineString"],
       true,
       false,
     ]);
-    expect(getFilter("onrte-geojson-point")).toEqual([
+    expect(getFilter("ogis-geojson-point")).toEqual([
       "match",
       ["geometry-type"],
       ["Point", "MultiPoint"],
       true,
       false,
     ]);
-    expect(getFilter("onrte-geojson-polygon-fill")).toEqual([
+    expect(getFilter("ogis-geojson-polygon-fill")).toEqual([
       "match",
       ["geometry-type"],
       ["Polygon", "MultiPolygon"],
@@ -593,7 +593,7 @@ describe("useGeoJSON / layer configuration", () => {
     simulateMapReady(geoJSON);
 
     const pointLayer = mockMap.addLayer.mock.calls.find(
-      (c) => c[0].id === "onrte-geojson-point",
+      (c) => c[0].id === "ogis-geojson-point",
     )[0];
     expect(pointLayer.paint["circle-stroke-color"]).toBe("white");
   });
@@ -653,7 +653,7 @@ describe("useGeoJSON / MultiLineString and MultiPolygon", () => {
 
     const fc = mockSetData.mock.calls[0][0];
     expect(fc.features).toHaveLength(1);
-    expect(fc.features[0].properties["onrte.width"]).toBe(3);
+    expect(fc.features[0].properties["ogis.width"]).toBe(3);
   });
 
   it("categorises MultiPolygon as a polygon", async () => {
@@ -682,7 +682,7 @@ describe("useGeoJSON / MultiLineString and MultiPolygon", () => {
     });
 
     const fc = mockSetData.mock.calls[0][0];
-    expect(fc.features[0].properties["onrte.fillOpacity"]).toBe(0.4);
+    expect(fc.features[0].properties["ogis.fillOpacity"]).toBe(0.4);
   });
 
   it("categorises MultiPoint as a point", async () => {
@@ -704,6 +704,6 @@ describe("useGeoJSON / MultiLineString and MultiPolygon", () => {
     });
 
     const fc = mockSetData.mock.calls[0][0];
-    expect(fc.features[0].properties["onrte.radius"]).toBe(6);
+    expect(fc.features[0].properties["ogis.radius"]).toBe(6);
   });
 });

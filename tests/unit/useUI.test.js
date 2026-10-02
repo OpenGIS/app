@@ -28,7 +28,7 @@ async function freshUseUI(opts = {}) {
   });
 
   // Optionally seed localStorage for isFirstLoad check
-  const key = `onrte_view_${injectReturn}`;
+  const key = `ogis_view_${injectReturn}`;
   if (storageKey === false) {
     localStorage.removeItem(key);
   } else {
@@ -292,7 +292,7 @@ describe("useUI / Instance isolation", () => {
       writable: true,
       configurable: true,
     });
-    localStorage.removeItem("onrte_view_instance-b");
+    localStorage.removeItem("ogis_view_instance-b");
     const uiB = useUI();
 
     // A is desktop, B is mobile — independent state

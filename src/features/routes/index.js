@@ -1,4 +1,4 @@
-// routes/index.js — GPX routes feature for On Route App
+// routes/index.js — GPX routes feature for ogis.app
 import { ref } from "vue";
 import { useGeoJSON } from "@/composables/useGeoJSON.js";
 import { totalDistance, formatDistance } from "@/utils/geo.js";
@@ -22,7 +22,7 @@ export const RoutesFeature = {
         type: "Feature",
         id: `routes-route-${route.id}`,
         geometry: { type: "LineString", coordinates },
-        properties: { "onrte.width": 4, "onrte.opacity": 0.85 },
+        properties: { "ogis.width": 4, "ogis.opacity": 0.85 },
       });
     };
 
@@ -104,7 +104,7 @@ export const RoutesFeature = {
               type: "Point",
               coordinates: [pos.coords.longitude, pos.coords.latitude],
             },
-            properties: { "onrte.color": "#0d6efd", "onrte.radius": 8 },
+            properties: { "ogis.color": "#0d6efd", "ogis.radius": 8 },
           });
         },
         null,

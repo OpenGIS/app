@@ -293,7 +293,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="onrte-maps-panel">
+  <div class="ogis-maps-panel">
     <div class="sidebar-section sidebar-section-body p-3 pb-0">
       <h5 class="mb-0">{{ t("panel.maps.title") }}</h5>
     </div>

@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 const withViewStorage = (page) =>
   page.addInitScript(() =>
     localStorage.setItem(
-      "onrte_view_app",
+      "ogis_view_app",
       JSON.stringify({
         mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 12 },
       }),
@@ -154,13 +154,13 @@ test.describe.skip("Collections feature", () => {
     );
 
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
 
     await page
       .locator(".panel-nav")
       .getByRole("button", { name: /collections/i })
       .click();
-    await expect(page.locator(".onrte-collections-panel")).toBeVisible();
+    await expect(page.locator(".ogis-collections-panel")).toBeVisible();
     await expect(page.getByRole("button", { name: /Trips/i })).toBeVisible();
 
     await page.getByRole("button", { name: /Trips/i }).click();
@@ -205,7 +205,7 @@ test.describe.skip("Collections feature", () => {
     );
 
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
 
     await page
       .locator(".panel-nav")
@@ -218,7 +218,7 @@ test.describe.skip("Collections feature", () => {
       ),
     ).toBeVisible();
     await page.locator("#collections-open-account").click();
-    await expect(page.locator(".onrte-account-panel")).toBeVisible();
+    await expect(page.locator(".ogis-account-panel")).toBeVisible();
   });
 
   test("authenticated user can delete selected collection", async ({
@@ -320,7 +320,7 @@ test.describe.skip("Collections feature", () => {
     );
 
     await page.goto("/");
-    await page.waitForSelector(".onrte-map canvas");
+    await page.waitForSelector(".ogis-map canvas");
 
     await page
       .locator(".panel-nav")

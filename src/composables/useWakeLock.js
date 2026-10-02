@@ -14,7 +14,7 @@ const instances = new Map();
  * Usage: call `init(el)` from onMounted, passing the root app element.
  */
 export const useWakeLock = () => {
-  const instanceId = inject("onrteAppId", "app");
+  const instanceId = inject("ogisAppId", "app");
 
   if (!instances.has(instanceId)) {
     instances.set(instanceId, {

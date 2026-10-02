@@ -14,12 +14,12 @@ import { test, expect } from "@playwright/test";
 test.setTimeout(120000);
 
 const withNoViewStorage = (page) =>
-  page.addInitScript(() => localStorage.removeItem("onrte_view_app"));
+  page.addInitScript(() => localStorage.removeItem("ogis_view_app"));
 
 const withViewStorage = (page) =>
   page.addInitScript(() =>
     localStorage.setItem(
-      "onrte_view_app",
+      "ogis_view_app",
       JSON.stringify({
         mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 10 },
       }),
@@ -39,7 +39,7 @@ const waitForMapReady = async (page) => {
   // wired up and the map is usable. Unlike MapLibre's render-bound `load`
   // event (~26 s under SwiftShader) or the full `data-map-idle` settle, this
   // is cheap and deterministic.
-  await expect(page.locator(".onrte-map")).toHaveAttribute(
+  await expect(page.locator(".ogis-map")).toHaveAttribute(
     "data-map-ready",
     "true",
     { timeout: 30000 },
@@ -47,7 +47,7 @@ const waitForMapReady = async (page) => {
   // Bootstrap auto-shows the .offcanvas on window load and holds it in a
   // `showing` state until its transition completes; its queued callback
   // re-adds `show`, so interacting mid-transition corrupts panel state.
-  await expect(page.locator(".onrte-panel")).not.toHaveClass(/showing|hiding/);
+  await expect(page.locator(".ogis-panel")).not.toHaveClass(/showing|hiding/);
 };
 
 // ─── First load / Welcome modal ───────────────────────────────────────────────
@@ -142,7 +142,7 @@ test.describe("First load / Returning visits", () => {
   test("modal is absent after view storage is written and page is reloaded", async ({
     page,
   }) => {
-    const VIEW_KEY = "onrte_view_app";
+    const VIEW_KEY = "ogis_view_app";
 
     await page.goto("/");
     await waitForMapReady(page);
@@ -176,7 +176,7 @@ test.describe("Info pane / Pane separation", () => {
     await page.goto("/");
     await waitForMapReady(page);
 
-    await expect(page.locator(".onrte-panel")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator(".ogis-panel")).toBeVisible({ timeout: 5000 });
 
     // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
     if (!(await page.locator(".panel-nav").isVisible())) {
@@ -198,14 +198,14 @@ test.describe("Info pane / Pane separation", () => {
     await waitForMapReady(page);
 
     // Desktop auto-opens the Info pane, so the first click closes it.
-    await expect(page.locator(".onrte-info-panel")).toBeVisible();
+    await expect(page.locator(".ogis-info-panel")).toBeVisible();
 
     await page.locator("#attribution-button").click();
-    await expect(page.locator(".onrte-info-panel")).toHaveCount(0);
-    await expect(page.locator(".onrte-panel")).not.toHaveClass(/show/);
+    await expect(page.locator(".ogis-info-panel")).toHaveCount(0);
+    await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
 
     await page.locator("#attribution-button").click();
-    await expect(page.locator(".onrte-info-panel")).toBeVisible();
+    await expect(page.locator(".ogis-info-panel")).toBeVisible();
   });
 
   test("visiting Info keeps the active menu tab", async ({ page }) => {
@@ -213,7 +213,7 @@ test.describe("Info pane / Pane separation", () => {
     await page.goto("/");
     await waitForMapReady(page);
 
-    await expect(page.locator(".onrte-panel")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator(".ogis-panel")).toBeVisible({ timeout: 5000 });
 
     // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
     if (!(await page.locator(".panel-nav").isVisible())) {
@@ -229,7 +229,7 @@ test.describe("Info pane / Pane separation", () => {
 
     // Open Info via the chip, then reopen the menu pane.
     await page.locator("#attribution-button").click();
-    await expect(page.locator(".onrte-info-panel")).toBeVisible();
+    await expect(page.locator(".ogis-info-panel")).toBeVisible();
     await page.locator("#menu-button").click();
 
     await expect(
@@ -249,12 +249,12 @@ test.describe("Info panel", () => {
     await waitForMapReady(page);
 
     // Desktop auto-opens the Info pane, so no chip click is needed.
-    const panel = page.locator(".onrte-info-panel");
+    const panel = page.locator(".ogis-info-panel");
     await expect(panel).toBeVisible();
 
-    await expect(panel.locator(".onrte-share-textarea")).toBeVisible();
+    await expect(panel.locator(".ogis-share-textarea")).toBeVisible();
 
-    const about = panel.locator(".onrte-about-section");
+    const about = panel.locator(".ogis-about-section");
     await expect(about).toContainText("Free, private");
     await expect(about).toContainText("Open-Source");
     await expect(
@@ -265,13 +265,13 @@ test.describe("Info panel", () => {
     await expect(aboutLogo).toBeVisible();
     await expect(aboutLogo).toHaveAttribute("src", /\/favicon\.png$/);
 
-    const privacy = panel.locator(".onrte-privacy-section");
+    const privacy = panel.locator(".ogis-privacy-section");
     await expect(privacy).toContainText("local storage");
     await expect(privacy).toContainText("OpenFreeMap");
     await expect(privacy).toContainText("Locate");
     await expect(privacy).toContainText("no analytics");
 
-    await expect(panel.locator(".onrte-attribution-section")).toContainText(
+    await expect(panel.locator(".ogis-attribution-section")).toContainText(
       /OpenStreetMap/,
     );
   });
@@ -282,13 +282,13 @@ test.describe("Info panel", () => {
     await waitForMapReady(page);
 
     // Close the auto-opened Info pane, then reopen it via the chip.
-    await expect(page.locator(".onrte-info-panel")).toBeVisible();
+    await expect(page.locator(".ogis-info-panel")).toBeVisible();
 
     await page.locator("#attribution-button").click();
-    await expect(page.locator(".onrte-info-panel")).toHaveCount(0);
+    await expect(page.locator(".ogis-info-panel")).toHaveCount(0);
 
     await page.locator("#attribution-button").click();
-    await expect(page.locator(".onrte-info-panel")).toBeVisible();
+    await expect(page.locator(".ogis-info-panel")).toBeVisible();
   });
 
   test("Privacy disclosure toggles its label between Read more and Read less", async ({
@@ -299,12 +299,12 @@ test.describe("Info panel", () => {
     await waitForMapReady(page);
 
     // Scope to the Privacy section disclosure.
-    const privacy = page.locator(".onrte-privacy-section");
+    const privacy = page.locator(".ogis-privacy-section");
     await expect(privacy).toBeVisible();
 
     const summary = privacy.locator("summary");
-    const more = privacy.locator(".onrte-disclosure-more");
-    const less = privacy.locator(".onrte-disclosure-less");
+    const more = privacy.locator(".ogis-disclosure-more");
+    const less = privacy.locator(".ogis-disclosure-less");
 
     // Collapsed: "Read more" shows and "Read less" is hidden.
     await expect(more).toBeVisible();
@@ -328,7 +328,7 @@ test.describe("Info panel", () => {
     await page.goto("/");
     await waitForMapReady(page);
 
-    const attribution = page.locator(".onrte-attribution-section");
+    const attribution = page.locator(".ogis-attribution-section");
     await expect(attribution).toBeVisible();
 
     const { position, bottom } = await attribution.evaluate((el) => {

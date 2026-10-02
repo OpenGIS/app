@@ -28,19 +28,19 @@ test.setTimeout(420000);
 
 const withNoLocateStorage = (page) =>
   page.addInitScript(() => {
-    localStorage.removeItem("onrte_locate_app");
-    localStorage.removeItem("onrte_view_app");
+    localStorage.removeItem("ogis_locate_app");
+    localStorage.removeItem("ogis_view_app");
   });
 
 const withGrantedStorage = (page) =>
   page.addInitScript(() => {
     localStorage.setItem(
-      "onrte_locate_app",
+      "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
     );
     // Seed view storage so the About modal doesn't appear
     localStorage.setItem(
-      "onrte_view_app",
+      "ogis_view_app",
       JSON.stringify({
         mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 10 },
       }),
@@ -85,7 +85,7 @@ const waitForMapReady = async (page) => {
   // wired up and the map is usable. Unlike MapLibre's render-bound `load`
   // event (~26 s under SwiftShader) or the full `data-map-idle` settle, this
   // is cheap and deterministic.
-  await expect(page.locator(".onrte-map")).toHaveAttribute(
+  await expect(page.locator(".ogis-map")).toHaveAttribute(
     "data-map-ready",
     "true",
     { timeout: 30000 },
@@ -93,7 +93,7 @@ const waitForMapReady = async (page) => {
   // Bootstrap auto-shows the .offcanvas on window load and holds it in a
   // `showing` state until its transition completes; its queued callback
   // re-adds `show`, so interacting mid-transition corrupts panel state.
-  await expect(page.locator(".onrte-panel")).not.toHaveClass(/showing|hiding/);
+  await expect(page.locator(".ogis-panel")).not.toHaveClass(/showing|hiding/);
 };
 
 /**
@@ -301,7 +301,7 @@ test.describe("Locate / Active and Following states", () => {
   test("position marker appears on the map when active", async ({ page }) => {
     await page.locator("#locate-button").click();
     await expect
-      .poll(() => page.locator(".onrte-locate-position").count(), {
+      .poll(() => page.locator(".ogis-locate-position").count(), {
         timeout: LOCATE_TIMEOUT,
       })
       .toBeGreaterThan(0);
@@ -311,7 +311,7 @@ test.describe("Locate / Active and Following states", () => {
     page,
   }) => {
     const btn = page.locator("#locate-button");
-    const marker = page.locator(".onrte-locate-position");
+    const marker = page.locator(".ogis-locate-position");
 
     await btn.click();
     await expect
@@ -377,9 +377,9 @@ test.describe("Locate / Initial zoom", () => {
     // storage is actually applied. A hash survives a reload and outranks
     // storage, which would mask whether the re-activation zoom fired.
     await page.evaluate(() => {
-      const stored = JSON.parse(localStorage.getItem("onrte_view_app") || "{}");
+      const stored = JSON.parse(localStorage.getItem("ogis_view_app") || "{}");
       stored.mapView = { center: { lat: 50.6539, lng: -128.0094 }, zoom: 10 };
-      localStorage.setItem("onrte_view_app", JSON.stringify(stored));
+      localStorage.setItem("ogis_view_app", JSON.stringify(stored));
     });
     await page.goto("/");
     await waitForMapReady(page);
@@ -491,7 +491,7 @@ test.describe("Locate / Heading marker", () => {
     // Start locate tracking
     await page.locator("#locate-button").click();
     await expect
-      .poll(() => page.locator(".onrte-locate-position").count(), {
+      .poll(() => page.locator(".ogis-locate-position").count(), {
         timeout: LOCATE_TIMEOUT,
       })
       .toBeGreaterThan(0);
@@ -515,7 +515,7 @@ test.describe("Locate / Heading marker", () => {
     // The heading marker should appear and be rotated to ~180°, not 0°. Poll
     // the rotation directly (tolerating transient detach while the app syncs
     // position/heading) rather than a count-then-read, which is racy.
-    const headingEl = page.locator(".onrte-locate-heading");
+    const headingEl = page.locator(".ogis-locate-heading");
     const readRotation = () =>
       headingEl
         .evaluate((el) => {
@@ -553,7 +553,7 @@ test.describe("Locate / Heading marker", () => {
 
     await page.locator("#locate-button").click();
     await expect
-      .poll(() => page.locator(".onrte-locate-position").count(), {
+      .poll(() => page.locator(".ogis-locate-position").count(), {
         timeout: LOCATE_TIMEOUT,
       })
       .toBeGreaterThan(0);
@@ -572,7 +572,7 @@ test.describe("Locate / Heading marker", () => {
 
     // Poll the rotation directly (tolerating transient detach while the app
     // syncs position/heading) rather than a count-then-read, which is racy.
-    const headingEl = page.locator(".onrte-locate-heading");
+    const headingEl = page.locator(".ogis-locate-heading");
     const readRotation = () =>
       headingEl
         .evaluate((el) => {

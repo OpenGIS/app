@@ -24,7 +24,7 @@ const TEST_HASH = "#map=16/50.653900/-128.009400";
 
 /** Fresh view storage so the first-load welcome modal appears. */
 const withFreshView = (page) =>
-  page.addInitScript(() => localStorage.removeItem("onrte_view_app"));
+  page.addInitScript(() => localStorage.removeItem("ogis_view_app"));
 
 /**
  * Capture the hero composition: dismiss the welcome modal, wait for the map to
@@ -39,13 +39,13 @@ const captureHero = async (page, name, theme) => {
   await page.locator("#about-modal-close").click();
   await modal.waitFor({ state: "hidden" });
 
-  await expect(page.locator(".onrte-map")).toHaveAttribute(
+  await expect(page.locator(".ogis-map")).toHaveAttribute(
     "data-map-idle",
     "true",
     { timeout: 30000 },
   );
-  await page.locator(".onrte-panel").waitFor({ state: "visible" });
-  await expect(page.locator(".onrte-root")).toHaveAttribute(
+  await page.locator(".ogis-panel").waitFor({ state: "visible" });
+  await expect(page.locator(".ogis-root")).toHaveAttribute(
     "data-bs-theme",
     theme,
   );
