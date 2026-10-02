@@ -28,7 +28,7 @@
   "panel.about.userInterface": "User Interface",
 
   "panel.privacy.title": "Your Privacy",
-  "panel.privacy.summary": "No accounts, no tracking, no cookies — your data stays on your device.",
+  "panel.privacy.summary": "Your data stays on your device.",
   "panel.privacy.onDevice": "On your device",
   "panel.privacy.onDeviceBody": "Your map view is stored in your browser's local storage only — this data never leaves your device.",
   "panel.privacy.mapView": "Map view — centre coordinates and zoom level, so the map reopens where you left it.",
@@ -157,10 +157,8 @@
   "panel.collections.errorNotFound": "Collection not found or no longer accessible.",
 
   "panel.info.readMore": "Read more",
-  "panel.info.attribution": "Attribution",
+  "panel.info.readLess": "Read less",
 
-  "panel.view.title": "Map view",
-  "panel.view.shareDescription": "Share a link to this map view.",
   "panel.view.copyLink": "Copy this Link",
   "panel.view.copied": "Copied!",
   "panel.view.viewOnOsm": "View on OSM",

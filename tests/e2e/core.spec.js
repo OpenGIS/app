@@ -285,4 +285,83 @@ test.describe("Info panel", () => {
     await page.locator("#attribution-button").click();
     await expect(page.locator(".onrte-info-panel")).toBeVisible();
   });
+
+  test("About disclosure toggles its label between Read more and Read less", async ({
+    page,
+  }) => {
+    await withViewStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // Scope to the About section: the Privacy section has identical labels.
+    const about = page.locator(".onrte-about-section");
+    await expect(about).toBeVisible();
+
+    const summary = about.locator("summary");
+    const more = about.locator(".onrte-disclosure-more");
+    const less = about.locator(".onrte-disclosure-less");
+
+    // Collapsed: "Read more" shows and "Read less" is hidden.
+    await expect(more).toBeVisible();
+    await expect(less).toBeHidden();
+
+    // Expanded: the labels swap.
+    await summary.click();
+    await expect(less).toBeVisible();
+    await expect(more).toBeHidden();
+
+    // Collapsed again: back to "Read more".
+    await summary.click();
+    await expect(more).toBeVisible();
+    await expect(less).toBeHidden();
+  });
+
+  test("Privacy disclosure toggles its label between Read more and Read less", async ({
+    page,
+  }) => {
+    await withViewStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // Scope to the Privacy section: the About section has identical labels.
+    const privacy = page.locator(".onrte-privacy-section");
+    await expect(privacy).toBeVisible();
+
+    const summary = privacy.locator("summary");
+    const more = privacy.locator(".onrte-disclosure-more");
+    const less = privacy.locator(".onrte-disclosure-less");
+
+    // Collapsed: "Read more" shows and "Read less" is hidden.
+    await expect(more).toBeVisible();
+    await expect(less).toBeHidden();
+
+    // Expanded: the labels swap.
+    await summary.click();
+    await expect(less).toBeVisible();
+    await expect(more).toBeHidden();
+
+    // Collapsed again: back to "Read more".
+    await summary.click();
+    await expect(more).toBeVisible();
+    await expect(less).toBeHidden();
+  });
+
+  test("Attribution footer is pinned with sticky positioning", async ({
+    page,
+  }) => {
+    await withViewStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const attribution = page.locator(".onrte-attribution-section");
+    await expect(attribution).toBeVisible();
+
+    const { position, bottom } = await attribution.evaluate((el) => {
+      const styles = getComputedStyle(el);
+      return { position: styles.position, bottom: styles.bottom };
+    });
+
+    expect(position).toBe("sticky");
+    expect(bottom).toBe("0px");
+  });
 });

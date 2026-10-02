@@ -424,9 +424,29 @@ $font-size-base: 0.9375rem; // 15 px
   pointer-events: none;
 }
 
+// Info panel fills the scroll container so its sticky footer can pin to
+// the bottom edge even when the content is short.
+.onrte-info-panel {
+  min-height: 100%;
+}
+
 // Info panel attribution links — interactive here, unlike the chip.
 .onrte-attribution-section a {
   color: var(--bs-primary);
+}
+
+.onrte-attribution-section {
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+[data-bs-theme="dark"] .onrte-attribution-section {
+  background: rgba(10, 18, 10, 0.92);
 }
 
 // Native <details> disclosure with a simple [+]/[−] marker.
@@ -452,6 +472,18 @@ $font-size-base: 0.9375rem; // 15 px
 
 .onrte-disclosure[open] > summary::before {
   content: "[−]";
+}
+
+.onrte-disclosure-less {
+  display: none;
+}
+
+.onrte-disclosure[open] .onrte-disclosure-more {
+  display: none;
+}
+
+.onrte-disclosure[open] .onrte-disclosure-less {
+  display: inline;
 }
 
 // Keep the MapLibre scale control clear of the bottom-left attribution chip.

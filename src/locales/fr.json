@@ -157,10 +157,8 @@
   "panel.collections.errorNotFound": "Collection introuvable ou non accessible.",
 
   "panel.info.readMore": "En savoir plus",
-  "panel.info.attribution": "Attribution",
+  "panel.info.readLess": "Réduire",
 
-  "panel.view.title": "Vue actuelle",
-  "panel.view.shareDescription": "Partagez un lien vers cette vue de la carte.",
   "panel.view.copyLink": "Copier ce lien",
   "panel.view.copied": "Copié !",
   "panel.view.viewOnOsm": "Voir sur OSM",

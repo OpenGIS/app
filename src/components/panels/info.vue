@@ -55,16 +55,7 @@ const copyLink = async () => {
 
 <template>
   <div class="onrte-info-panel d-flex flex-column flex-grow-1">
-    <!-- Map View -->
-    <div class="sidebar-section sidebar-section-body p-3 pb-0">
-      <h5 class="mb-0">{{ t("panel.view.title") }}</h5>
-    </div>
-
-    <div class="sidebar-section sidebar-section-body p-3 border-top">
-      <p class="mb-2 small text-body-secondary">
-        {{ t("panel.view.shareDescription") }}
-      </p>
-
+    <div class="sidebar-section sidebar-section-body p-3">
       <textarea
         id="onrte-share-url"
         name="onrte-share-url"
@@ -124,7 +115,14 @@ const copyLink = async () => {
       </p>
 
       <details class="onrte-disclosure">
-        <summary>{{ t("panel.info.readMore") }}</summary>
+        <summary>
+          <span class="onrte-disclosure-more">{{
+            t("panel.info.readMore")
+          }}</span>
+          <span class="onrte-disclosure-less">{{
+            t("panel.info.readLess")
+          }}</span>
+        </summary>
 
         <div class="pt-2">
           <p class="lead">{{ t("panel.about.descriptionOne") }}</p>
@@ -261,7 +259,14 @@ const copyLink = async () => {
       </p>
 
       <details class="onrte-disclosure">
-        <summary>{{ t("panel.info.readMore") }}</summary>
+        <summary>
+          <span class="onrte-disclosure-more">{{
+            t("panel.info.readMore")
+          }}</span>
+          <span class="onrte-disclosure-less">{{
+            t("panel.info.readLess")
+          }}</span>
+        </summary>
 
         <div class="pt-2">
           <h6 class="mb-2 text-muted small text-uppercase fw-semibold">
@@ -292,9 +297,8 @@ const copyLink = async () => {
 
     <!-- Attribution -->
     <div
-      class="sidebar-section sidebar-section-body p-3 border-top onrte-attribution-section"
+      class="sidebar-section sidebar-section-body px-3 py-2 border-top onrte-attribution-section"
     >
-      <h5 class="mb-2">{{ t("panel.info.attribution") }}</h5>
       <p class="mb-0 small onrte-attribution-text" v-html="attributionHtml"></p>
     </div>
   </div>
