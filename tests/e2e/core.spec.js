@@ -252,13 +252,18 @@ test.describe("Info panel", () => {
     const panel = page.locator(".onrte-info-panel");
     await expect(panel).toBeVisible();
 
+    await expect(panel.locator(".onrte-share-textarea")).toBeVisible();
+
     const about = panel.locator(".onrte-about-section");
-    await expect(about).toContainText("On Route");
-    await expect(about).toContainText("OpenStreetMap");
-    await expect(about).toContainText("MapLibre GL JS");
-    await expect(about).toContainText("OpenFreeMap");
-    await expect(about).toContainText("Vue JS");
-    await expect(about).toContainText("Bootstrap");
+    await expect(about).toContainText("Free, private");
+    await expect(about).toContainText("Open-Source");
+    await expect(
+      about.locator('a[href="https://github.com/OpenGIS/app/"]'),
+    ).toHaveAttribute("target", "_blank");
+
+    const aboutLogo = about.locator('img[alt="OpenGIS"]');
+    await expect(aboutLogo).toBeVisible();
+    await expect(aboutLogo).toHaveAttribute("src", /\/favicon\.png$/);
 
     const privacy = panel.locator(".onrte-privacy-section");
     await expect(privacy).toContainText("local storage");
@@ -286,36 +291,6 @@ test.describe("Info panel", () => {
     await expect(page.locator(".onrte-info-panel")).toBeVisible();
   });
 
-  test("About disclosure toggles its label between Read more and Read less", async ({
-    page,
-  }) => {
-    await withViewStorage(page);
-    await page.goto("/");
-    await waitForMapReady(page);
-
-    // Scope to the About section: the Privacy section has identical labels.
-    const about = page.locator(".onrte-about-section");
-    await expect(about).toBeVisible();
-
-    const summary = about.locator("summary");
-    const more = about.locator(".onrte-disclosure-more");
-    const less = about.locator(".onrte-disclosure-less");
-
-    // Collapsed: "Read more" shows and "Read less" is hidden.
-    await expect(more).toBeVisible();
-    await expect(less).toBeHidden();
-
-    // Expanded: the labels swap.
-    await summary.click();
-    await expect(less).toBeVisible();
-    await expect(more).toBeHidden();
-
-    // Collapsed again: back to "Read more".
-    await summary.click();
-    await expect(more).toBeVisible();
-    await expect(less).toBeHidden();
-  });
-
   test("Privacy disclosure toggles its label between Read more and Read less", async ({
     page,
   }) => {
@@ -323,7 +298,7 @@ test.describe("Info panel", () => {
     await page.goto("/");
     await waitForMapReady(page);
 
-    // Scope to the Privacy section: the About section has identical labels.
+    // Scope to the Privacy section disclosure.
     const privacy = page.locator(".onrte-privacy-section");
     await expect(privacy).toBeVisible();
 

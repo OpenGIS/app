@@ -291,16 +291,6 @@ for (const vp of VIEWPORTS) {
       await page.waitForTimeout(350);
       await capture(page, dir, "info-open");
 
-      // about-open — the About disclosure reveals the full text.
-      await page.locator(".onrte-about-section summary").click();
-      const about = page.locator(".onrte-about-section");
-      await expect(
-        about.locator('a[href="https://github.com/OpenGIS/navigator"]'),
-      ).toBeVisible();
-      await expect(about).toContainText("MapLibre GL JS");
-      await page.waitForTimeout(150);
-      await capture(page, dir, "about-open");
-
       // drag-collapsed — close the pane so the bottom-left chip is visible,
       // then drag the map to collapse the attribution chip.
       await closePanel(page);

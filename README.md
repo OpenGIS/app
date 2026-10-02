@@ -19,7 +19,7 @@ Built with the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem. Specia
 
 - Detailed, free global map — no install, no account
 - Globe view on first load
-- Corner controls for menu, locate and record, plus a merged Info panel (share links, credits, privacy)
+- Corner controls for menu, locate and record, plus a merged Info panel (share links, app info, privacy)
 - GPS locate with compass heading
 - Record GPS tracks and export as GPX
 - Import GPX routes and navigate offline

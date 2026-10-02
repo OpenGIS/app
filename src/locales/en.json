@@ -12,20 +12,8 @@
   "modal.welcome.locateInfo": "Display your current location by pressing Locate. Your permission is required, but no location data ever leaves your device.",
   "modal.welcome.getStarted": "Get started",
 
-  "panel.about.title": "About On Route",
-  "panel.about.summary": "A free, private, open-source mapping app that works entirely in your browser.",
-  "panel.about.descriptionOne": "A map for exploring, navigating and recording your adventures.",
-  "panel.about.descriptionTwo": "On Route is a free, private, open-source mapping app that works entirely in your browser.",
-  "panel.about.descriptionThree": "No registration, no tracking, no data sent to any server. Everything stays on your device.",
-  "panel.about.by": "Source on",
-  "panel.about.on": "at",
-
-  "panel.about.thanksOpenSource": "Thanks Open Source!",
-  "panel.about.mapData": "Map Data",
-  "panel.about.tileHosting": "Tile Hosting",
-  "panel.about.rendering": "Rendering",
-  "panel.about.tileSchema": "Tile Schema",
-  "panel.about.userInterface": "User Interface",
+  "panel.about.freePrivate": "Free, private &",
+  "panel.about.openSource": "Open-Source",
 
   "panel.privacy.title": "Your Privacy",
   "panel.privacy.summary": "Your data stays on your device.",

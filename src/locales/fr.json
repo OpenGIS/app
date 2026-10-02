@@ -12,20 +12,8 @@
   "modal.welcome.locateInfo": "Affichez votre position actuelle en appuyant sur Localiser. Votre autorisation est requise, mais aucune donnée de localisation ne quitte jamais votre appareil.",
   "modal.welcome.getStarted": "Commencer",
 
-  "panel.about.title": "À propos de On Route",
-  "panel.about.summary": "Une application de cartographie gratuite, privée et open-source qui fonctionne entièrement dans votre navigateur.",
-  "panel.about.descriptionOne": "Une carte pour explorer, naviguer et enregistrer vos aventures.",
-  "panel.about.descriptionTwo": "On Route est une application de cartographie gratuite, privée et open-source qui fonctionne entièrement dans votre navigateur.",
-  "panel.about.descriptionThree": "Aucune inscription, aucun suivi, aucune donnée envoyée à un serveur. Tout reste sur votre appareil.",
-  "panel.about.by": "Source sur",
-  "panel.about.on": "à",
-
-  "panel.about.thanksOpenSource": "Merci à l'Open Source !",
-  "panel.about.mapData": "Données cartographiques",
-  "panel.about.tileHosting": "Hébergement de tuiles",
-  "panel.about.rendering": "Rendu",
-  "panel.about.tileSchema": "Schéma de tuiles",
-  "panel.about.userInterface": "Interface utilisateur",
+  "panel.about.freePrivate": "Libre, privé &",
+  "panel.about.openSource": "Open Source",
 
   "panel.privacy.title": "Votre vie privée",
   "panel.privacy.summary": "Aucun compte, aucun suivi, aucun cookie — vos données restent sur votre appareil.",

@@ -109,144 +109,22 @@ const copyLink = async () => {
     <div
       class="sidebar-section sidebar-section-body p-3 border-top onrte-about-section"
     >
-      <h5 class="mb-2">{{ t("panel.about.title") }}</h5>
-      <p class="mb-2 small text-body-secondary">
-        {{ t("panel.about.summary") }}
-      </p>
-
-      <details class="onrte-disclosure">
-        <summary>
-          <span class="onrte-disclosure-more">{{
-            t("panel.info.readMore")
-          }}</span>
-          <span class="onrte-disclosure-less">{{
-            t("panel.info.readLess")
-          }}</span>
-        </summary>
-
-        <div class="pt-2">
-          <p class="lead">{{ t("panel.about.descriptionOne") }}</p>
-
-          <p>{{ t("panel.about.descriptionTwo") }}</p>
-
-          <p>{{ t("panel.about.descriptionThree") }}</p>
-
-          <p>
-            {{ t("panel.about.by") }}
-            <a href="https://github.com/OpenGIS/navigator">GitHub</a>.
-          </p>
-
-          <h6 class="mb-3 w-100 d-flex align-items-center">
-            {{ t("panel.about.thanksOpenSource") }}
-            <Icon
-              class="ms-auto text-danger"
-              width="32"
-              height="32"
-              fill="currentColor"
-              name="heart"
-            />
-          </h6>
-
-          <div class="d-flex flex-column gap-3">
-            <div class="d-flex align-items-center">
-              <span
-                class="badge bg-danger bg-opacity-10 text-danger rounded-pill me-2"
-              >
-                {{ t("panel.about.mapData") }}
-              </span>
-              <a
-                href="https://www.openstreetmap.org/copyright"
-                target="_blank"
-                rel="noopener"
-                class="text-body text-end small ms-auto text-decoration-underline"
-              >
-                &copy; OpenStreetMap contributors
-              </a>
-            </div>
-
-            <div class="d-flex align-items-center">
-              <span
-                class="badge bg-primary bg-opacity-10 text-primary rounded-pill me-2"
-              >
-                {{ t("panel.about.tileHosting") }}
-              </span>
-              <a
-                href="https://openfreemap.org"
-                target="_blank"
-                rel="noopener"
-                class="text-body text-end small ms-auto text-decoration-underline"
-              >
-                OpenFreeMap
-              </a>
-            </div>
-
-            <div class="d-flex align-items-center">
-              <span
-                class="badge bg-warning bg-opacity-10 text-warning rounded-pill me-2"
-              >
-                {{ t("panel.about.rendering") }}
-              </span>
-              <a
-                href="https://maplibre.org/"
-                target="_blank"
-                rel="noopener"
-                class="text-body text-end small ms-auto text-decoration-underline"
-              >
-                MapLibre GL JS
-              </a>
-            </div>
-
-            <div class="d-flex align-items-center">
-              <span
-                class="badge bg-info bg-opacity-10 text-info rounded-pill me-2"
-              >
-                {{ t("panel.about.tileSchema") }}
-              </span>
-              <a
-                href="https://www.openmaptiles.org/"
-                target="_blank"
-                rel="noopener"
-                class="text-body text-end small text-decoration-underline"
-              >
-                OpenMapTiles</a
-              >
-              &nbsp;/&nbsp;
-              <a
-                href="https://github.com/openmaptiles/osm-bright-gl-style"
-                target="_blank"
-                rel="noopener"
-                class="text-body text-end small text-decoration-underline"
-                >OSM Bright</a
-              >
-            </div>
-
-            <div class="d-flex align-items-center">
-              <span
-                class="badge bg-success bg-opacity-10 text-success rounded-pill me-2"
-              >
-                {{ t("panel.about.userInterface") }}
-              </span>
-              <span class="ms-auto small">
-                <a
-                  href="https://vuejs.org/"
-                  target="_blank"
-                  rel="noopener"
-                  class="text-body text-end text-decoration-underline"
-                  >Vue JS</a
-                >
-                &nbsp;/&nbsp;
-                <a
-                  href="https://getbootstrap.com/"
-                  target="_blank"
-                  rel="noopener"
-                  class="text-body text-end text-decoration-underline"
-                  >Bootstrap</a
-                >
-              </span>
-            </div>
-          </div>
-        </div>
-      </details>
+      <div class="d-flex align-items-center gap-3">
+        <p class="lead mb-0">
+          {{ t("panel.about.freePrivate") }}
+          <a
+            href="https://github.com/OpenGIS/app/"
+            target="_blank"
+            rel="noopener"
+            >{{ t("panel.about.openSource") }}</a
+          >.
+        </p>
+        <img
+          src="/favicon.png"
+          alt="OpenGIS"
+          class="ms-auto flex-shrink-0 onrte-about-logo rounded-1"
+        />
+      </div>
     </div>
 
     <!-- Privacy -->
