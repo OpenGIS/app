@@ -1,3 +1,17 @@
+# [3.6.0](https://github.com/OpenGIS/app/compare/v3.5.0...v3.6.0) (2026-10-03)
+
+
+### Bug Fixes
+
+* **mobile:** honour safe areas, cap panel width ([726ebd2](https://github.com/OpenGIS/app/commit/726ebd2e0187c46c3ad06a50aad12ec1bd6cc667))
+* **panel:** eliminate Bootstrap offcanvas race ([db35f92](https://github.com/OpenGIS/app/commit/db35f92f90c91a9557ecc5b0f72fd5e173516073))
+
+
+### Features
+
+* **info:** rebrand About with tagline and OGIS logo ([bb6e5e5](https://github.com/OpenGIS/app/commit/bb6e5e50b38b1e764e7500dfdd3def26c6e160c8))
+* rebrand onrte to ogis.app ([460ee19](https://github.com/OpenGIS/app/commit/460ee1989ec794b202c90b5fd9321ebda46363c5))
+
 # [3.5.0](https://github.com/OpenGIS/onrte-app/compare/v3.4.0...v3.5.0) (2026-10-02)
 
 
