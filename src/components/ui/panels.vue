@@ -122,8 +122,6 @@ watch(
     :class="{ show: isPanelVisible }"
     tabindex="-1"
     aria-labelledby="offcanvasLabel"
-    data-bs-scroll="true"
-    data-bs-backdrop="false"
   >
     <div class="offcanvas-body p-0 d-flex flex-column">
       <!-- Menu Pane: tab strip. Rendered whenever the Info pane is not active so

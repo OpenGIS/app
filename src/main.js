@@ -1,7 +1,6 @@
 import { createApp, shallowRef } from "vue";
 import App from "./App.vue";
 import "./assets/sass/theme.scss";
-import "bootstrap";
 
 import { emitter } from "./emitter.js";
 import { initLocaleCache } from "./composables/useLocale.js";
