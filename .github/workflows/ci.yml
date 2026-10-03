@@ -8,6 +8,9 @@ name: CI
 # never run. Keeping release and deploy in the same run side-steps this. The
 # release commit also carries "[skip ci]" so the push it creates does not
 # re-trigger CI.
+#
+# Add `[skip e2e]` to the head commit message of a push to skip the functional
+# e2e shards (docs/metadata-only changes); unit still runs and release proceeds.
 
 on:
   push:
@@ -42,6 +45,9 @@ jobs:
     name: e2e (shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # `[skip e2e]` in the head commit message of a push skips the functional
+    # suite; pull requests always run it.
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip e2e]') }}
     strategy:
       fail-fast: false
       matrix:
@@ -67,7 +73,11 @@ jobs:
 
   release:
     needs: [unit, e2e]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # `always()` + `!cancelled()` keeps this evaluable when e2e was skipped
+    # via `[skip e2e]` (without running on a cancelled workflow); the explicit
+    # result checks preserve the gate — release runs only when unit passed and
+    # e2e either passed or was deliberately skipped.
+    if: ${{ always() && !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.unit.result == 'success' && (needs.e2e.result == 'success' || needs.e2e.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

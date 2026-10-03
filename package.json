@@ -6,7 +6,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/OpenGIS/onrte-app.git"
+    "url": "https://github.com/OpenGIS/app.git"
   },
   "scripts": {
     "dev": "vite",
