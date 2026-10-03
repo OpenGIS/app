@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../helpers/test.js";
 
 /** Returns the app theme root — <html>, which carries data-bs-theme. */
 function themeRoot(page) {

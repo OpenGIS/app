@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test.js";
 import { waitForMapReady, openMenuPanel } from "./helpers/panel";
 import { COUNTRY_BOUNDS } from "../../src/utils/countries.js";
 

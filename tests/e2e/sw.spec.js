@@ -1,4 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/test.js";
+import {
+  trackConsoleErrors,
+  expectNoConsoleErrors,
+} from "./helpers/console.js";
 
 /**
  * E2E tests for the app-shell service worker under the opted-in dev path
@@ -8,8 +12,6 @@ import { test, expect } from "@playwright/test";
  * and prove the app both registers it and survives a reload while controlled.
  * The reload-stability test is the regression net for the poisoned-module class
  * of bug (a stale cache-first worker serving Vite's dev module graph).
- *
- * Helpers are duplicated per spec by project convention.
  */
 
 // A cold load plus a reload each wait on a full map-idle settle, which can take
@@ -17,28 +19,6 @@ import { test, expect } from "@playwright/test";
 test.setTimeout(120000);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Start collecting console/page errors; assert empty via expectNoConsoleErrors. */
-const trackConsoleErrors = (page) => {
-  page.__consoleErrors = [];
-  page.on("console", (msg) => {
-    if (msg.type() !== "error") return;
-    // Ignore external tile-provider 404s: the Mapterhorn raster overlay has no
-    // tiles at some zoom/areas, so camera moves 404 expected network noise.
-    const url = msg.location()?.url ?? "";
-    if (url.includes("tiles.mapterhorn.com")) return;
-    page.__consoleErrors.push(msg.text());
-  });
-  page.on("pageerror", (err) => {
-    page.__consoleErrors.push(err?.message ?? String(err));
-  });
-};
-
-/** Assert no console/page errors were collected during the test. */
-const expectNoConsoleErrors = (page) => {
-  const errors = page.__consoleErrors ?? [];
-  expect(errors, `Console errors: ${errors.join(" | ")}`).toEqual([]);
-};
 
 /** Seed a known map view so the map renders a consistent tile set. */
 const withViewStorage = (page) =>

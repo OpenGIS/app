@@ -3,6 +3,7 @@ node_modules/
 dist/
 playwright-report/
 test-results/
+tests/e2e/fixtures/
 package-lock.json
 CHANGELOG.md
 

@@ -1,5 +1,5 @@
 // Skip: features are commented out in src/main.js:16-20,113-116 — remove the skip when the features ship.
-import { expect, test } from "@playwright/test";
+import { test, expect } from "../helpers/test.js";
 
 const withViewStorage = (page) =>
   page.addInitScript(() =>

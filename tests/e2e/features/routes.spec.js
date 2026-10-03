@@ -1,4 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../helpers/test.js";
+import {
+  trackConsoleErrors,
+  expectNoConsoleErrors,
+} from "../helpers/console.js";
 import { waitForMapReady } from "../helpers/panel";
 
 /**
@@ -7,6 +11,11 @@ import { waitForMapReady } from "../helpers/panel";
  * Covers the Routes side panel tab, GPX import (valid + invalid), route
  * deletion, navigation start/stop, and persistence across reload.
  */
+
+// The software-rendered CI path (SwiftShader) can stall a click even when the
+// target is visible — observed in GH run 37133271143 — so the default 30 s
+// budget is too tight.
+test.setTimeout(60000);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -38,32 +47,6 @@ const grantGeolocation = (
     .context()
     .grantPermissions(["geolocation"])
     .then(() => page.context().setGeolocation(coords));
-
-/** Start collecting console errors on `page`; assert empty via expectNoConsoleErrors. */
-const trackConsoleErrors = (page) => {
-  page.__consoleErrors = [];
-  page.on("console", (msg) => {
-    if (msg.type() !== "error") return;
-    // Ignore external tile-provider 404s: the Mapterhorn raster overlay has
-    // no tiles at some zoom/areas, so navigation (camera moves) 404s are
-    // expected network noise, not app errors.
-    const url = msg.location()?.url ?? "";
-    if (url.includes("tiles.mapterhorn.com")) return;
-    // Ignore external ogis.org basemap/sprite fetch failures: the sprite/basemap
-    // CDN occasionally fails on its side (CORS-blocked or network ERR_FAILED),
-    // sometimes surfacing the URL only in the message text. This is transient
-    // external noise, not an app error — so match both console sources.
-    const text = msg.text();
-    if (url.includes("ogis.org") || text.includes("ogis.org")) return;
-    page.__consoleErrors.push(text);
-  });
-};
-
-/** Assert no console errors were collected during the test. */
-const expectNoConsoleErrors = (page) => {
-  const errors = page.__consoleErrors ?? [];
-  expect(errors, `Console errors: ${errors.join(" | ")}`).toEqual([]);
-};
 
 /** Open the Routes panel via its side panel nav tab. */
 const openRoutesPanel = async (page) => {

@@ -1,3 +1,8 @@
+---
+git_hash: "6b2cd4257afba75d9fd2ddf046787634977b7042"
+modified: "2026-10-03"
+---
+
 # ogis.app — Docs
 
 Developer documentation for the ogis.app codebase.
