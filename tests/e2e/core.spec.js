@@ -240,7 +240,7 @@ test.describe("Info panel", () => {
 
     const aboutLogo = about.locator('img[alt="OpenGIS"]');
     await expect(aboutLogo).toBeVisible();
-    await expect(aboutLogo).toHaveAttribute("src", /\/favicon\.png$/);
+    await expect(aboutLogo).toHaveAttribute("src", /\/icon-192\.png$/);
 
     const privacy = panel.locator(".ogis-privacy-section");
     await expect(privacy).toContainText("local storage");

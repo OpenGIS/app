@@ -120,7 +120,7 @@ const copyLink = async () => {
           >.
         </p>
         <img
-          src="/favicon.png"
+          src="/icon-192.png"
           alt="OpenGIS"
           class="ms-auto flex-shrink-0 ogis-about-logo rounded-1"
         />
