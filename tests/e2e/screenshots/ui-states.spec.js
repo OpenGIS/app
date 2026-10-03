@@ -271,7 +271,7 @@ for (const vp of VIEWPORTS) {
       // dark default resolves the dark theme.
       await expect(page.locator("#about-modal")).toBeVisible({ timeout: 8000 });
       await waitForMapIdle(page);
-      await expect(page.locator(".ogis-root")).toHaveAttribute(
+      await expect(page.locator("html")).toHaveAttribute(
         "data-bs-theme",
         "dark",
       );

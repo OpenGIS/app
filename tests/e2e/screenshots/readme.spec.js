@@ -45,10 +45,7 @@ const captureHero = async (page, name, theme) => {
     { timeout: 30000 },
   );
   await page.locator(".ogis-panel").waitFor({ state: "visible" });
-  await expect(page.locator(".ogis-root")).toHaveAttribute(
-    "data-bs-theme",
-    theme,
-  );
+  await expect(page.locator("html")).toHaveAttribute("data-bs-theme", theme);
   // Let the offcanvas slide-in finish so the hero is not mid-transition.
   await page.waitForTimeout(400);
 

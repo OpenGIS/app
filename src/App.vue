@@ -11,7 +11,6 @@ import LocateConfirm from "@/components/modals/locate-confirm.vue";
 import { useMap } from "@/composables/useMap";
 import { useUI } from "@/composables/useUI";
 import { useAttribution } from "@/composables/useAttribution";
-import { useSettings } from "@/composables/useSettings";
 import { useWakeLock } from "@/composables/useWakeLock";
 
 const instanceId = inject("ogisAppId", "app");
@@ -19,8 +18,6 @@ const instanceId = inject("ogisAppId", "app");
 // Map — template ref passed so useMap manages the full lifecycle
 const mapContainer = ref(null);
 useMap(mapContainer, {});
-
-const { resolvedTheme } = useSettings();
 
 // Attribution collapse state — mirrored onto the root so theme.scss can place
 // the MapLibre scale control inline beside the collapsed chip.
@@ -56,7 +53,6 @@ onMounted(() => initWakeLock());
   <div
     ref="rootEl"
     class="ogis-root position-fixed top-0 start-0 w-100 h-100 overflow-hidden"
-    :data-bs-theme="resolvedTheme"
     :data-attrib-collapsed="attributionCollapsed ? 'true' : 'false'"
   >
     <div style="display: none" v-html="iconSprite"></div>

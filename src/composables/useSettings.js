@@ -17,8 +17,23 @@ if (darkQuery) {
   });
 }
 
+// The single source of truth for the resolved theme ("light" | "dark").
+export const resolvedTheme = computed(() =>
+  systemDark.value ? "dark" : "light",
+);
+
 // Notify subscribers (e.g. future MapLibre style swap) whenever the system theme changes.
 watch(systemDark, (v) => emitter.emit("theme:change", v ? "dark" : "light"));
+
+// Apply the theme to the document root so teleported UI (modals live outside
+// .ogis-root) inherits the correct colour scheme. Guarded for non-browser imports.
+if (typeof document !== "undefined") {
+  watch(
+    resolvedTheme,
+    (theme) => document.documentElement.setAttribute("data-bs-theme", theme),
+    { immediate: true },
+  );
+}
 
 /**
  * Infer the user's preferred unit system from a browser locale string.
@@ -44,8 +59,6 @@ export function localeDefaultUnits(localeStr) {
  * user's most-preferred language. Both update live at runtime.
  */
 export const useSettings = () => {
-  const resolvedTheme = computed(() => (systemDark.value ? "dark" : "light"));
-
   const isDark = computed(() => resolvedTheme.value === "dark");
 
   const resolvedUnits = computed(() =>

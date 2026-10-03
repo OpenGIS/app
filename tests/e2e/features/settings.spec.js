@@ -14,11 +14,11 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-/** Returns the app theme root (the wrapper with data-bs-theme). */
+/** Returns the app theme root — <html>, which carries data-bs-theme. */
 function themeRoot(page) {
-  // Theme binding lives on .ogis-root only: it carries
-  // :data-bs-theme="resolvedTheme" for the whole UI (panel, chips, modals).
-  return page.locator(".ogis-root");
+  // The theme attribute lives on <html> (applied by useSettings) so that
+  // teleported modals, which render outside .ogis-root, inherit it too.
+  return page.locator("html");
 }
 
 /** Simulates the browser/OS changing its preferred language at runtime. */
@@ -76,6 +76,41 @@ test.describe("Appearance", () => {
     // ...and back to light again.
     await page.emulateMedia({ colorScheme: "light" });
     await expect(root).toHaveAttribute("data-bs-theme", "light");
+  });
+
+  test.describe("OS prefers dark — teleported modal", () => {
+    test.use({ colorScheme: "dark" });
+
+    test("the first-load modal inherits the dark theme from <html>", async ({
+      page,
+    }) => {
+      // Clear the seeded view storage so the teleported Welcome modal appears.
+      await page.addInitScript(() => localStorage.removeItem("ogis_view_app"));
+      await page.goto("/");
+      await page.waitForSelector("#about-modal .modal-content");
+
+      await expect(themeRoot(page)).toHaveAttribute("data-bs-theme", "dark");
+
+      const { modalBg, appBg } = await page.evaluate(() => {
+        const content = document.querySelector("#about-modal .modal-content");
+        const root = document.querySelector(".ogis-root");
+
+        // Resolve the dark body background from inside the app root. The root
+        // is themed in both builds, so it is a reliable dark reference even if
+        // <html> were left un-themed.
+        const probe = document.createElement("div");
+        probe.style.backgroundColor = "var(--bs-body-bg)";
+        root.appendChild(probe);
+        const appBg = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+
+        return { modalBg: getComputedStyle(content).backgroundColor, appBg };
+      });
+
+      // A modal teleported to <body> renders outside .ogis-root, so it only
+      // matches the app's dark background when data-bs-theme is on <html>.
+      expect(modalBg).toBe(appBg);
+    });
   });
 });
 

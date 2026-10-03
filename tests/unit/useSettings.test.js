@@ -202,6 +202,22 @@ describe("useSettings — system theme", () => {
     expect(received).toEqual(["dark", "light"]);
   });
 
+  it("applies the resolved theme to the document root on load", async () => {
+    await loadSystemTheme(true);
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+  });
+
+  it("updates the document root attribute on a system theme change", async () => {
+    const { setMatches } = await loadSystemTheme(false);
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe(
+      "light",
+    );
+
+    setMatches(true);
+    await nextTick();
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+  });
+
   it("shares the module-level system preference across instances", async () => {
     const { useSettings, setMatches } = await loadSystemTheme(false);
     const first = useSettings("unit-theme-instance-a");
