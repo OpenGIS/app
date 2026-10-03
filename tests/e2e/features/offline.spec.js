@@ -9,7 +9,7 @@ import { test, expect } from "@playwright/test";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Seed a known map view (so the About modal does not appear) and clear regions. */
+/** Seed a known map view and clear regions. */
 const withViewStorage = (page) =>
   page.addInitScript(() => {
     localStorage.setItem(
@@ -130,13 +130,6 @@ test.describe("Offline / Panel tab", () => {
   });
 
   test("Offline Maps tab appears in the side panel nav", async ({ page }) => {
-    // Dismiss the first-load welcome modal if it appears (seeded view storage
-    // usually prevents it).
-    const modal = page.locator("#about-modal");
-    if (await modal.isVisible().catch(() => false)) {
-      await page.locator("#about-modal-close").click();
-      await modal.waitFor({ state: "hidden" });
-    }
     await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
 
     // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.

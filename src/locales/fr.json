@@ -6,12 +6,6 @@
   "menu.maps": "Cartes",
   "menu.collections": "Collections",
 
-  "modal.welcome.title": "ogis.app",
-  "modal.welcome.introOne": "Une carte pour explorer, naviguer et enregistrer vos aventures.",
-  "modal.welcome.introTwo": "Pas d'app stores, pas de comptes, pas de suivi. Propulsé par l'Open Source.",
-  "modal.welcome.locateInfo": "Affichez votre position actuelle en appuyant sur Localiser. Votre autorisation est requise, mais aucune donnée de localisation ne quitte jamais votre appareil.",
-  "modal.welcome.getStarted": "Commencer",
-
   "panel.about.freePrivate": "Libre, privé &",
   "panel.about.openSource": "Open Source",
 

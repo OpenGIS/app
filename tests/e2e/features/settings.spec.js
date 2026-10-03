@@ -1,19 +1,5 @@
 import { test, expect } from "@playwright/test";
 
-// Seed view storage so the About modal does not appear on fresh contexts
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    if (!localStorage.getItem("ogis_view_app")) {
-      localStorage.setItem(
-        "ogis_view_app",
-        JSON.stringify({
-          mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 10 },
-        }),
-      );
-    }
-  });
-});
-
 /** Returns the app theme root — <html>, which carries data-bs-theme. */
 function themeRoot(page) {
   // The theme attribute lives on <html> (applied by useSettings) so that
@@ -81,18 +67,23 @@ test.describe("Appearance", () => {
   test.describe("OS prefers dark — teleported modal", () => {
     test.use({ colorScheme: "dark" });
 
-    test("the first-load modal inherits the dark theme from <html>", async ({
+    test("a teleported modal inherits the dark theme from <html>", async ({
       page,
     }) => {
-      // Clear the seeded view storage so the teleported Welcome modal appears.
-      await page.addInitScript(() => localStorage.removeItem("ogis_view_app"));
       await page.goto("/");
-      await page.waitForSelector("#about-modal .modal-content");
+      await page.waitForSelector(".ogis-map canvas");
+
+      // No stored locate permission, so clicking Locate opens the teleported
+      // confirmation modal (rendered on <body>, outside .ogis-root).
+      await page.locator("#locate-button").click();
+      await page.waitForSelector("#locate-confirm-title");
 
       await expect(themeRoot(page)).toHaveAttribute("data-bs-theme", "dark");
 
       const { modalBg, appBg } = await page.evaluate(() => {
-        const content = document.querySelector("#about-modal .modal-content");
+        const content = document
+          .querySelector("#locate-confirm-title")
+          .closest(".modal-content");
         const root = document.querySelector(".ogis-root");
 
         // Resolve the dark body background from inside the app root. The root

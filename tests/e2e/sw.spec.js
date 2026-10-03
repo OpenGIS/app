@@ -40,7 +40,7 @@ const expectNoConsoleErrors = (page) => {
   expect(errors, `Console errors: ${errors.join(" | ")}`).toEqual([]);
 };
 
-/** Seed a known map view so the first-load welcome modal does not appear. */
+/** Seed a known map view so the map renders a consistent tile set. */
 const withViewStorage = (page) =>
   page.addInitScript(() => {
     localStorage.setItem(

@@ -39,13 +39,6 @@ const withGrantedStorage = (page) =>
       "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
     );
-    // Seed view storage so the About modal doesn't appear
-    localStorage.setItem(
-      "ogis_view_app",
-      JSON.stringify({
-        mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 10 },
-      }),
-    );
   });
 
 const grantGeolocation = (
@@ -56,22 +49,6 @@ const grantGeolocation = (
     .context()
     .grantPermissions(["geolocation"])
     .then(() => page.context().setGeolocation(coords));
-
-/**
- * Dismiss the About modal if it appears (first-load state). The bounded visible
- * wait avoids racing the first render; if it never appears, this is a no-op.
- */
-const dismissAboutModal = async (page) => {
-  const modal = page.locator("#about-modal");
-  const appeared = await modal
-    .waitFor({ state: "visible", timeout: 5000 })
-    .then(() => true)
-    .catch(() => false);
-  if (appeared) {
-    await page.locator("#about-modal-close").click();
-    await modal.waitFor({ state: "hidden" });
-  }
-};
 
 /**
  * Light wait: the camera has ARRIVED, without waiting for every tile to render.
@@ -111,7 +88,6 @@ test.describe("Locate / Button", () => {
     await withNoLocateStorage(page);
     await page.goto("/");
     await waitForMapReady(page);
-    await dismissAboutModal(page);
   });
 
   test("locate chip is visible in the map corner controls", async ({
@@ -139,7 +115,6 @@ test.describe("Locate / Confirmation modal", () => {
     await withNoLocateStorage(page);
     await page.goto("/");
     await waitForMapReady(page);
-    await dismissAboutModal(page);
   });
 
   test("confirmation modal appears on first click with no stored permission", async ({
@@ -200,7 +175,6 @@ test.describe("Locate / Recordings integration", () => {
     await withNoLocateStorage(page);
     await page.goto("/");
     await waitForMapReady(page);
-    await dismissAboutModal(page);
   });
 
   test("starting a recording shows the confirmation modal when permission has not been granted", async ({

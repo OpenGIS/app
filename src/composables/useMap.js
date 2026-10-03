@@ -9,7 +9,14 @@ import { inject, onMounted, onUnmounted, ref, watch } from "vue";
 import { useStorage } from "@/composables/useStorage";
 import { parseUrlHash, updateUrlHash } from "@/composables/useUrlHash";
 import { useSettings } from "@/composables/useSettings";
-import { useLocale } from "@/composables/useLocale";
+import { useLocale, navigatorLanguages } from "@/composables/useLocale";
+import {
+  COUNTRY_BOUNDS,
+  WRAP_OVERRIDES,
+  countryCodeToBounds,
+  countryCodeFromLocale,
+  countryCodeFromTimeZone,
+} from "@/utils/countries.js";
 import { emitter } from "@/emitter.js";
 import {
   mapDefaults,
@@ -126,27 +133,50 @@ export const useMap = (containerRef = null, options = {}) => {
         // mercator automatically at higher zoom levels.
         map.setProjection(globeProjection);
 
-        // Determine initial view: URL hash takes priority over localStorage
+        // An explicit ?country=XX (or ?country=random) forces the focus and
+        // outranks both the URL hash and any stored view. Unknown or empty
+        // values are ignored, never treated as random. Parse it once, up front.
+        const countryParam = (
+          new URLSearchParams(window.location.search).get("country") ?? ""
+        )
+          .trim()
+          .toUpperCase();
+        const forcedCode =
+          countryParam === "RANDOM"
+            ? "" // empty string is countryCodeToBounds' random sentinel
+            : Object.hasOwn(COUNTRY_BOUNDS, countryParam) ||
+                Object.hasOwn(WRAP_OVERRIDES, countryParam)
+              ? countryParam
+              : null;
+        const isForced = forcedCode !== null;
+
+        // Determine initial view: a forced country supersedes everything; a URL
+        // hash otherwise takes priority over localStorage. A true cold start
+        // (neither present) is handled below, once the `moveend` listener is
+        // wired up so the country fit is persisted.
         const hashView = parseUrlHash();
         const hasStoredView = !!(
           cached.state.mapView.center && cached.state.mapView.zoom
         );
+        const isColdStart = !hashView && !hasStoredView;
 
-        if (hashView) {
-          map.jumpTo({
-            center: hashView.center,
-            zoom: hashView.zoom,
-            pitch: hashView.pitch,
-            bearing: hashView.bearing,
-          });
-        } else if (hasStoredView) {
-          map.jumpTo({
-            center: cached.state.mapView.center,
-            zoom: cached.state.mapView.zoom,
-            // Old stored views predate pitch/bearing — default them to 0.
-            pitch: cached.state.mapView.pitch ?? 0,
-            bearing: cached.state.mapView.bearing ?? 0,
-          });
+        if (!isForced) {
+          if (hashView) {
+            map.jumpTo({
+              center: hashView.center,
+              zoom: hashView.zoom,
+              pitch: hashView.pitch,
+              bearing: hashView.bearing,
+            });
+          } else if (hasStoredView) {
+            map.jumpTo({
+              center: cached.state.mapView.center,
+              zoom: cached.state.mapView.zoom,
+              // Old stored views predate pitch/bearing — default them to 0.
+              pitch: cached.state.mapView.pitch ?? 0,
+              bearing: cached.state.mapView.bearing ?? 0,
+            });
+          }
         }
 
         // Update the reactive ref and URL hash from the current map state.
@@ -167,15 +197,11 @@ export const useMap = (containerRef = null, options = {}) => {
         };
 
         // Only populate mapView when there is a meaningful view to share
-        // (a URL hash or a previously persisted view). On a true first visit
-        // mapView stays null so the "Current view / Share this view"
-        // section in the menu remains hidden.
-        if (hashView || hasStoredView) {
+        // (a URL hash or a previously persisted view). On a cold start — or a
+        // forced country — the fit below drives persistence through the
+        // `moveend` handler, so no stale pre-fit hash is written.
+        if (!isForced && (hashView || hasStoredView)) {
           refreshView();
-        } else {
-          const c = map.getCenter();
-          const z = map.getZoom();
-          updateUrlHash(z, c.lat, c.lng, map.getPitch(), map.getBearing());
         }
 
         // On map movement: persist to localStorage, update ref, and update hash.
@@ -220,6 +246,28 @@ export const useMap = (containerRef = null, options = {}) => {
         });
 
         cached.mapInstance = map;
+
+        // Focus the map. A forced country (?country) wins outright; otherwise
+        // a cold start resolves the country by cascade: timezone → raw browser
+        // locale → random. Locale uses raw `navigatorLanguages` (not the app
+        // locale or ?locale=). Padding scales with the smaller viewport axis so
+        // the framing stays consistent across phone and desktop instead of
+        // being tied to one dimension. `duration: 0` completes synchronously
+        // and fires `moveend`, so the listener above persists the fitted view
+        // (hash + localStorage) — the desired end state, with no stale pre-fit
+        // hash left behind.
+        if (isForced || isColdStart) {
+          const code = isForced
+            ? forcedCode
+            : (countryCodeFromTimeZone() ??
+              countryCodeFromLocale(navigatorLanguages.value[0]) ??
+              "");
+          const bounds = countryCodeToBounds(code);
+          const { clientWidth: width, clientHeight: height } =
+            map.getContainer();
+          const padding = Math.round(Math.min(width, height) * 0.1);
+          map.fitBounds(bounds, { padding, duration: 0 });
+        }
 
         // Expose a lightweight app-ready signal. This is the same point at
         // which the app publishes the map instance and emits `map:ready`, so

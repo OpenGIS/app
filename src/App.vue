@@ -5,7 +5,6 @@ import iconSprite from "@ogis/icons/dist/ogis-icons.svg?raw";
 // UI
 import Controls from "@/components/ui/controls.vue";
 import Panels from "@/components/ui/panels.vue";
-import About from "@/components/modals/welcome.vue";
 import LocateConfirm from "@/components/modals/locate-confirm.vue";
 
 import { useMap } from "@/composables/useMap";
@@ -74,7 +73,6 @@ onMounted(() => initWakeLock());
     <Controls />
 
     <!-- Global modals -->
-    <About />
     <LocateConfirm />
   </div>
 </template>

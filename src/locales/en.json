@@ -6,12 +6,6 @@
   "menu.maps": "Maps",
   "menu.collections": "Collections",
 
-  "modal.welcome.title": "ogis.app",
-  "modal.welcome.introOne": "A map for exploring, navigating and recording your adventures.",
-  "modal.welcome.introTwo": "No app stores, no accounts, no tracking. Powered by Open Source.",
-  "modal.welcome.locateInfo": "Display your current location by pressing Locate. Your permission is required, but no location data ever leaves your device.",
-  "modal.welcome.getStarted": "Get started",
-
   "panel.about.freePrivate": "Free, private &",
   "panel.about.openSource": "Open-Source",
 

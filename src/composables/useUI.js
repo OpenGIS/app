@@ -5,14 +5,9 @@ import { emitter } from "@/emitter.js";
 const instances = new Map();
 const resizeCleanups = new Map();
 
-function createState(instanceId) {
-  // isFirstLoad is true when the map view has never been persisted for this instance.
-  const storageKey = `ogis_view_${instanceId}`;
-  const firstLoad = !localStorage.getItem(storageKey);
+function createState() {
   return {
     width: ref(window.innerWidth),
-    isFirstLoad: ref(firstLoad),
-    showAboutModal: ref(firstLoad),
     visiblePane: ref(null),
     isPanelExpanded: ref(false),
     activePanel: ref("record"),
@@ -22,14 +17,14 @@ function createState(instanceId) {
 /**
  * Composable for UI state management.
  *
- * Manages responsive breakpoints, side panel visibility, and first-load
- * detection. State is shared across all callers within the app.
+ * Manages responsive breakpoints and side panel visibility. State is shared
+ * across all callers within the app.
  */
 export const useUI = () => {
   const instanceId = inject("ogisAppId", "app");
 
   if (!instances.has(instanceId)) {
-    instances.set(instanceId, createState(instanceId));
+    instances.set(instanceId, createState());
 
     const s = instances.get(instanceId);
     const onResize = () => {
@@ -101,29 +96,12 @@ export const useUI = () => {
     emitter.emit("panel:change", id);
   };
 
-  const setFirstLoadComplete = () => {
-    s.isFirstLoad.value = false;
-  };
-
-  const openAboutModal = () => {
-    s.showAboutModal.value = true;
-  };
-
-  const closeAboutModal = () => {
-    s.showAboutModal.value = false;
-    if (s.isFirstLoad.value) {
-      setFirstLoadComplete();
-    }
-  };
-
   return {
     // State
     width: s.width,
     visiblePane: s.visiblePane,
     isPanelExpanded: s.isPanelExpanded,
     activePanel: s.activePanel,
-    isFirstLoad: s.isFirstLoad,
-    showAboutModal: s.showAboutModal,
 
     // Computed
     isDesktop,
@@ -142,8 +120,5 @@ export const useUI = () => {
     togglePanelExpanded,
     setPanelExpanded,
     setActivePanel,
-    setFirstLoadComplete,
-    openAboutModal,
-    closeAboutModal,
   };
 };

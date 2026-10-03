@@ -31,7 +31,7 @@ const withGrantedStorage = (page) =>
     );
   });
 
-/** Clear all app storage so the About modal / permission flow appear fresh. */
+/** Clear all app storage so the permission flow appears fresh. */
 const withNoStorage = (page) =>
   page.addInitScript(() => {
     localStorage.removeItem("ogis_locate_app");
@@ -48,22 +48,6 @@ const grantGeolocation = (
     .context()
     .grantPermissions(["geolocation"])
     .then(() => page.context().setGeolocation(coords));
-
-/**
- * Dismiss the About modal if it appears (first-load state). The bounded visible
- * wait avoids racing the first render; if it never appears, this is a no-op.
- */
-const dismissAboutModal = async (page) => {
-  const modal = page.locator("#about-modal");
-  const appeared = await modal
-    .waitFor({ state: "visible", timeout: 5000 })
-    .then(() => true)
-    .catch(() => false);
-  if (appeared) {
-    await page.locator("#about-modal-close").click();
-    await modal.waitFor({ state: "hidden" });
-  }
-};
 
 // ─── Recordings / Button ─────────────────────────────────────────────────────
 
@@ -93,7 +77,6 @@ test.describe("Recordings / Permission modal", () => {
     await withNoStorage(page);
     await page.goto("/");
     await waitForMapReady(page);
-    await dismissAboutModal(page);
   });
 
   test("clicking Record shows the permission confirmation modal on first use", async ({

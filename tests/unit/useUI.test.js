@@ -18,7 +18,7 @@ vi.mock("vue", () => ({
 
 /** Reset the module-level instance cache between tests. */
 async function freshUseUI(opts = {}) {
-  const { width = 1280, storageKey } = opts;
+  const { width = 1280 } = opts;
 
   // Set window.innerWidth
   Object.defineProperty(window, "innerWidth", {
@@ -26,17 +26,6 @@ async function freshUseUI(opts = {}) {
     writable: true,
     configurable: true,
   });
-
-  // Optionally seed localStorage for isFirstLoad check
-  const key = `ogis_view_${injectReturn}`;
-  if (storageKey === false) {
-    localStorage.removeItem(key);
-  } else {
-    localStorage.setItem(
-      key,
-      JSON.stringify({ mapView: { center: { lat: 0, lng: 0 }, zoom: 1 } }),
-    );
-  }
 
   // Re-import to get a fresh module (cache cleared)
   vi.resetModules();
@@ -246,39 +235,6 @@ describe("useUI / Pane separation", () => {
   });
 });
 
-describe("useUI / First load", () => {
-  it("isFirstLoad is true when no view storage exists", async () => {
-    const ui = await freshUseUI({ storageKey: false });
-    expect(ui.isFirstLoad.value).toBe(true);
-    expect(ui.showAboutModal.value).toBe(true);
-  });
-
-  it("isFirstLoad is false when view storage exists", async () => {
-    const ui = await freshUseUI();
-    expect(ui.isFirstLoad.value).toBe(false);
-    expect(ui.showAboutModal.value).toBe(false);
-  });
-
-  it("closeAboutModal sets showAboutModal to false and marks first load complete", async () => {
-    const ui = await freshUseUI({ storageKey: false });
-    expect(ui.showAboutModal.value).toBe(true);
-    expect(ui.isFirstLoad.value).toBe(true);
-
-    ui.closeAboutModal();
-
-    expect(ui.showAboutModal.value).toBe(false);
-    expect(ui.isFirstLoad.value).toBe(false);
-  });
-
-  it("openAboutModal sets showAboutModal to true", async () => {
-    const ui = await freshUseUI();
-    expect(ui.showAboutModal.value).toBe(false);
-
-    ui.openAboutModal();
-    expect(ui.showAboutModal.value).toBe(true);
-  });
-});
-
 describe("useUI / Instance isolation", () => {
   it("different instanceIds get independent state", async () => {
     injectReturn = "instance-a";
@@ -292,7 +248,6 @@ describe("useUI / Instance isolation", () => {
       writable: true,
       configurable: true,
     });
-    localStorage.removeItem("ogis_view_instance-b");
     const uiB = useUI();
 
     // A is desktop, B is mobile — independent state

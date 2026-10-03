@@ -1,11 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { waitForMapReady, openMenuPanel } from "./helpers/panel";
+import { COUNTRY_BOUNDS } from "../../src/utils/countries.js";
 
 /**
- * Tests for docs/guide/core.md
- *
- * Covers the First load behaviour: Welcome modal, OS-driven language,
- * returning visits, and the Info pane toggled via the attribution chip.
+ * Core app tests: returning-visit view persistence, the Info pane toggled via
+ * the attribution chip, and first-load country focus.
  */
 
 // Chip-click interactions (Info / attribution chips) settle slowly under
@@ -13,9 +12,6 @@ import { waitForMapReady, openMenuPanel } from "./helpers/panel";
 // 30 s test budget intermittently fails these tests on slower machines — raise
 // the file budget; assertions are unchanged.
 test.setTimeout(120000);
-
-const withNoViewStorage = (page) =>
-  page.addInitScript(() => localStorage.removeItem("ogis_view_app"));
 
 const withViewStorage = (page) =>
   page.addInitScript(() =>
@@ -27,121 +23,22 @@ const withViewStorage = (page) =>
     ),
   );
 
-// ─── First load / Welcome modal ───────────────────────────────────────────────
+// ─── Returning visits / View persistence ─────────────────────────────────────
 
-test.describe("First load / Welcome modal", () => {
-  test("modal is visible on first visit with welcome text", async ({
+test.describe("Returning visits", () => {
+  test("view storage is applied on a returning visit and survives a reload", async ({
     page,
   }) => {
-    await withNoViewStorage(page);
-    await page.goto("/");
-    await waitForMapReady(page);
-
-    await expect(page.locator("#about-modal")).toBeVisible();
-    await expect(page.locator("#about-modal-title")).toBeVisible();
-    await expect(page.locator("#about-modal .modal-body")).toContainText(
-      "A map for exploring",
-    );
-  });
-
-  test("modal can be dismissed with Get Started button", async ({ page }) => {
-    await withNoViewStorage(page);
-    await page.goto("/");
-    await waitForMapReady(page);
-
-    await expect(page.locator("#about-modal")).toBeVisible();
-    await page.locator("#about-modal-close").click();
-    await expect(page.locator("#about-modal")).toHaveCount(0);
-  });
-
-  test("modal can be dismissed with close button", async ({ page }) => {
-    await withNoViewStorage(page);
-    await page.goto("/");
-    await waitForMapReady(page);
-
-    await expect(page.locator("#about-modal")).toBeVisible();
-    await page.locator("#about-modal .btn-close").click();
-    await expect(page.locator("#about-modal")).toHaveCount(0);
-  });
-});
-
-// ─── First load / Language ────────────────────────────────────────────────────
-
-test.describe("First load / Language", () => {
-  test("welcome modal has no language picker", async ({ page }) => {
-    await withNoViewStorage(page);
-    await page.goto("/");
-    await waitForMapReady(page);
-
-    await expect(page.locator("#about-language")).toHaveCount(0);
-  });
-
-  test.describe("browser language — French (fr-FR)", () => {
-    test.use({ locale: "fr-FR" });
-
-    test("welcome modal content follows the browser language", async ({
-      page,
-    }) => {
-      await withNoViewStorage(page);
-      await page.goto("/");
-      await waitForMapReady(page);
-
-      await expect(page.locator("#about-modal .modal-body")).toContainText(
-        "Une carte pour explorer",
-      );
-    });
-  });
-});
-
-// ─── First load / Units ───────────────────────────────────────────────────────
-
-test.describe("First load / Units", () => {
-  test("welcome modal has no units picker", async ({ page }) => {
-    await withNoViewStorage(page);
-    await page.goto("/");
-    await waitForMapReady(page);
-
-    await expect(page.locator("#about-units")).toHaveCount(0);
-  });
-});
-
-// ─── First load / Returning visits ───────────────────────────────────────────
-
-test.describe("First load / Returning visits", () => {
-  test("modal is absent on returning visit", async ({ page }) => {
     await withViewStorage(page);
     await page.goto("/");
     await waitForMapReady(page);
 
-    await expect(page.locator("#about-modal")).toHaveCount(0);
-  });
-
-  test("modal is absent after view storage is written and page is reloaded", async ({
-    page,
-  }) => {
-    const VIEW_KEY = "ogis_view_app";
-
-    await page.goto("/");
-    await waitForMapReady(page);
-
-    await expect(page.locator("#about-modal")).toBeVisible();
-
-    await page.locator("#about-modal-close").click();
-    await expect(page.locator("#about-modal")).toHaveCount(0);
-
-    await page.evaluate((k) => {
-      localStorage.setItem(
-        k,
-        JSON.stringify({
-          mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 10 },
-        }),
-      );
-    }, VIEW_KEY);
+    await expect(page).toHaveURL(/#map=10\//);
 
     await page.reload();
     await waitForMapReady(page);
 
-    await expect(page.locator("#about-modal")).toHaveCount(0);
+    await expect(page).toHaveURL(/#map=10\//);
   });
 });
 
@@ -434,5 +331,277 @@ test.describe("Panel geometry / desktop", () => {
 
     // No backdrop on desktop — the controls stay reachable beside the panel.
     await expect(page.locator(".offcanvas-backdrop")).toHaveCount(0);
+  });
+});
+
+// ─── First load / Country focus ───────────────────────────────────────────────
+//
+// On a true cold start (no URL hash, no stored view) the map resolves a country
+// by cascade: IANA timezone → raw browser locale → random. An explicit
+// `?country=XX` forces that country (outranking hash and stored view), and
+// `?country=random` forces a fresh random fit on every load. The fit is instant
+// (`duration: 0`) and, being a programmatic move, is persisted to the URL hash
+// (`#map=zoom/lat/lng/...`) and localStorage by the existing `moveend` handler.
+
+const BASE_URL = "http://localhost:5184";
+
+// Bounds from COUNTRY_BOUNDS.GB (lat 49.96–58.64, lng -7.57–1.68).
+const GB = { minLat: 49.96, maxLat: 58.64, minLng: -7.57, maxLng: 1.68 };
+
+// Parse the `#map={zoom}/{lat}/{lng}/...` hash into a plain view object.
+const readHashView = (url) => {
+  const match = new URL(url).hash.match(
+    /^#map=([\d.]+)\/(-?[\d.]+)\/(-?[\d.]+)/,
+  );
+  if (!match) return null;
+  return {
+    zoom: parseFloat(match[1]),
+    lat: parseFloat(match[2]),
+    lng: parseFloat(match[3]),
+  };
+};
+
+// Wait for the app to persist a camera view to the URL hash, then return it.
+const waitForFittedView = async (page, timeout = 30000) => {
+  await expect
+    .poll(() => readHashView(page.url()), {
+      timeout,
+      message: "no #map= view was written to the URL",
+    })
+    .not.toBeNull();
+  return readHashView(page.url());
+};
+
+// Remove any stored view so the next load is a genuine cold start. The clear
+// runs once per tab, so a later load within the same test can genuinely restore
+// what the first load persisted.
+const withFreshView = (page) =>
+  page.addInitScript(() => {
+    if (sessionStorage.getItem("ogis-e2e-fresh") !== "1") {
+      localStorage.removeItem("ogis_view_app");
+      sessionStorage.setItem("ogis-e2e-fresh", "1");
+    }
+  });
+
+// True when [lat, lng] lies inside a [west, south, east, north] bbox
+// (antimeridian-safe: west > east means the bbox wraps the 180th meridian).
+const insideBounds = (lat, lng, [west, south, east, north]) => {
+  if (lat < south || lat > north) return false;
+  if (west <= east) return lng >= west && lng <= east;
+  return lng >= west || lng <= east;
+};
+
+// True when [lat, lng] lies inside at least one country bbox.
+const insideAnyCountry = (lat, lng) =>
+  Object.values(COUNTRY_BOUNDS).some((bounds) =>
+    insideBounds(lat, lng, bounds),
+  );
+
+// Load the app cold in a supplied context and return its fitted view.
+const coldStartView = async (context) => {
+  const page = await context.newPage();
+  await withFreshView(page);
+  await page.goto("/");
+  await waitForMapReady(page);
+  return waitForFittedView(page);
+};
+
+test.describe("First load / Country focus", () => {
+  // Timezone resolution sits above locale in the cascade, so pinning the
+  // timezone makes the fitted country deterministic on any host machine.
+  test.describe("timezone region — Europe/London", () => {
+    test.use({ timezoneId: "Europe/London" });
+
+    test("cold start fits the timezone country and no welcome modal exists", async ({
+      page,
+    }) => {
+      await withFreshView(page);
+      await page.goto("/");
+      await waitForMapReady(page);
+
+      // The map settles before the hash is trusted (tiles finish loading).
+      await expect(page.locator(".ogis-map")).toHaveAttribute(
+        "data-map-idle",
+        "true",
+        { timeout: 30000 },
+      );
+
+      const view = await waitForFittedView(page);
+      expect(view.zoom).toBeGreaterThan(1);
+      expect(view.lat).toBeGreaterThanOrEqual(GB.minLat);
+      expect(view.lat).toBeLessThanOrEqual(GB.maxLat);
+      expect(view.lng).toBeGreaterThanOrEqual(GB.minLng);
+      expect(view.lng).toBeLessThanOrEqual(GB.maxLng);
+
+      // The welcome/about modal was removed — it must not exist anywhere.
+      await expect(page.locator("#about-modal")).toHaveCount(0);
+    });
+
+    test("a smaller viewport fits the country at a lower zoom", async ({
+      browser,
+    }) => {
+      const phone = await browser.newContext({
+        baseURL: BASE_URL,
+        timezoneId: "Europe/London",
+        viewport: { width: 390, height: 844 },
+      });
+      const desktop = await browser.newContext({
+        baseURL: BASE_URL,
+        timezoneId: "Europe/London",
+        viewport: { width: 1280, height: 720 },
+      });
+
+      try {
+        const phoneView = await coldStartView(phone);
+        const desktopView = await coldStartView(desktop);
+        // Padding scales with the smaller axis, so the narrower device zooms out.
+        expect(desktopView.zoom).toBeGreaterThan(phoneView.zoom);
+      } finally {
+        await phone.close();
+        await desktop.close();
+      }
+    });
+
+    test("cold start persists the fitted view and a returning visit honours storage", async ({
+      page,
+    }) => {
+      await withFreshView(page);
+      await page.goto("/");
+      await waitForMapReady(page);
+
+      const fitted = await waitForFittedView(page);
+      expect(fitted.lat).toBeGreaterThanOrEqual(GB.minLat);
+      expect(fitted.lat).toBeLessThanOrEqual(GB.maxLat);
+
+      // The programmatic fit is persisted so a later visit can restore it.
+      await expect
+        .poll(() => page.evaluate(() => localStorage.getItem("ogis_view_app")))
+        .not.toBeNull();
+
+      // Return with no hash: the stored fitted view wins over a fresh fit.
+      await page.goto("/");
+      await waitForMapReady(page);
+
+      const restored = await waitForFittedView(page);
+      expect(restored.lat).toBeGreaterThanOrEqual(GB.minLat);
+      expect(restored.lat).toBeLessThanOrEqual(GB.maxLat);
+      expect(restored.lng).toBeGreaterThanOrEqual(GB.minLng);
+      expect(restored.lng).toBeLessThanOrEqual(GB.maxLng);
+    });
+
+    test("a URL hash takes precedence over country focus", async ({ page }) => {
+      await withFreshView(page);
+      await page.goto("/#map=10/48.8566/2.3522");
+      await waitForMapReady(page);
+
+      const view = await waitForFittedView(page);
+      expect(view.zoom).toBe(10);
+      expect(view.lat).toBeCloseTo(48.8566, 3);
+      expect(view.lng).toBeCloseTo(2.3522, 3);
+    });
+
+    test("a stored view takes precedence over country focus", async ({
+      page,
+    }) => {
+      await withViewStorage(page);
+      await page.goto("/");
+      await waitForMapReady(page);
+
+      const view = await waitForFittedView(page);
+      expect(view.zoom).toBe(10);
+      expect(view.lat).toBeCloseTo(50.6539, 3);
+      expect(view.lng).toBeCloseTo(-128.0094, 3);
+    });
+  });
+
+  test.describe("cascade exhaustion — no timezone or locale region", () => {
+    // UTC resolves to no country, so the cascade falls through to the locale.
+    test.use({ timezoneId: "UTC" });
+
+    test("cold start falls back to a random country focus", async ({
+      page,
+    }) => {
+      // "zxx" maximizes to no region, so both cascade hints are exhausted and
+      // the app falls back to a random-country focus.
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, "languages", {
+          get: () => ["zxx"],
+        });
+        Object.defineProperty(navigator, "language", {
+          get: () => "zxx",
+        });
+      });
+      await withFreshView(page);
+      await page.goto("/");
+      await waitForMapReady(page);
+
+      const view = await waitForFittedView(page);
+      expect(view.zoom).toBeGreaterThan(1);
+
+      if (!insideAnyCountry(view.lat, view.lng)) {
+        // Antimeridian-spanning bbox or globe-fit rounding: still a focused
+        // view, not the [0, 0] world default.
+        expect(view.lat === 0 && view.lng === 0).toBe(false);
+      }
+    });
+  });
+
+  test.describe("?country override", () => {
+    test("?country=ch outranks a conflicting URL hash", async ({ page }) => {
+      await withFreshView(page);
+      // A Holberg hash that would otherwise win is ignored in favour of CH.
+      await page.goto("/?country=ch#map=10/50.6539/-128.0094");
+      await waitForMapReady(page);
+
+      // The URL already carries a hash, so wait for the forced fit to settle
+      // and overwrite it before reading the persisted view.
+      await expect(page.locator(".ogis-map")).toHaveAttribute(
+        "data-map-idle",
+        "true",
+        { timeout: 30000 },
+      );
+      const view = readHashView(page.url());
+      expect(view).not.toBeNull();
+      expect(insideBounds(view.lat, view.lng, COUNTRY_BOUNDS.CH)).toBe(true);
+    });
+
+    test("?country=ch outranks a stored view", async ({ page }) => {
+      await withViewStorage(page);
+      await page.goto("/?country=ch");
+      await waitForMapReady(page);
+
+      const view = await waitForFittedView(page);
+      expect(insideBounds(view.lat, view.lng, COUNTRY_BOUNDS.CH)).toBe(true);
+    });
+
+    test("?country=random fits a random country and re-rolls on reload", async ({
+      page,
+    }) => {
+      await withFreshView(page);
+      await page.goto("/?country=random");
+      await waitForMapReady(page);
+
+      const first = await waitForFittedView(page);
+      expect(first.zoom).toBeGreaterThan(1);
+      if (!insideAnyCountry(first.lat, first.lng)) {
+        expect(first.lat === 0 && first.lng === 0).toBe(false);
+      }
+
+      // The query is preserved by replaceState, so a reload forces a fresh
+      // random fit (which may, by chance, repeat the previous country — the
+      // two views are deliberately not compared).
+      await page.reload();
+      await waitForMapReady(page);
+      expect(page.url()).toContain("country=random");
+
+      await expect(page.locator(".ogis-map")).toHaveAttribute(
+        "data-map-idle",
+        "true",
+        { timeout: 30000 },
+      );
+      const second = readHashView(page.url());
+      expect(second).not.toBeNull();
+      expect(second.zoom).toBeGreaterThan(1);
+    });
   });
 });

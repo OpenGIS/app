@@ -55,7 +55,7 @@ npm run format       # rewrite files with Prettier
 
 ### Running tests — timing guidance
 
-`npm test` runs the unit suite (Vitest) only: ~230 tests, completing in under 10 seconds. Use it, plus targeted single-spec E2E runs, during rapid development.
+`npm test` runs the unit suite (Vitest) only: ~290 tests, completing in under 10 seconds. Use it, plus targeted single-spec E2E runs, during rapid development.
 
 CI is a quick gate: unit tests, Prettier, and the **functional** E2E suite only — the screenshot matrix is excluded (`--grep-invert @screenshots`) and sharded three ways. Functional shards are expected to finish in single-digit minutes (measured at ~8 min before the screenshot exclusion). See `docs/11.ci.md`.
 
@@ -79,8 +79,8 @@ src/
   composables/
     useStorage.js       # localStorage wrapper, instance-scoped
     useUrlHash.js       # URL hash read/write helpers (#map=zoom/lat/lng/pitch/bearing)
-    useMap.js           # MapLibre lifecycle, globe projection, view persistence
-    useUI.js            # UI state: breakpoints, panel, first-load
+    useMap.js           # MapLibre lifecycle, globe projection, cold-start country focus, view persistence
+    useUI.js            # UI state: breakpoints, panel
     useAttribution.js   # reactive style attribution (corner chip + Info panel)
     useLocale.js        # i18n: language resolution, translations
     useSettings.js      # OS-derived prefs: units + theme follow the device
@@ -104,12 +104,12 @@ src/
       OfflinePanel.vue  # side panel
   utils/
     geo.js              # shared geo helpers: haversine, totalDistance, formatDuration, formatDistance
+    countries.js        # country bounds + timezone/locale → region, antimeridian overrides (cold-start country focus)
     attribution.js      # builds the attribution string from a style's sources
     serviceWorker.js    # app-shell SW registration: prod/VITE_SW opt-in, dev self-heal
   components/
     modals/
       modal.vue         # generic modal shell
-      welcome.vue       # first-load welcome modal (About content)
       locate-confirm.vue # locate permission confirmation
       locate-error.vue  # locate error dialog
     panels/
