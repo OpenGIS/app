@@ -1,6 +1,6 @@
 {
   "name": "ogis-app",
-  "version": "3.6.0",
+  "version": "3.6.1",
   "type": "module",
   "description": "ogis.app — Get where you are going.",
   "private": true,

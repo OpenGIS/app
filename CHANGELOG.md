@@ -1,3 +1,10 @@
+## [3.6.1](https://github.com/OpenGIS/app/compare/v3.6.0...v3.6.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **theme:** apply data-bs-theme on <html> for modals ([39862bc](https://github.com/OpenGIS/app/commit/39862bc27518a95fcb3173b1b4e1d5165fb5bad2))
+
 # [3.6.0](https://github.com/OpenGIS/app/compare/v3.5.0...v3.6.0) (2026-10-03)
 
 
