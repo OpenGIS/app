@@ -5,3 +5,7 @@
 2/ @src/components/ui/top/locate.vue contains an element with id locate-button. However because Navigator support multiple instances, this should be either scoped to the instance or use a class instead of an id. Find and replace all uses of HTML id attributes.
 
 3/ The GPX export function works on Desktop but does not work on mobile. When the export button is clicked on mobile, the loading indicator is displayed but the page hangs.
+
+4/ The offline-region size estimate counts tiles only and ignores the glyph prefetch. The download prefetches every glyph range for every fontstack (≈3,072 URLs with the current style), so the "Est. size" figure (observed: 14 tiles / 710 KB) understates the actual work — the observed download progress denominator was 3,082 requests.
+
+5/ as shown in the info-open screenshots, when the info panel is shown by default, the maplibre attribution is expanded and the the attribution is duplicated. instead, when the info panel is shown, the maplibre attribution should be collapsed, no need for drag end in this instance.

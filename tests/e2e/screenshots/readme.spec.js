@@ -1,4 +1,5 @@
 import { test, expect } from "../helpers/test.js";
+import { waitForMapIdle } from "../helpers/mapIdle.js";
 import { mkdirSync } from "node:fs";
 
 /**
@@ -23,6 +24,17 @@ import { mkdirSync } from "node:fs";
 
 test.setTimeout(120000);
 
+// Local-only resilience for the whole file: under full-suite load a stalled
+// live raster/TileJSON request can delay map-idle past the wait. CI already
+// applies global retries=2 and excludes `@screenshots`
+// (`--grep-invert @screenshots`), so CI is unaffected.
+test.describe.configure({ retries: 1 });
+
+// `?country=random` heroes can land on countries whose labels need glyph ranges
+// beyond the vendored `0-255` (e.g. CJK), so this spec opts into the live glyph
+// relay. It is the only spec that does.
+test.use({ liveGlyphRelay: true });
+
 const OUT_DIR = "screenshots/readme";
 
 /**
@@ -30,7 +42,7 @@ const OUT_DIR = "screenshots/readme";
  * for the map to settle and the Info panel to slide in, assert the resolved
  * theme, snapshot.
  */
-const captureHero = async (page, name, theme) => {
+const captureHero = async (page, testInfo, name, theme) => {
   // A genuine cold start: `?country=random` forces a true-random country fit
   // (outranking timezone and locale), regenerated on each run. The app persists
   // the fitted view to the URL hash (and storage) via its `moveend` handler, so
@@ -39,11 +51,7 @@ const captureHero = async (page, name, theme) => {
 
   await expect.poll(() => page.url(), { timeout: 30000 }).toContain("#map=");
 
-  await expect(page.locator(".ogis-map")).toHaveAttribute(
-    "data-map-idle",
-    "true",
-    { timeout: 30000 },
-  );
+  await waitForMapIdle(page, testInfo);
   await page.locator(".ogis-panel").waitFor({ state: "visible" });
   await expect(page.locator("html")).toHaveAttribute("data-bs-theme", theme);
   // Let the offcanvas slide-in finish so the hero is not mid-transition.
@@ -65,15 +73,15 @@ test.beforeAll(() => {
 test.describe("README hero — dark", () => {
   test.use({ viewport: { width: 1280, height: 720 } });
 
-  test("README hero dark @screenshots", async ({ page }) => {
-    await captureHero(page, "dark", "dark");
+  test("README hero dark @screenshots", async ({ page }, testInfo) => {
+    await captureHero(page, testInfo, "dark", "dark");
   });
 });
 
 test.describe("README hero — light", () => {
   test.use({ viewport: { width: 1280, height: 720 }, colorScheme: "light" });
 
-  test("README hero light @screenshots", async ({ page }) => {
-    await captureHero(page, "light", "light");
+  test("README hero light @screenshots", async ({ page }, testInfo) => {
+    await captureHero(page, testInfo, "light", "light");
   });
 });

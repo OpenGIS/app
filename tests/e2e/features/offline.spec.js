@@ -203,8 +203,10 @@ test.describe("Offline / Download", () => {
   test("downloading a region adds it to the Downloaded Regions list", async ({
     page,
   }) => {
-    // Real-network download of tiles + glyphs can take a while.
-    test.setTimeout(180000);
+    // Real-network download is ~3,082 requests (14 tiles + 3,072 glyph ranges).
+    // Route-interception cost is CPU-contended under full-suite load: measured
+    // 35.6s isolated, 68s at 4 workers, ~130s at 6 workers. Allow headroom.
+    test.setTimeout(300000);
 
     // Keep the download small: a small box at a narrow zoom range.
     await page.locator("#offline-minzoom").fill("10");
@@ -220,10 +222,11 @@ test.describe("Offline / Download", () => {
     // The Cancel button appears while downloading
     await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
 
-    // The region appears in the list once the download completes
+    // The region appears in the list once the download completes; give the
+    // same headroom for the contended route-interception cost noted above.
     await expect
       .poll(() => page.getByRole("button", { name: "Delete" }).count(), {
-        timeout: 120000,
+        timeout: 180000,
       })
       .toBeGreaterThan(0);
     await expect(page.getByText("Region 1")).toBeVisible();

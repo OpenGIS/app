@@ -324,10 +324,14 @@ test.describe("Locate / Initial zoom", () => {
     await btn.click();
     await expect(btn).toContainText("Locate", { timeout: LOCATE_TIMEOUT });
 
-    // Persist a stored view at zoom 10, then load a HASH-LESS URL so that
-    // storage is actually applied. A hash survives a reload and outranks
-    // storage, which would mask whether the re-activation zoom fired.
-    await page.evaluate(() => {
+    // Seed a stored view at zoom 10 in the NEXT document, then load a
+    // HASH-LESS URL so that storage is actually applied. A hash survives a
+    // reload and outranks storage, which would mask whether the re-activation
+    // zoom fired. Seeding via an init script keeps the write in the fresh
+    // document: the previous page — including the still-running camera
+    // animation from the Following click, whose programmatic moveend persists
+    // the old z16 view — is already gone, so no late persist can clobber it.
+    await page.addInitScript(() => {
       const stored = JSON.parse(localStorage.getItem("ogis_view_app") || "{}");
       stored.mapView = { center: { lat: 50.6539, lng: -128.0094 }, zoom: 10 };
       localStorage.setItem("ogis_view_app", JSON.stringify(stored));

@@ -3,6 +3,7 @@ import {
   trackConsoleErrors,
   expectNoConsoleErrors,
 } from "../helpers/console.js";
+import { waitForMapIdle } from "../helpers/mapIdle.js";
 import { mkdirSync } from "node:fs";
 
 /**
@@ -35,6 +36,13 @@ import { mkdirSync } from "node:fs";
 // and screenshots can each take tens of seconds. A single test loops all
 // states for one viewport, so the default 30 s budget is far too small.
 test.setTimeout(300000);
+
+// Local-only resilience for the whole file: under full-suite load a stalled
+// live raster/TileJSON request can delay map-idle past the wait. All six matrix
+// viewports and the feature-state tests inherit this retry. CI already applies
+// global retries=2 and excludes `@screenshots` (`--grep-invert @screenshots`),
+// so CI is unaffected.
+test.describe.configure({ retries: 1 });
 
 const OUT_ROOT = "screenshots";
 
@@ -102,12 +110,6 @@ const capture = async (page, dir, name) => {
   });
   expectNoConsoleErrors(page);
 };
-
-/** Wait for MapLibre to finish rendering tiles (generous under SwiftShader). */
-const waitForMapIdle = (page) =>
-  expect(page.locator(".ogis-map")).toHaveAttribute("data-map-idle", "true", {
-    timeout: 30000,
-  });
 
 /**
  * Seed only the locate permission — the view storage is deliberately left
@@ -221,7 +223,7 @@ for (const vp of VIEWPORTS) {
 
     test(`captures ${vp.device} ${vp.orientation} states @screenshots`, async ({
       page,
-    }) => {
+    }, testInfo) => {
       const dir = `${OUT_ROOT}/${vp.device}/${vp.orientation}`;
       mkdirSync(dir, { recursive: true });
 
@@ -229,7 +231,7 @@ for (const vp of VIEWPORTS) {
       await seedLocatePermission(page);
       await grantGeolocation(page);
       await page.goto(`/${BASE_HASH}`);
-      await waitForMapIdle(page);
+      await waitForMapIdle(page, testInfo);
       await expect(page.locator("html")).toHaveAttribute(
         "data-bs-theme",
         "dark",
@@ -288,7 +290,7 @@ for (const vp of VIEWPORTS) {
       await expect(page.locator("#locate-button")).toContainText("Located", {
         timeout: 5000,
       });
-      await waitForMapIdle(page);
+      await waitForMapIdle(page, testInfo);
       await capture(page, dir, "locate-active");
 
       // record-active — Record chip becomes Recording and opens the panel.
@@ -322,11 +324,13 @@ test.describe("Feature states — desktop landscape", () => {
     expectNoConsoleErrors(page);
   });
 
-  test("feature routes + navigation @screenshots", async ({ page }) => {
+  test("feature routes + navigation @screenshots", async ({
+    page,
+  }, testInfo) => {
     await withGrantedStorage(page);
     await grantGeolocation(page);
     await page.goto(`/${BASE_HASH}`);
-    await waitForMapIdle(page);
+    await waitForMapIdle(page, testInfo);
 
     await openPanelTab(page, { name: "Routes", exact: true });
     await page
@@ -341,7 +345,7 @@ test.describe("Feature states — desktop landscape", () => {
       .locator(".ogis-panel")
       .getByRole("button", { name: "Show", exact: true })
       .click();
-    await waitForMapIdle(page);
+    await waitForMapIdle(page, testInfo);
     await capture(page, FEATURE_DIR, "feature-routes");
 
     // Start navigation — the panel reports the active navigation banner.
@@ -354,7 +358,7 @@ test.describe("Feature states — desktop landscape", () => {
     await capture(page, FEATURE_DIR, "feature-route-navigating");
   });
 
-  test("feature offline region @screenshots", async ({ page }) => {
+  test("feature offline region @screenshots", async ({ page }, testInfo) => {
     // Seed one downloaded region so the panel shows its list state.
     await page.addInitScript(() => {
       localStorage.setItem(
@@ -386,7 +390,7 @@ test.describe("Feature states — desktop landscape", () => {
     });
 
     await page.goto(`/${BASE_HASH}`);
-    await waitForMapIdle(page);
+    await waitForMapIdle(page, testInfo);
 
     await openPanelTab(page, { name: /offline maps/i });
     await expect(
@@ -396,7 +400,7 @@ test.describe("Feature states — desktop landscape", () => {
     await capture(page, FEATURE_DIR, "feature-offline");
   });
 
-  test("feature saved recording @screenshots", async ({ page }) => {
+  test("feature saved recording @screenshots", async ({ page }, testInfo) => {
     // Seed one saved recording so the panel lists it with its actions.
     await page.addInitScript(() => {
       localStorage.setItem(
@@ -430,7 +434,7 @@ test.describe("Feature states — desktop landscape", () => {
     });
 
     await page.goto(`/${BASE_HASH}`);
-    await waitForMapIdle(page);
+    await waitForMapIdle(page, testInfo);
 
     await openPanelTab(page, { name: "Recordings", exact: true });
     await expect(
@@ -442,7 +446,7 @@ test.describe("Feature states — desktop landscape", () => {
       .locator(".ogis-panel")
       .getByRole("button", { name: "Show", exact: true })
       .click();
-    await waitForMapIdle(page);
+    await waitForMapIdle(page, testInfo);
     await capture(page, FEATURE_DIR, "feature-recordings");
   });
 });

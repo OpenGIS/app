@@ -5,13 +5,23 @@ import { fileURLToPath } from "node:url";
 import { mapDefaults } from "../../../src/defaults/maplibre.js";
 
 /**
- * Vendored map-asset stubs for the E2E suite (BUGS.md #4).
+ * Vendored map-asset stubs for the E2E suite. Added after the live-origin
+ * 429/CORS flake (since fixed and closed) intermittently failed the console
+ * assertions.
  *
  * The MapLibre style, sprites and glyphs otherwise come from
  * `https://www.ogis.org`, which intermittently returns HTTP 429 without CORS
  * headers — surfacing as console errors that fail `expectNoConsoleErrors`.
  * Slice 1 vendored the assets under `tests/e2e/fixtures/map/`; this module
  * serves them from there so a test never reaches the live origin.
+ *
+ * Unvendored glyph ranges default to an instant, graceful empty HTTP 200 — no
+ * live fetch. This keeps the offline-download spec fast: it deliberately
+ * prefetches all 256 ranges per fontstack, and none of those may take a relay
+ * round-trip. Specs that capture real map imagery over arbitrary countries
+ * (e.g. the README hero screenshots, where a random country can need CJK
+ * ranges beyond the vendored `0-255`) opt into the live relay via
+ * `liveGlyphRelay: true`.
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -41,9 +51,12 @@ const fulfilBody = (route, body, contentType) =>
 /**
  * Relay an unvendored glyph range from the live origin, server-side.
  *
- * Only glyph `.pbf` files reach here (e.g. a CJK range on a `?country=random`
- * README capture). The response is always HTTP 200 — on any failure it is an
- * empty body — so MapLibre never raises a console error over a missing range.
+ * This is the opt-in path (`liveGlyphRelay: true`), used by captures of real
+ * map imagery over arbitrary countries (e.g. a CJK range on a
+ * `?country=random` README hero). The response is always HTTP 200 — on any
+ * failure it is an empty body — so MapLibre never raises a console error over a
+ * missing range. The default path fulfils the same graceful empty 200 without a
+ * live fetch (see `installMapAssetStubs`).
  */
 const relayGlyphs = async (route, originalUrl) => {
   const controller = new AbortController();
@@ -68,7 +81,10 @@ const relayGlyphs = async (route, originalUrl) => {
  * Installed at context level so stubs also cover service-worker requests and
  * are in place before any page is created.
  */
-export const installMapAssetStubs = async (context) => {
+export const installMapAssetStubs = async (
+  context,
+  { liveGlyphRelay = false } = {},
+) => {
   // a) Style — the app's exact style URL, served from the pinned fixture.
   await context.route(mapDefaults.style, async (route) => {
     let body;
@@ -76,7 +92,7 @@ export const installMapAssetStubs = async (context) => {
       body = await readFile(STYLE_FIXTURE);
     } catch (error) {
       throw new Error(
-        `Missing map style fixture at ${STYLE_FIXTURE} — run \`npm run fixtures:refresh\` (BUGS.md #4): ${error.message}`,
+        `Missing map style fixture at ${STYLE_FIXTURE} — run \`npm run fixtures:refresh\` (see docs/8.testing.md): ${error.message}`,
       );
     }
     await fulfilBody(route, body, CONTENT_TYPES[".json"]);
@@ -112,8 +128,13 @@ export const installMapAssetStubs = async (context) => {
         return;
       }
       if (extension === ".pbf") {
-        // A missing glyph range degrades gracefully via the relay.
-        await relayGlyphs(route, requestUrl);
+        // A missing glyph range degrades gracefully. Opt-in live relay for
+        // imagery captures; otherwise the identical empty 200, instantly.
+        if (liveGlyphRelay) {
+          await relayGlyphs(route, requestUrl);
+        } else {
+          await fulfilBody(route, Buffer.alloc(0), CONTENT_TYPES[".pbf"]);
+        }
         return;
       }
       // A missing sprite/style companion is drift worth failing loudly on.
