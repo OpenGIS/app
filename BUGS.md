@@ -7,7 +7,3 @@
 3/ Modals @src/modals/\*.md do not respect the dark theme and display with a white background and black text. Update the modal styles to be compatible with both light and dark themes.
 
 4/ The GPX export function works on Desktop but does not work on mobile. When the export button is clicked on mobile, the loading indicator is displayed but the page hangs.
-
-5/ PWA does not account for notch, obscuring top bottoms See @MOBILE-BUG-2.png
-
-6/ In smaller mobile resolutions, the panel is so wide that it completely covers the map and can not be dismissed see @MOBILE-BUG-1.png

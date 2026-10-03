@@ -50,6 +50,24 @@ const waitForMapReady = async (page) => {
   await expect(page.locator(".ogis-panel")).not.toHaveClass(/showing|hiding/);
 };
 
+/**
+ * Wait for the offcanvas slide transition to finish. The panel gains `show`
+ * immediately on open, while its CSS `transform` animates to `none` over
+ * 0.25 s — geometry must be measured only after that settle.
+ */
+const waitForPanelSettled = (page) =>
+  page.waitForFunction(() => {
+    const panel = document.querySelector(".ogis-panel");
+    return panel && getComputedStyle(panel).transform === "none";
+  });
+
+/** Open the menu pane via the hamburger and wait for the slide-in to settle. */
+const openMenuPanel = async (page) => {
+  await page.locator("#menu-button").click();
+  await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
+  await waitForPanelSettled(page);
+};
+
 // ─── First load / Welcome modal ───────────────────────────────────────────────
 
 test.describe("First load / Welcome modal", () => {
@@ -338,5 +356,124 @@ test.describe("Info panel", () => {
 
     expect(position).toBe("sticky");
     expect(bottom).toBe("0px");
+  });
+});
+
+// ─── Panel geometry / responsive cap + backdrop strip ────────────────────────
+//
+// `--ogis-panel-width: min(340px, calc(100vw - 4rem))` caps the panel on small
+// screens so a strip of dismiss backdrop always remains tappable beside it.
+// The width is pinned to ±1px per viewport, and dismissal goes through a real
+// pointer click on the visible strip (not a dispatched synthetic event).
+
+test.describe("Panel geometry / capped width and backdrop strip", () => {
+  for (const vp of [
+    { width: 320, height: 568, panelWidth: 256 },
+    { width: 390, height: 844, panelWidth: 326 },
+  ]) {
+    test.describe(`${vp.width}×${vp.height}`, () => {
+      test.use({
+        viewport: { width: vp.width, height: vp.height },
+        hasTouch: true,
+      });
+
+      test("panel is capped and the visible strip closes it", async ({
+        page,
+      }) => {
+        await withViewStorage(page);
+        await page.goto("/");
+        await waitForMapReady(page);
+
+        await openMenuPanel(page);
+
+        const panelBox = await page.locator(".ogis-panel").boundingBox();
+        const viewport = page.viewportSize();
+
+        // min(340px, 100vw - 4rem): 256px at 320, 326px at 390.
+        expect(panelBox.width).toBeGreaterThanOrEqual(vp.panelWidth - 1);
+        expect(panelBox.width).toBeLessThanOrEqual(vp.panelWidth + 1);
+
+        // The panel leaves a visible strip (≈ 4rem) of backdrop to its right.
+        expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(
+          viewport.width - 56,
+        );
+
+        // A real pointer click on the strip closes the panel via the backdrop.
+        const x = Math.min(
+          panelBox.x + panelBox.width + 16,
+          viewport.width - 8,
+        );
+        await page.mouse.click(x, viewport.height / 2);
+
+        await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
+        await expect(page.locator(".offcanvas-backdrop")).toHaveCount(0);
+      });
+    });
+  }
+});
+
+// ─── Panel geometry / safe-area insets ───────────────────────────────────────
+
+test.describe("Panel geometry / safe-area insets", () => {
+  // Phone portrait with touch; Playwright cannot emulate env(safe-area-inset-*),
+  // so the tests set the custom properties the CSS consumes instead.
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test("insets shift corner chips and panel content", async ({ page }) => {
+    await withViewStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // 44/34 mirror a notched phone (status bar / home indicator).
+    await page.evaluate(() => {
+      document.documentElement.style.setProperty("--ogis-safe-top", "44px");
+      document.documentElement.style.setProperty("--ogis-safe-bottom", "34px");
+    });
+
+    // Top-left Menu chip: corner padding-top = 0.75rem (12px) + 44px = 56px.
+    const menuBox = await page.locator("#menu-button").boundingBox();
+    expect(menuBox.y).toBeGreaterThanOrEqual(55);
+
+    await openMenuPanel(page);
+
+    // Panel padding-top: 44px, so the sticky nav starts below the inset.
+    const navBox = await page.locator(".panel-nav").boundingBox();
+    expect(navBox.y).toBeGreaterThanOrEqual(43);
+
+    // Bottom-right Record chip in `.ogis-corner--br`:
+    // corner padding-bottom = 12px + 34px = 46px.
+    const recordBox = await page.locator("#recordings-button").boundingBox();
+    const bottomGap = 844 - (recordBox.y + recordBox.height);
+    expect(bottomGap).toBeGreaterThanOrEqual(45);
+
+    // Restore the root variables so later assertions in this context are clean.
+    await page.evaluate(() => {
+      document.documentElement.style.removeProperty("--ogis-safe-top");
+      document.documentElement.style.removeProperty("--ogis-safe-bottom");
+    });
+  });
+});
+
+// ─── Panel geometry / desktop unchanged ──────────────────────────────────────
+
+test.describe("Panel geometry / desktop", () => {
+  test.use({ viewport: { width: 1280, height: 720 } });
+
+  test("panel width stays at the full 340px", async ({ page }) => {
+    await withViewStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // Desktop auto-opens the Info pane (App.vue calls openInfo at setup), and
+    // 1280px leaves room for the uncapped $offcanvas-horizontal-width.
+    await expect(page.locator(".ogis-info-panel")).toBeVisible();
+    await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
+
+    const panelBox = await page.locator(".ogis-panel").boundingBox();
+    expect(panelBox.width).toBeGreaterThanOrEqual(339);
+    expect(panelBox.width).toBeLessThanOrEqual(341);
+
+    // No backdrop on desktop — the controls stay reachable beside the panel.
+    await expect(page.locator(".offcanvas-backdrop")).toHaveCount(0);
   });
 });

@@ -113,13 +113,27 @@ $font-size-base: 0.9375rem; // 15 px
 // panel width without needing to access the offcanvas element.
 
 :root {
-  --ogis-panel-width: #{$offcanvas-horizontal-width};
+  // Mobile safe-area insets (notch, status bar, home indicator).
+  // Exposed as custom properties so tests can simulate real insets.
+  --ogis-safe-top: env(safe-area-inset-top, 0px);
+  --ogis-safe-right: env(safe-area-inset-right, 0px);
+  --ogis-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ogis-safe-left: env(safe-area-inset-left, 0px);
+
+  // Panel width: capped on small screens so a tappable strip of the map and
+  // its dismiss backdrop always remain visible. Resolves to the full
+  // $offcanvas-horizontal-width (340px) wherever there is room.
+  --ogis-panel-width: min(#{$offcanvas-horizontal-width}, calc(100vw - 4rem));
 }
 
 // #6b  Side panel (Bootstrap Offcanvas)
 // ─────────────────────────────────────────────────────────────
 
-.ogis-panel {
+.offcanvas.ogis-panel {
+  width: var(--ogis-panel-width);
+  padding-top: var(--ogis-safe-top);
+  padding-bottom: var(--ogis-safe-bottom);
+  padding-left: var(--ogis-safe-left);
   --bs-offcanvas-bg: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
@@ -266,7 +280,10 @@ $font-size-base: 0.9375rem; // 15 px
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem;
+  padding: calc(0.75rem + var(--ogis-safe-top))
+    calc(0.75rem + var(--ogis-safe-right))
+    calc(0.75rem + var(--ogis-safe-bottom))
+    calc(0.75rem + var(--ogis-safe-left));
   pointer-events: auto;
 }
 

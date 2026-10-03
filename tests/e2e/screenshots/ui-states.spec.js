@@ -207,18 +207,28 @@ const isPanelShown = (page) =>
     .then((n) => n > 0);
 
 /**
- * Close any open pane. On narrow screens the panel covers the corner controls,
- * so the mobile backdrop is clicked; on desktop the panel leaves the controls
- * accessible and the chip/menu buttons toggle their panes closed.
+ * Close any open pane. On narrow screens the panel is capped narrower than the
+ * viewport, leaving a strip of dismiss backdrop beside it; wait for the
+ * slide-in transition to settle, then click that strip with a real pointer
+ * event. On desktop there is no backdrop and the panel leaves the controls
+ * accessible, so the chip/menu buttons toggle their panes closed.
  */
 const closePanel = async (page) => {
   if (!(await isPanelShown(page))) return;
   const backdrop = page.locator(".offcanvas-backdrop");
   if (await backdrop.count()) {
-    // On narrow screens the full-width panel covers the backdrop, so a normal
-    // click is intercepted. Dispatch the click straight at the backdrop, whose
-    // Vue handler closes the panel.
-    await backdrop.dispatchEvent("click");
+    // The panel no longer covers the backdrop, so a real pointer click on the
+    // visible strip reaches the backdrop's Vue close handler. Wait for the
+    // offcanvas transform transition first — a mid-slide bounding box would
+    // move the click target under the panel.
+    await page.waitForFunction(() => {
+      const panel = document.querySelector(".ogis-panel");
+      return panel && getComputedStyle(panel).transform === "none";
+    });
+    const panelBox = await page.locator(".ogis-panel").boundingBox();
+    const vp = page.viewportSize();
+    const x = Math.min(panelBox.x + panelBox.width + 16, vp.width - 8);
+    await page.mouse.click(x, vp.height / 2);
   } else if ((await page.locator(".ogis-info-panel").count()) > 0) {
     await page.locator("#attribution-button").click();
   } else {
