@@ -6,9 +6,12 @@ export const trackConsoleErrors = (page) => {
   page.on("console", (msg) => {
     if (msg.type() !== "error") return;
     // Ignore external tile-provider 404s: the Mapterhorn raster overlay has no
-    // tiles at some zoom/areas, so camera moves 404 expected network noise.
+    // tiles at some zoom/areas, and Esri World Imagery is deliberately excluded
+    // from the E2E fixtures (licensing) and served a fast 404, so camera moves
+    // 404 expected network noise.
     const url = msg.location()?.url ?? "";
     if (url.includes("tiles.mapterhorn.com")) return;
+    if (url.includes("server.arcgisonline.com")) return;
     page.__consoleErrors.push(msg.text());
   });
   page.on("pageerror", (err) => {

@@ -1,12 +1,14 @@
 import { expect } from "@playwright/test";
 
 /**
- * Wait for MapLibre's `data-map-idle` settle, attaching triage evidence when the
- * wait times out.
+ * Wait for the app's `data-map-idle` settle signal, attaching triage evidence
+ * when the wait times out.
  *
- * A stalled live raster or TileJSON request blocks MapLibre's `idle` event, and
- * MapLibre has no per-request timeout — so a flaky origin shows up as a bare
- * "attribute did not become true" failure with nothing pointing at the culprit.
+ * The signal is predicate-driven: the app publishes `data-map-idle="true"` once
+ * `!map.isMoving() && map.areTilesLoaded()` holds. A stalled live raster or
+ * TileJSON request keeps that predicate false, and MapLibre has no per-request
+ * timeout — so a flaky origin shows up as a bare "attribute did not become
+ * true" failure with nothing pointing at the culprit.
  * `waitForMapIdle` wraps the assertion and, on failure, attaches the in-flight
  * and failed requests to the test report before rethrowing the original error.
  *
@@ -132,6 +134,62 @@ const collectDiagnostics = async (page) => {
   }
 
   return lines.join("\n");
+};
+
+/**
+ * Let the map run to a true paint settle after `data-map-idle`.
+ *
+ * `data-map-idle` can be published while MapLibre is still finishing a symbol
+ * placement: a text label pops in after the tile set reads as loaded, and the
+ * glyph that placement needs arrives from the worker asynchronously. At the
+ * scheduled demo area that late placement writes a road/river name label, so a
+ * capture taken too early records it absent — the run-to-run matrix diff. A
+ * real, main-thread-idle window longer than the measured worst-case placement
+ * latency lets the placement complete and commit before the caller captures;
+ * screenshotting during the wait would starve the main thread it needs. A
+ * re-placement follows, so a glyph that only arrived after the original
+ * placement is still committed.
+ */
+export const waitForMapPainted = async (page) => {
+  // Give a late placement real, main-thread-idle time: a label whose glyph
+  // arrives after placement ran, and MapLibre does not re-place symbols when a
+  // glyph becomes available. Measured worst-case post-idle latency reached
+  // multiple seconds under 4-worker GPU contention.
+  await page.waitForTimeout(2500);
+  // Re-run symbol placement, then repeat once more after the first has settled,
+  // so a placement always runs with every glyph already cached. Setting a
+  // symbol layer's `text-field` to its current value marks the style dirty and
+  // re-places.
+  for (let round = 0; round < 2; round++) {
+    const armed = await page
+      .evaluate(() => {
+        window.__ogisReplaceIdle = false;
+        return import("/src/composables/useMap.js")
+          .then((mod) => {
+            const map = mod.getMapInstance("app");
+            if (!map || typeof map.once !== "function") return false;
+            map.once("idle", () => {
+              window.__ogisReplaceIdle = true;
+            });
+            const layers = map.getStyle()?.layers ?? [];
+            for (const layer of layers) {
+              if (layer.type !== "symbol") continue;
+              const textField = map.getLayoutProperty(layer.id, "text-field");
+              if (textField === undefined) continue;
+              map.setLayoutProperty(layer.id, "text-field", textField);
+            }
+            return true;
+          })
+          .catch(() => false);
+      })
+      .catch(() => false);
+    if (!armed) return;
+    await page
+      .waitForFunction(() => window.__ogisReplaceIdle === true, null, {
+        timeout: 3000,
+      })
+      .catch(() => {});
+  }
 };
 
 /**

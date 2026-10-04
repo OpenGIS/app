@@ -91,8 +91,9 @@ export default defineConfig({
     command: "npm run dev -- --port 5184",
     url: "http://localhost:5184",
     // Opt the E2E dev server into the app-shell service worker (closest to
-    // production). Spread process.env so PATH and friends are preserved.
-    env: { ...process.env, VITE_SW: "1" },
+    // production) and into the committed map fixtures (same-origin, zero live
+    // external requests). Spread process.env so PATH and friends are preserved.
+    env: { ...process.env, VITE_SW: "1", VITE_E2E_FIXTURES: "1" },
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },

@@ -28,7 +28,7 @@ Format: `<type>(optional scope): <description>`, e.g. `fix(offline): purge stale
 | `chore`    | Maintenance that does not fit the above              |
 | `build`    | Build system or dependencies                         |
 
-Breaking changes use `!` after the type/scope (`feat(api)!: …`) or a `BREAKING CHANGE:` footer, and trigger a major release. See `docs/11.ci.md` for the full release flow.
+Breaking changes use `!` after the type/scope (`feat(api)!: …`) or a `BREAKING CHANGE:` footer, and trigger a major release. See `docs/13.ci.md` for the full release flow.
 
 ---
 
@@ -57,13 +57,13 @@ npm run format       # rewrite files with Prettier
 
 `npm test` runs the unit suite (Vitest) only: ~290 tests, completing in under 10 seconds. Use it, plus targeted single-spec E2E runs, during rapid development.
 
-CI is a quick gate: unit tests, Prettier, and the **functional** E2E suite only — the screenshot matrix is excluded (`--grep-invert @screenshots`) and sharded three ways. Functional shards are expected to finish in single-digit minutes (measured at ~8 min before the screenshot exclusion). See `docs/11.ci.md`.
+CI is a quick gate: unit tests, Prettier, and the **functional** E2E suite only — the screenshot matrix is excluded (`--grep-invert @screenshots`) and sharded three ways. Functional shards are expected to finish in single-digit minutes (measured at ~8 min before the screenshot exclusion). See `docs/13.ci.md`.
 
 **Final verification before declaring a task complete is the full local E2E run** (`npm run test:e2e -- --workers=4`). It includes the `@screenshots` matrix and regenerates the committed `screenshots/` artefacts. Visual verification belongs on the development machine: GitHub runners render with SwiftShader, where a capture costs ~50–60 s versus ~15 s locally, and the full matrix would need ~60–75 minutes of runner CPU.
 
 Formatting is gated by Prettier: CI's `unit` job runs `npm run format:check`. Run `npm run format` before completing a task; [`.prettierignore`](.prettierignore) excludes generated output (build directories, the lockfile, `CHANGELOG.md`, `.opencode/`).
 
-Locally, E2E runs against the full Chromium build with GPU rendering (the default; `--use-angle=metal` on macOS). Run the full suite with `--workers=4` — fast and stable: seconds to a few minutes per test subset, with the screenshot matrix dominating. Prefer targeted single-spec runs while developing. SwiftShader is the CI renderer; set `E2E_SWIFTSHADER=1` to reproduce it locally (much slower). On a fresh machine, `npx playwright install chromium` installs the full build required by the local GPU mode. See `docs/8.testing.md` for rendering-mode and permission details.
+Locally, E2E runs against the full Chromium build with GPU rendering (the default; `--use-angle=metal` on macOS). Run the full suite with `--workers=4` — fast and stable: seconds to a few minutes per test subset, with the screenshot matrix dominating. Prefer targeted single-spec runs while developing. SwiftShader is the CI renderer; set `E2E_SWIFTSHADER=1` to reproduce it locally (much slower). On a fresh machine, `npx playwright install chromium` installs the full build required by the local GPU mode. See `docs/9.testing.md` for rendering-mode and permission details.
 
 When running E2E tests with a shell tool, use `mode="sync"` with `initial_wait` set to at least **180** for a single spec and **600** for the full suite. You will be automatically notified when the command completes — **do not poll repeatedly with short waits**. Wait for the completion notification, then read the output once.
 
@@ -190,26 +190,27 @@ center: [-128.0094, 50.6539];
 
 ### Features
 
-Features are plain objects with an `install(ctx)` method. A feature lives in `src/features/{name}/` and is registered in `src/main.js`. See `docs/9.features.md` for the full pattern.
+Features are plain objects with an `install(ctx)` method. A feature lives in `src/features/{name}/` and is registered in `src/main.js`. See `docs/10.features.md` for the full pattern.
 
 ---
 
 ## Docs
 
-| Doc                   | Purpose                                                                                  |
-| --------------------- | ---------------------------------------------------------------------------------------- |
-| `docs/1.setup.md`     | Dev server, build, URL params, iframe isolation                                          |
-| `docs/2.instances.md` | Instance ID, localStorage key format                                                     |
-| `docs/3.map.md`       | `useMap` API: lifecycle, view persistence, URL hash, globe                               |
-| `docs/4.ui.md`        | `useUI` API: breakpoints, panel, corner controls                                         |
-| `docs/5.geojson.md`   | `useGeoJSON` API: rendering features with styles                                         |
-| `docs/6.locale.md`    | `useLocale` API: translations, language resolution                                       |
-| `docs/7.theme.md`     | Bootstrap SCSS theme, green palette                                                      |
-| `docs/8.testing.md`   | Unit and E2E testing conventions                                                         |
-| `docs/9.features.md`  | Adding a core feature (internal plugin pattern)                                          |
-| `docs/10.routes.md`   | GPX routes: import, rendering, offline navigation                                        |
-| `docs/10.offline.md`  | Offline region download: service worker, tile enumeration, storage                       |
-| `docs/11.ci.md`       | CI: GitHub Actions jobs, artefacts, conventional commits, semantic-release, Pages deploy |
+| Doc                     | Purpose                                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| `docs/1.terminology.md` | Shared project language: demo area, fixture set, core terms                              |
+| `docs/2.setup.md`       | Dev server, build, URL params, iframe isolation                                          |
+| `docs/3.instances.md`   | Instance ID, localStorage key format                                                     |
+| `docs/4.map.md`         | `useMap` API: lifecycle, readiness signals, view persistence, URL hash, globe            |
+| `docs/5.ui.md`          | `useUI` API: breakpoints, panel, corner controls                                         |
+| `docs/6.geojson.md`     | `useGeoJSON` API: rendering features with styles                                         |
+| `docs/7.locale.md`      | `useLocale` API: translations, language resolution                                       |
+| `docs/8.theme.md`       | Bootstrap SCSS theme, green palette                                                      |
+| `docs/9.testing.md`     | Unit and E2E testing conventions                                                         |
+| `docs/10.features.md`   | Adding a core feature (internal plugin pattern)                                          |
+| `docs/11.routes.md`     | GPX routes: import, rendering, offline navigation                                        |
+| `docs/12.offline.md`    | Offline region download: service worker, tile enumeration, storage                       |
+| `docs/13.ci.md`         | CI: GitHub Actions jobs, artefacts, conventional commits, semantic-release, Pages deploy |
 
 ---
 
@@ -220,6 +221,8 @@ Features are plain objects with an `install(ctx)` method. A feature lives in `sr
 3. Register in `src/main.js`: `MyFeature.install(featureCtx)`
 4. Create `tests/e2e/features/{name}.spec.js`
 5. Run `npm run test:e2e -- tests/e2e/features/{name}.spec.js` during development; run the full local E2E suite (`npm run test:e2e -- --workers=4`) as final verification
+
+See `docs/10.features.md` for the full feature pattern.
 
 ---
 
@@ -233,4 +236,5 @@ A Playwright MCP server is configured in `.github/mcp.json`. Agents with MCP sup
 
 - `README.md` — app overview, development commands
 - `docs/README.md` — docs index
-- `docs/9.features.md` — how to build a feature
+- `docs/1.terminology.md` — shared project language
+- `docs/10.features.md` — how to build a feature

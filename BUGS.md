@@ -9,3 +9,7 @@
 4/ The offline-region size estimate counts tiles only and ignores the glyph prefetch. The download prefetches every glyph range for every fontstack (≈3,072 URLs with the current style), so the "Est. size" figure (observed: 14 tiles / 710 KB) understates the actual work — the observed download progress denominator was 3,082 requests.
 
 5/ as shown in the info-open screenshots, when the info panel is shown by default, the maplibre attribution is expanded and the the attribution is duplicated. instead, when the info panel is shown, the maplibre attribution should be collapsed, no need for drag end in this instance.
+
+6/ On live loads, a glyph that arrives after MapLibre's symbol-placement pass can leave its label missing until the next interaction — MapLibre does not re-place symbols when a glyph becomes available. The E2E harness works around this by forcing a symbol re-placement after map-idle (`waitForMapPainted` in `tests/e2e/helpers/mapIdle.js`). An app-side fix — re-place symbols on glyph load — is a possible future improvement.
+
+7/ E2E capture residual: `screenshots/desktop/landscape/closed.jpg` alternates between two byte variants across runs — 84 sub-perceptual pixels differ (max channel Δ5), all anti-aliasing in the attribution-chip text; the other 45 matrix captures are byte-stable. Test-capture artefact only, no app-code impact; accepted deliberately. See `docs/9.testing.md` (Screenshot determinism).

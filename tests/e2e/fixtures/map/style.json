@@ -12,7 +12,7 @@
   "sources": {
     "openmaptiles": {
       "type": "vector",
-      "url": "https://tiles.openfreemap.org/planet",
+      "url": "__E2E_MAP_BASE__/tiles.openfreemap.org/planet.json",
       "attribution": "❤️ <a href=\"https://openfreemap.org\" target=\"_blank\">OpenFreeMap</a> ©️ <a href=\"https://www.openmaptiles.org/\" target=\"_blank\">OpenMapTiles</a> ❤️©️ <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">OpenStreetMap</a>"
     },
     "attribution": {
@@ -31,7 +31,7 @@
     "demSource": {
       "type": "raster-dem",
       "tiles": [
-        "https://tiles.mapterhorn.com/{z}/{x}/{y}.webp"
+        "__E2E_MAP_BASE__/tiles.mapterhorn.com/{z}/{x}/{y}.webp"
       ],
       "encoding": "terrarium",
       "tileSize": 256,
@@ -42,14 +42,14 @@
       "type": "vector",
       "minzoom": 9,
       "tiles": [
-        "https://tile.ogis.app/terrain/{z}/{x}/{y}.pbf"
+        "__E2E_MAP_BASE__/tile.ogis.app/terrain/{z}/{x}/{y}.pbf"
       ],
       "maxzoom": 14
     },
     "outdoor-poi": {
       "type": "vector",
       "tiles": [
-        "https://tile.ogis.app/pois/{z}/{x}/{y}.pbf"
+        "__E2E_MAP_BASE__/tile.ogis.app/pois/{z}/{x}/{y}.pbf"
       ],
       "minzoom": 12,
       "maxzoom": 16
@@ -57,21 +57,21 @@
     "outdoor-paths": {
       "type": "vector",
       "tiles": [
-        "https://tile.ogis.app/paths/{z}/{x}/{y}.pbf"
+        "__E2E_MAP_BASE__/tile.ogis.app/paths/{z}/{x}/{y}.pbf"
       ],
       "minzoom": 9,
       "maxzoom": 13
     }
   },
-  "glyphs": "https://www.ogis.org/basemap/fonts/{fontstack}/{range}.pbf",
+  "glyphs": "__E2E_MAP_BASE__/www.ogis.org/basemap/fonts/{fontstack}/{range}.pbf",
   "sprite": [
     {
       "id": "default",
-      "url": "https://www.ogis.org/basemap/sprite"
+      "url": "__E2E_MAP_BASE__/www.ogis.org/basemap/sprite"
     },
     {
       "id": "outdoors",
-      "url": "https://www.ogis.org/outdoors/sprite"
+      "url": "__E2E_MAP_BASE__/www.ogis.org/outdoors/sprite"
     }
   ],
   "layers": [

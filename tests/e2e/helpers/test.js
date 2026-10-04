@@ -5,9 +5,8 @@ import { trackPendingRequests } from "./mapIdle.js";
 
 export { expect };
 export const test = base.extend({
-  liveGlyphRelay: [false, { option: true }],
-  context: async ({ context, liveGlyphRelay }, use) => {
-    await installMapAssetStubs(context, { liveGlyphRelay });
+  context: async ({ context }, use) => {
+    await installMapAssetStubs(context);
     await use(context);
   },
   // Track every page's in-flight requests before the test navigates, so a

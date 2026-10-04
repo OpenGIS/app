@@ -279,15 +279,66 @@ export const useMap = (containerRef = null, options = {}) => {
 
         // Expose idle state as a data attribute so screenshot tests can
         // reliably wait for tiles to finish rendering before capturing.
-        map.on("idle", () => {
-          if (containerRef.value) containerRef.value.dataset.mapIdle = "true";
-        });
-        map.on("movestart", () => {
+        //
+        // MapLibre's `idle` event is the primary trigger, but it is not
+        // guaranteed: when every tile a source needs is absent (the Esri
+        // satellite source is deliberately served a 404 in E2E), the tile
+        // manager can settle via an internal update after the render loop has
+        // already stopped, with no `idle` fired — leaving the attribute unset
+        // even though `map.loaded()` and `map.areTilesLoaded()` are true. So
+        // we also re-evaluate the settle predicate on the events that can
+        // precede a settle, and retry on animation frames until it holds.
+        const isMapSettled = () => {
+          try {
+            return !map.isMoving() && map.areTilesLoaded();
+          } catch {
+            // The map may be mid-removal when a retry frame lands.
+            return false;
+          }
+        };
+        const publishMapIdle = () => {
+          if (containerRef.value && isMapSettled()) {
+            containerRef.value.dataset.mapIdle = "true";
+          }
+        };
+        const clearMapIdle = () => {
           if (containerRef.value) delete containerRef.value.dataset.mapIdle;
-        });
-        map.on("zoomstart", () => {
-          if (containerRef.value) delete containerRef.value.dataset.mapIdle;
-        });
+        };
+
+        // A bounded retry loop catches the eventless settle without leaving a
+        // permanent animation-frame loop running if a source never finishes.
+        // It is re-armed (and its budget reset) by each map activity event.
+        const IDLE_RETRY_FRAMES = 600; // ~10 s at 60 fps
+        let idleRetryFrame = null;
+        let idleRetryLeft = 0;
+        let idleRetryStopped = false;
+        const retryMapIdle = () => {
+          idleRetryLeft = IDLE_RETRY_FRAMES;
+          if (idleRetryFrame !== null || idleRetryStopped) return;
+          const step = () => {
+            idleRetryFrame = null;
+            if (idleRetryStopped) return;
+            publishMapIdle();
+            if (isMapSettled() || --idleRetryLeft <= 0) return;
+            idleRetryFrame = requestAnimationFrame(step);
+          };
+          idleRetryFrame = requestAnimationFrame(step);
+        };
+        cached.cancelIdleRetry = () => {
+          idleRetryStopped = true;
+          if (idleRetryFrame !== null) cancelAnimationFrame(idleRetryFrame);
+          idleRetryFrame = null;
+        };
+
+        map.on("idle", publishMapIdle);
+        map.on("movestart", clearMapIdle);
+        map.on("zoomstart", clearMapIdle);
+        for (const ev of ["moveend", "zoomend", "sourcedata", "load"]) {
+          map.on(ev, retryMapIdle);
+        }
+        // Arm the retry immediately: the map may already be settling, or may
+        // settle without a further sourcedata/load event.
+        retryMapIdle();
 
         // Apply the active language to map labels immediately after load.
         applyMapLanguage(map, mapLanguageTag.value);
@@ -306,6 +357,8 @@ export const useMap = (containerRef = null, options = {}) => {
 
     onUnmounted(() => {
       emitter.emit("destroy");
+      cached.cancelIdleRetry?.();
+      cached.cancelIdleRetry = null;
       cached.mapInstance?.remove();
       cached.mapInstance = null;
       mapCache.delete(instanceId);
