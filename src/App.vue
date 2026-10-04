@@ -49,9 +49,11 @@ onMounted(() => initWakeLock());
 </script>
 
 <template>
+  <!-- vh (not %) so the shell fills the screen in installed iOS PWAs, where
+       WebKit reports % heights short by the bottom safe-area inset (#254868). -->
   <div
     ref="rootEl"
-    class="ogis-root position-fixed top-0 start-0 w-100 h-100 overflow-hidden"
+    class="ogis-root position-fixed top-0 start-0 w-100 vh-100 overflow-hidden"
     :data-attrib-collapsed="attributionCollapsed ? 'true' : 'false'"
   >
     <div style="display: none" v-html="iconSprite"></div>
