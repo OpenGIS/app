@@ -1,3 +1,10 @@
+## [3.7.1](https://github.com/OpenGIS/app/compare/v3.7.0...v3.7.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **mobile:** fill viewport in installed iOS PWAs ([59caa97](https://github.com/OpenGIS/app/commit/59caa9751d1b2a7681b16bbb3404f1b39433c9b1))
+
 # [3.7.0](https://github.com/OpenGIS/app/compare/v3.6.1...v3.7.0) (2026-10-04)
 
 
