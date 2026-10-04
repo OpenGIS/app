@@ -43,7 +43,7 @@ The app is a fully installable PWA. It includes a Web App Manifest (`public/mani
 ## Commands
 
 ```bash
-npm run dev          # start Vite dev server (app at http://localhost:5173)
+npm run dev          # start Vite dev server (app at http://localhost:5174)
 npm run build        # build the app for distribution
 npm run test:unit    # run vitest unit tests (<10 s)
 npm run test:e2e -- tests/e2e/{spec}.spec.js   # run only the relevant E2E spec (development)
@@ -55,7 +55,7 @@ npm run format       # rewrite files with Prettier
 
 ### Running tests — timing guidance
 
-`npm test` runs the unit suite (Vitest) only: ~290 tests, completing in under 10 seconds. Use it, plus targeted single-spec E2E runs, during rapid development.
+`npm test` runs the unit suite (Vitest) only: 318 tests across 23 files, completing in under 10 seconds. Use it, plus targeted single-spec E2E runs, during rapid development.
 
 CI is a quick gate: unit tests, Prettier, and the **functional** E2E suite only — the screenshot matrix is excluded (`--grep-invert @screenshots`) and sharded three ways. Functional shards are expected to finish in single-digit minutes (measured at ~8 min before the screenshot exclusion). See `docs/13.ci.md`.
 
@@ -84,6 +84,7 @@ src/
     useAttribution.js   # reactive style attribution (corner chip + Info panel)
     useLocale.js        # i18n: language resolution, translations
     useSettings.js      # OS-derived prefs: units + theme follow the device
+    useWakeLock.js      # screen wake lock: acquire on interaction, re-acquire on visibility
     useLocate.js        # GPS locate feature
     useGeoJSON.js       # GeoJSON rendering: points, lines, polygons
   defaults/
@@ -202,7 +203,7 @@ Features are plain objects with an `install(ctx)` method. A feature lives in `sr
 | `docs/2.setup.md`       | Dev server, build, URL params, iframe isolation                                          |
 | `docs/3.instances.md`   | Instance ID, localStorage key format                                                     |
 | `docs/4.map.md`         | `useMap` API: lifecycle, readiness signals, view persistence, URL hash, globe            |
-| `docs/5.ui.md`          | `useUI` API: breakpoints, panel, corner controls                                         |
+| `docs/5.ui.md`          | `useUI` API: breakpoints, panel, corner controls, wake lock                              |
 | `docs/6.geojson.md`     | `useGeoJSON` API: rendering features with styles                                         |
 | `docs/7.locale.md`      | `useLocale` API: translations, language resolution                                       |
 | `docs/8.theme.md`       | Bootstrap SCSS theme, green palette                                                      |

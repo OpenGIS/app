@@ -11,7 +11,8 @@ const instances = new Map();
  * re-acquires it automatically whenever the page becomes visible again after
  * being hidden (e.g. tab switch, screen lock).
  *
- * Usage: call `init(el)` from onMounted, passing the root app element.
+ * Usage: call `init()` from onMounted; it attaches the interaction and
+ * visibility listeners.
  */
 export const useWakeLock = () => {
   const instanceId = inject("ogisAppId", "app");

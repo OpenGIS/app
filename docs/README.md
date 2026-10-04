@@ -1,6 +1,6 @@
 ---
-git_hash: "3b10786b88575968a0e74f870cfe886fdf286b1b"
-modified: "2026-10-03"
+git_hash: "59caa9751d1b2a7681b16bbb3404f1b39433c9b1"
+modified: "2026-10-04"
 ---
 
 # ogis.app — Docs
@@ -20,7 +20,7 @@ Developer documentation for the ogis.app codebase.
 | [2. Setup](./2.setup.md)             | Dev server, build, URL parameters, iframe isolation                                          |
 | [3. Instances](./3.instances.md)     | Instance ID, localStorage key format, iframe use case                                        |
 | [4. Map](./4.map.md)                 | `useMap` API: lifecycle, readiness signals, view persistence, URL hash, globe, country focus |
-| [5. UI](./5.ui.md)                   | `useUI` API: responsive breakpoints, panel, corner controls                                  |
+| [5. UI](./5.ui.md)                   | `useUI` API: responsive breakpoints, panel, corner controls, wake lock                       |
 | [6. GeoJSON](./6.geojson.md)         | `useGeoJSON` API: rendering features with styles                                             |
 | [7. Locale](./7.locale.md)           | `useLocale` API: translations, language resolution                                           |
 | [8. Theme](./8.theme.md)             | Bootstrap SCSS theme architecture and green palette                                          |
