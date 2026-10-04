@@ -1,3 +1,10 @@
+# [3.7.0](https://github.com/OpenGIS/app/compare/v3.6.1...v3.7.0) (2026-10-04)
+
+
+### Features
+
+* **map:** focus home country on cold start ([6b2cd42](https://github.com/OpenGIS/app/commit/6b2cd4257afba75d9fd2ddf046787634977b7042))
+
 ## [3.6.1](https://github.com/OpenGIS/app/compare/v3.6.0...v3.6.1) (2026-10-03)
 
 
