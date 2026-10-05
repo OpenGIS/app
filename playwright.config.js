@@ -42,6 +42,13 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      // Functional specs plus the README heroes. The heroes are intentionally
+      // non-deterministic (random-country cold start, live tiles) and have
+      // always run on this GPU path — keep them out of the SwiftShader matrix
+      // project below. The committed matrix spec has its own dedicated project
+      // so this one never collects (and thus never writes) the screenshot
+      // artefacts — otherwise both projects would capture the same files twice.
+      testIgnore: ["**/screenshots/ui-states.spec.js"],
       use: {
         ...devices["Desktop Chrome"],
         // Force full animations: with prefers-reduced-motion MapLibre degrades
@@ -71,6 +78,39 @@ export default defineConfig({
                 ? ["--use-angle=metal"]
                 : []),
             "--deny-permission-prompts",
+          ],
+        },
+      },
+    },
+    {
+      // The committed screenshot matrix (`screenshots/**` + README heroes).
+      // Always software-rendered: SwiftShader is byte-reproducible across
+      // browser launches, whereas the local GPU backends (ANGLE/Metal) leave
+      // sub-perceptual anti-aliasing drift that dirties the committed JPEGs on
+      // every run. Runs regardless of CI/E2E_SWIFTSHADER, and always uses the
+      // bundled Chromium build (no `channel`).
+      name: "screenshots",
+      testMatch: ["**/screenshots/**/*.spec.js"],
+      // The README heroes are out of scope for the deterministic matrix: they
+      // cold-start on a random country against live tiles by design, and belong
+      // to the GPU `chromium` project above.
+      testIgnore: ["**/screenshots/readme.spec.js"],
+      use: {
+        ...devices["Desktop Chrome"],
+        reducedMotion: "no-preference",
+        launchOptions: {
+          args: [
+            "--use-angle=swiftshader",
+            "--enable-unsafe-swiftshader",
+            "--deny-permission-prompts",
+            // Pin the colour pipeline and text rasterisation so the same
+            // pixels are produced on every machine.
+            "--force-color-profile=srgb",
+            "--disable-lcd-text",
+            "--font-render-hinting=none",
+            "--disable-gpu-rasterization",
+            "--disable-partial-raster",
+            "--num-raster-threads=1",
           ],
         },
       },

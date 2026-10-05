@@ -125,6 +125,15 @@ export const useMap = (containerRef = null, options = {}) => {
       const map = new maplibregl.Map({
         container: containerRef.value,
         ...mapDefaults,
+        // E2E capture runs need symbols fully opaque from their first rendered
+        // frame: MapLibre's label-collision fade is time-based, and a capture
+        // taken after the map stops rendering can freeze a mid-fade frame with
+        // its labels culled (the symbol shader discards anything below 0.1
+        // opacity). Fades are entrance-only, so steady-state rendering — and
+        // production — are unchanged. See docs/9.testing.md.
+        ...(import.meta.env.VITE_E2E_FIXTURES === "1"
+          ? { fadeDuration: 0 }
+          : {}),
         ...options,
       });
 

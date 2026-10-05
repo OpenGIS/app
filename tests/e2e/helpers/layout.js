@@ -1,4 +1,8 @@
-import { waitForMapIdle, waitForMapPainted } from "./mapIdle.js";
+import {
+  waitForMapIdle,
+  waitForMapPainted,
+  waitForGlyphsLoaded,
+} from "./mapIdle.js";
 
 /**
  * Deterministic layout settle for screenshot captures.
@@ -79,5 +83,8 @@ export const waitForLayoutSettled = async (page, testInfo) => {
   await waitForAnimationsSettled(page);
   await waitForCanvasResize(page);
   await waitForMapIdle(page, testInfo);
+  // Tiles read as loaded before their glyph ranges do; wait for the fetches to
+  // quiesce so the paint settle below re-places with every glyph cached.
+  await waitForGlyphsLoaded(page);
   await waitForMapPainted(page);
 };

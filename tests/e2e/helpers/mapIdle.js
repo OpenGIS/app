@@ -137,59 +137,234 @@ const collectDiagnostics = async (page) => {
 };
 
 /**
+ * Wait until no glyph-range request is in flight.
+ *
+ * MapLibre fetches glyph ranges from its worker after the tile that needs them.
+ * A symbol placement that runs before the glyph arrives skips the label; when
+ * the glyph lands MapLibre reloads the affected tiles and re-places (see
+ * `Style._updateTilesForChangedGlyphs`), but that reload races the capture and
+ * produced the run-to-run route/label diffs on the phone viewports. Waiting for
+ * the glyph fetches to quiesce first makes the follow-up placement
+ * deterministic. Glyph URLs are the only `/fonts/` request the map makes; the
+ * pending-request tracker is installed per page before navigation
+ * (`helpers/test.js`).
+ */
+export const waitForGlyphsLoaded = async (page, { timeout = 30000 } = {}) => {
+  const startedAt = Date.now();
+  for (;;) {
+    const pending = trackers.get(page);
+    const inFlight = pending
+      ? [...pending.values()].some((entry) => entry.url.includes("/fonts/"))
+      : false;
+    if (!inFlight || Date.now() - startedAt > timeout) return;
+    await page.waitForTimeout(100);
+  }
+};
+
+/**
+ * Wait for a sustained gap in glyph fetches.
+ *
+ * `waitForGlyphsLoaded` returns the moment no glyph request is in flight, but a
+ * late tile parse can still discover a missing range a moment later. A
+ * placement that runs before that glyph lands skips the affected symbols, and
+ * the follow-up re-placement is not guaranteed a render — so hold until no
+ * glyph fetch has started for `quietMs` before the final render.
+ */
+export const waitForGlyphsQuiesce = async (
+  page,
+  { quietMs = 500, timeout = 30000 } = {},
+) => {
+  const startedAt = Date.now();
+  let quietSince = null;
+  for (;;) {
+    const pending = trackers.get(page);
+    const inFlight = pending
+      ? [...pending.values()].some((entry) => entry.url.includes("/fonts/"))
+      : false;
+    if (inFlight) {
+      quietSince = null;
+    } else if (quietSince === null) {
+      quietSince = Date.now();
+    } else if (Date.now() - quietSince >= quietMs) {
+      return;
+    }
+    if (Date.now() - startedAt > timeout) return;
+    await page.waitForTimeout(50);
+  }
+};
+
+/**
  * Let the map run to a true paint settle after `data-map-idle`.
  *
- * `data-map-idle` can be published while MapLibre is still finishing a symbol
- * placement: a text label pops in after the tile set reads as loaded, and the
- * glyph that placement needs arrives from the worker asynchronously. At the
- * scheduled demo area that late placement writes a road/river name label, so a
- * capture taken too early records it absent — the run-to-run matrix diff. A
- * real, main-thread-idle window longer than the measured worst-case placement
- * latency lets the placement complete and commit before the caller captures;
- * screenshotting during the wait would starve the main thread it needs. A
- * re-placement follows, so a glyph that only arrived after the original
- * placement is still committed.
+ * `data-map-idle` is published by MapLibre only when placement is complete and
+ * symbol fades have finished (`Map._render` schedules another frame while
+ * `_placementDirty`/`_sourcesDirty`/`_styleDirty` hold and fires `idle` only
+ * when none do). A stale frame can nevertheless reach the compositor: the map
+ * canvas is presented asynchronously, and a screenshot taken in the gap records
+ * the previous frame — for the record-active state, the previous frame is the
+ * one where a late symbol re-placement had not yet committed, so labels are
+ * missing. `waitForMapQuiet` waits for the renderer's own state to hold still,
+ * drives a sustained render window so any late placement finishes its fade, and
+ * then presents one more composited frame; `capture()`'s render-then-compare loop is
+ * the final confirmation.
  */
 export const waitForMapPainted = async (page) => {
-  // Give a late placement real, main-thread-idle time: a label whose glyph
-  // arrives after placement ran, and MapLibre does not re-place symbols when a
-  // glyph becomes available. Measured worst-case post-idle latency reached
-  // multiple seconds under 4-worker GPU contention.
-  await page.waitForTimeout(2500);
-  // Re-run symbol placement, then repeat once more after the first has settled,
-  // so a placement always runs with every glyph already cached. Setting a
-  // symbol layer's `text-field` to its current value marks the style dirty and
-  // re-places.
-  for (let round = 0; round < 2; round++) {
-    const armed = await page
-      .evaluate(() => {
-        window.__ogisReplaceIdle = false;
-        return import("/src/composables/useMap.js")
-          .then((mod) => {
-            const map = mod.getMapInstance("app");
-            if (!map || typeof map.once !== "function") return false;
-            map.once("idle", () => {
-              window.__ogisReplaceIdle = true;
-            });
-            const layers = map.getStyle()?.layers ?? [];
-            for (const layer of layers) {
-              if (layer.type !== "symbol") continue;
-              const textField = map.getLayoutProperty(layer.id, "text-field");
-              if (textField === undefined) continue;
-              map.setLayoutProperty(layer.id, "text-field", textField);
+  await page.waitForTimeout(500);
+  await waitForMapQuiet(page);
+  // A late tile parse can still discover a missing glyph range after the quiet
+  // window: the symbols it needs are skipped by the current placement, and the
+  // follow-up re-placement is not guaranteed a render. Hold for a sustained
+  // glyph-fetch gap, then commit any late re-placement with one more burst.
+  await waitForGlyphsQuiesce(page);
+  await renderBurst(page, 300);
+};
+
+/**
+ * Resolve (and cache) the running map handle from the page's own module graph.
+ *
+ * The settle helpers share `window.__ogisMap`; this makes the lookup idempotent
+ * for callers that need the map before `waitForMapQuiet` has run.
+ */
+export const ensureMapHandle = async (page) => {
+  await page
+    .evaluate(async () => {
+      if (window.__ogisMap) return;
+      const mod = await import("/src/composables/useMap.js");
+      window.__ogisMap = mod.getMapInstance("app");
+    })
+    .catch(() => {});
+};
+
+/**
+ * Drive MapLibre renders for a fixed window (`triggerRepaint` each frame).
+ *
+ * A placement that lands after the last natural render does not necessarily
+ * schedule another frame — `Style._updatePlacement` reports no change once a
+ * committed placement has no transitions left — and a screenshot never triggers
+ * a MapLibre render, so the canvas can keep the previous placement. Rendering
+ * for a window commits any pending placement and presents the completed frame.
+ */
+export const renderBurst = async (page, ms = 300) => {
+  await ensureMapHandle(page);
+  await page
+    .evaluate(
+      (burstMs) =>
+        new Promise((resolve) => {
+          const map = window.__ogisMap;
+          if (!map) return resolve();
+          const startedAt = performance.now();
+          const tick = () => {
+            map.triggerRepaint();
+            if (performance.now() - startedAt < burstMs) {
+              requestAnimationFrame(tick);
+            } else {
+              requestAnimationFrame(() =>
+                requestAnimationFrame(() => resolve()),
+              );
             }
-            return true;
-          })
-          .catch(() => false);
-      })
-      .catch(() => false);
-    if (!armed) return;
-    await page
-      .waitForFunction(() => window.__ogisReplaceIdle === true, null, {
-        timeout: 3000,
-      })
+          };
+          requestAnimationFrame(tick);
+        }),
+      ms,
+    )
+    .catch(() => {});
+};
+
+/**
+ * Wait until MapLibre has *committed* the current symbol placement *and*
+ * finished its fade, not merely emitted an `idle`.
+ *
+ * A glyph-triggered tile reload can re-start placement after the app's
+ * `data-map-idle` signal; because `PauseablePlacement` splits a large placement
+ * across frames, under SwiftShader the run can span dozens of slow frames. The
+ * byte-identical `capture()` loop then races: two screenshots taken 100 ms apart
+ * can land on the same slow frame and look "stable" while placement is still
+ * mid-flight, committing a frame whose labels are not yet drawn.
+ *
+ * This waits for the map's own composite state to hold still — placement and
+ * style/source updates idle, no pending layer/source work, for a sustained
+ * window — then drives the renderer for a fixed window so any placement that
+ * committed along the way completes its fade, then waits for quiet once more
+ * and presents a final composited frame. It reads MapLibre internals (there is
+ * no public "placement committed" event) but that is the exact state the
+ * renderer uses to decide whether another frame is required (`Map._render`
+ * schedules a repaint while `_placementDirty`/`_sourcesDirty`/`_styleDirty`
+ * hold, and only fires `idle` when none do). Best-effort: a timeout leaves the
+ * existing waits in charge.
+ */
+export const waitForMapQuiet = async (page, { timeout = 30000 } = {}) => {
+  await ensureMapHandle(page);
+
+  const waitForQuiet = (requiredMs, waitTimeout) =>
+    page
+      .waitForFunction(
+        (ms) => {
+          const map = window.__ogisMap;
+          const style = map && map.style;
+          if (!style) return false;
+          const clean =
+            !map.isMoving() &&
+            map.loaded() &&
+            !style._placementDirty &&
+            !style._changed &&
+            !map._sourcesDirty &&
+            !map._styleDirty &&
+            Object.keys(style._updatedSources ?? {}).length === 0 &&
+            Object.keys(style._updatedLayers ?? {}).length === 0;
+          if (!clean) {
+            window.__ogisQuietSince = 0;
+            return false;
+          }
+          if (!window.__ogisQuietSince) {
+            window.__ogisQuietSince = performance.now();
+            return false;
+          }
+          return performance.now() - window.__ogisQuietSince >= ms;
+        },
+        requiredMs,
+        { timeout: waitTimeout, polling: 100 },
+      )
       .catch(() => {});
-  }
+
+  await waitForQuiet(600, timeout);
+
+  // Drive the renderer for a sustained window. Symbol fades are time-based
+  // (`symbolFadeChange(t) = (t - commitTime) / fadeDuration`) and the shader
+  // culls symbols below 0.1 opacity, so a placement that commits after the
+  // quiet window leaves the compositor holding a mid-fade frame whose labels
+  // are invisible — and a screenshot never triggers the render that would
+  // finish it. Rendering for longer than a full fade lets any late placement
+  // commit and fade in.
+  await renderBurst(page, 800);
+
+  // The burst can kick loose a follow-up placement; require a shorter clean
+  // window again before presenting the final frame.
+  await waitForQuiet(300, 10000);
+
+  // Force one more full render and hold for a presented frame. The WebGL canvas
+  // is presented asynchronously, so a screenshot taken in the gap after the
+  // final render can read the previous surface; and DOM layers composited
+  // during that gap (the corner chips) can rasterise at a different sub-pixel
+  // phase. Triggering a repaint and waiting a presented frame makes both the
+  // canvas and the composited DOM deterministic.
+  await page
+    .evaluate(
+      () =>
+        new Promise((resolve) => {
+          const map = window.__ogisMap;
+          if (!map) return resolve();
+          let done = false;
+          const settle = () => {
+            if (done) return;
+            done = true;
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          };
+          map.once("render", settle);
+          map.triggerRepaint();
+          setTimeout(settle, 2000);
+        }),
+    )
+    .catch(() => {});
 };
 
 /**

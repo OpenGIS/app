@@ -3,10 +3,12 @@ import {
   trackConsoleErrors,
   expectNoConsoleErrors,
 } from "../helpers/console.js";
-import { waitForMapIdle } from "../helpers/mapIdle.js";
+import { renderBurst, waitForMapIdle } from "../helpers/mapIdle.js";
 import { waitForLayoutSettled } from "../helpers/layout.js";
 import { DEMO_AREA } from "../fixtures/map/demoArea.mjs";
+import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { basename } from "node:path";
 
 /**
  * UI-states screenshot matrix — `screenshots/{device}/{orientation}/*.jpg`
@@ -35,9 +37,12 @@ import { mkdirSync, writeFileSync } from "node:fs";
  */
 
 // SwiftShader software rendering starves the renderer: map-idle waits, drags
-// and screenshots can each take tens of seconds. A single test loops all
-// states for one viewport, so the default 30 s budget is far too small.
-test.setTimeout(300000);
+// and screenshots can each take tens of seconds, and a single test loops all
+// seven states for one viewport. Under 4 concurrent workers a matrix test has
+// been measured at >300 s, which truncated the final `record-active` state
+// (the committed matrix came back with 41–44 of 46 files). 15 minutes leaves
+// ample headroom for the full per-viewport loop at 4 workers.
+test.setTimeout(900000);
 
 // Local-only resilience for the whole file: under full-suite load a stalled
 // live raster/TileJSON request can delay map-idle past the wait. All six matrix
@@ -46,7 +51,7 @@ test.setTimeout(300000);
 // so CI is unaffected.
 test.describe.configure({ retries: 1 });
 
-const OUT_ROOT = "screenshots";
+const OUT_ROOT = process.env.E2E_SCREENSHOTS_DIR || "screenshots";
 
 // 3-segment hash is accepted and rewritten to 5 on load. Coordinates and zoom
 // come from the demo-area single source of truth (`fixtures/map/demoArea.mjs`).
@@ -112,29 +117,223 @@ const VIEWPORTS = [
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
+ * Collect a JSON-ready snapshot of the map state for capture diagnostics.
+ *
+ * The screenshot matrix must regenerate byte-identically; when a capture is
+ * not reproducible the differing input has to be visible. This dump records
+ * the camera, the loaded symbol data (label names via `querySourceFeatures`),
+ * the tile cache and the map-fixture network timing, so two runs of the same
+ * state can be diffed to locate the difference. Never throws: a diagnostics
+ * failure must not fail the capture.
+ */
+const collectDiagnostics = async (page) => {
+  try {
+    return await page.evaluate(async () => {
+      const mod = await import("/src/composables/useMap.js");
+      const map = mod.getMapInstance("app");
+      if (!map) return { error: "no map instance" };
+
+      const style = map.getStyle();
+      const layers = style.layers ?? [];
+
+      const symbolPairs = [];
+      const seenPairs = new Set();
+      for (const layer of layers) {
+        if (
+          layer.type !== "symbol" ||
+          !layer.source ||
+          !layer["source-layer"]
+        ) {
+          continue;
+        }
+        const key = `${layer.source}\u0000${layer["source-layer"]}`;
+        if (seenPairs.has(key)) continue;
+        seenPairs.add(key);
+        symbolPairs.push({
+          source: layer.source,
+          sourceLayer: layer["source-layer"],
+        });
+      }
+
+      const labelFeatures = [];
+      for (const { source, sourceLayer } of symbolPairs) {
+        let features = [];
+        try {
+          features = map.querySourceFeatures(source, { sourceLayer });
+        } catch {
+          continue;
+        }
+        for (const feature of features) {
+          const props = feature.properties ?? {};
+          const name = props.name ?? props.name_en;
+          if (!name) continue;
+          labelFeatures.push({
+            source,
+            sourceLayer,
+            name,
+            geometryType: feature.geometry?.type ?? null,
+            coordinates:
+              feature.geometry?.type === "Point"
+                ? feature.geometry.coordinates
+                : null,
+          });
+        }
+      }
+
+      const tiles = {};
+      for (const [sourceId, cache] of Object.entries(
+        map.style.sourceCaches ?? {},
+      )) {
+        const cacheTiles = cache._tiles;
+        if (!cacheTiles) continue;
+        const values =
+          cacheTiles instanceof Map || typeof cacheTiles.values === "function"
+            ? [...cacheTiles.values()]
+            : Object.values(cacheTiles);
+        const entries = values
+          .map((tile) => ({
+            key: tile.tileID?.canonical?.key ?? tile.tileID?.key ?? null,
+            state: tile.state ?? null,
+            loaded: !!tile.loaded,
+          }))
+          .sort((a, b) => String(a.key).localeCompare(String(b.key)));
+        tiles[sourceId] = entries;
+      }
+
+      const resources = performance
+        .getEntriesByType("resource")
+        .filter((entry) => /__e2e_map__|\/fonts\//.test(entry.name))
+        .map((entry) => ({
+          name: entry.name,
+          transferSize: entry.transferSize,
+          encodedBodySize: entry.encodedBodySize,
+          responseStatus: entry.responseStatus ?? null,
+        }));
+
+      const canvas = map.getCanvas();
+      return {
+        camera: {
+          center: map.getCenter(),
+          zoom: map.getZoom(),
+          bearing: map.getBearing(),
+          pitch: map.getPitch(),
+        },
+        canvas: {
+          width: canvas.width,
+          height: canvas.height,
+          clientWidth: canvas.clientWidth,
+          clientHeight: canvas.clientHeight,
+        },
+        sources: Object.keys(style.sources ?? {}),
+        symbolPairs,
+        labelFeatures,
+        tiles,
+        resources,
+        flags: {
+          loaded: map.loaded(),
+          tilesLoaded: map.areTilesLoaded(),
+          moving: map.isMoving(),
+          placementDirty: !!map.style._placementDirty,
+          styleChanged: !!map.style._changed,
+        },
+      };
+    });
+  } catch (error) {
+    return { error: String(error) };
+  }
+};
+
+/**
  * Screenshot one state once the composited output has stopped changing.
  *
- * MapLibre's `data-map-idle` fires when tiles have *loaded*, not when their
- * fade-in has finished — `raster-fade-duration` defaults to 300 ms — nor when a
- * late symbol placement has committed. `waitForLayoutSettled` now also waits for
- * MapLibre's native idle quiet period; this convergence loop is the final
- * byte-level confirmation. Bounded so a genuinely animated element cannot hang
- * the run. Console errors are asserted once settled.
+ * The map can end a settle with a placement change that never scheduled a
+ * render (`Style._updatePlacement` reports "no change" once a committed
+ * placement has no transitions left), so a passive screenshot loop can read a
+ * frame from before that placement — e.g. one whose labels are not yet drawn.
+ * Each round therefore drives a render burst before taking a frame, and the
+ * shot is accepted only when two consecutive burst-separated frames are
+ * byte-identical. Bounded so a genuinely animated element cannot hang the run.
+ * Console errors are asserted once settled. After the write, a diagnostics
+ * snapshot is recorded under `.opencode/tmp/diag/<run>/` for run-to-run diffs.
  */
 const capture = async (page, dir, name) => {
   const options = { type: "jpeg", quality: 80 };
-  const MAX_ATTEMPTS = 20;
+  const MAX_ROUNDS = 12;
   let previous = null;
   let buffer = null;
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    await renderBurst(page, 300);
+    // Let the compositor present the frame the burst just rendered.
+    await page.waitForTimeout(250);
     buffer = await page.screenshot(options);
     if (previous !== null && previous.equals(buffer)) break;
     previous = buffer;
-    await page.waitForTimeout(100);
   }
   writeFileSync(`${dir}/${name}.jpg`, buffer);
   expectNoConsoleErrors(page);
+
+  try {
+    const diagDir = `.opencode/tmp/diag/${basename(OUT_ROOT)}`;
+    mkdirSync(diagDir, { recursive: true });
+    const diag = await collectDiagnostics(page);
+    const diagName = `${dir
+      .replace(`${OUT_ROOT}/`, "")
+      .replaceAll("/", "-")}-${name}.json`;
+    writeFileSync(
+      `${diagDir}/${diagName}`,
+      JSON.stringify(
+        {
+          sha256: createHash("sha256").update(buffer).digest("hex"),
+          diag,
+        },
+        null,
+        2,
+      ),
+    );
+  } catch {
+    // Diagnostics must never fail a capture.
+  }
 };
+
+/**
+ * Pin the auto-assigned line colour for capture.
+ *
+ * `useGeoJSON` picks a random bright palette colour for any feature that
+ * declares no `ogis.color` — and the route feature deliberately declares only
+ * width/opacity (`src/features/routes/index.js`). A seeded `Math.random` cannot
+ * make that choice reproducible: MapLibre draws a worker message id from
+ * `Math.random()` (its `sendAsync`), so the PRNG advances a timing-dependent
+ * number of times before the route is imported. Across sessions the route line
+ * therefore rendered orange in one run and green in the next — a whole-map
+ * colour diff. Setting the line default through the composable's public API
+ * before the import fixes the colour.
+ */
+const pinLineColor = (page) =>
+  page.evaluate(async () => {
+    const mod = await import("/src/composables/useGeoJSON.js");
+    mod.useGeoJSON("app").setDefaults({ line: { color: "#e74c3c" } });
+  });
+
+/**
+ * Stabilise the GPU-composited "glass" surfaces for capture.
+ *
+ * The corner-control chips and the Info panel footer use
+ * `backdrop-filter: blur(...)`, and the chips also carry
+ * `box-shadow: 0 1px 6px ...`. Chromium composites both on separate GPU layers
+ * whose blur sampling and antialiased pill edges vary subtly between browser
+ * launches — leaving sub-percent pixel drift in the committed JPEGs (measured:
+ * ~0.9 % of pixels, max Δ71 on the attribution chip) under a full 4-worker run
+ * even though the underlying page (including the map canvas) is byte identical.
+ * Dropping the backdrop filter and box shadow removes the nondeterministic
+ * layers; the chips keep their background fill, border and text, so the result
+ * is visually all but identical while the raster becomes reproducible. This is
+ * a deliberate capture-only tradeoff; production rendering is untouched.
+ */
+const stabilizeCaptureRendering = (page) =>
+  page.addStyleTag({
+    content:
+      "*,*::before,*::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:none!important;}",
+  });
 
 /**
  * Seed `Math.random` with a fixed PRNG before the app boots.
@@ -154,28 +353,6 @@ const seedDeterministicRandom = (page) =>
       t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
-  });
-
-/**
- * Stabilise the GPU-composited "glass" surfaces for capture.
- *
- * The corner-control chips and the Info panel footer use
- * `backdrop-filter: blur(...)`, and the chips also carry
- * `box-shadow: 0 1px 6px ...`. Chromium composites both on separate GPU layers
- * whose antialiased pill edges and blur sampling vary subtly between browser
- * launches — leaving sub-percent pixel drift in the committed JPEGs (e.g. an
- * ~80 px, max-Δ3 strip along the attribution chip's shadowed bottom edge) even
- * though the underlying page (including the map canvas) is byte identical.
- * Dropping the backdrop filter and box shadow removes the nondeterministic
- * layers; the chips keep their near-opaque background fill and 1 px border, so
- * the result is visually all but identical while the raster becomes
- * reproducible. This is a deliberate capture-only tradeoff, mirroring the
- * backdrop-filter change; production rendering is untouched.
- */
-const stabilizeCaptureRendering = (page) =>
-  page.addStyleTag({
-    content:
-      "*,*::before,*::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:none!important;}",
   });
 
 /**
@@ -423,6 +600,7 @@ test.describe("Feature states — desktop landscape", () => {
     // The panel resize changes the map container width; `showOnMap` fits bounds
     // to that container, so wait for the resize before the fit runs.
     await waitForLayoutSettled(page, testInfo);
+    await pinLineColor(page);
     await page
       .locator('.ogis-panel input[type="file"]')
       .setInputFiles("tests/e2e/fixtures/route.gpx");
