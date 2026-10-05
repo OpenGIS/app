@@ -1,3 +1,10 @@
+## [3.7.2](https://github.com/OpenGIS/app/compare/v3.7.1...v3.7.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **mobile:** drop viewport-fit=cover and restore h-100 ([5d452bd](https://github.com/OpenGIS/app/commit/5d452bde92d94cd4e6be0cbfb98021dfcf6e95b0))
+
 ## [3.7.1](https://github.com/OpenGIS/app/compare/v3.7.0...v3.7.1) (2026-10-04)
 
 
