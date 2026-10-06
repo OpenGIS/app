@@ -103,6 +103,7 @@ jobs:
       pull-requests: write
     outputs:
       released: ${{ steps.release.outputs.released }}
+      sha: ${{ steps.release.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -122,6 +123,7 @@ jobs:
           AFTER=$(git rev-parse HEAD)
           if [ "$BEFORE" != "$AFTER" ]; then
             echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "sha=$AFTER" >> "$GITHUB_OUTPUT"
           else
             echo "released=false" >> "$GITHUB_OUTPUT"
           fi
@@ -143,7 +145,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: master
+          # Pin to the released commit (semantic-release's version commit) so a
+          # mid-run push to master cannot leak unreleased commits into the build.
+          ref: ${{ needs.release.outputs.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
