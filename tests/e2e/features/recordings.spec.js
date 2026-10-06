@@ -1,5 +1,6 @@
 import { test, expect } from "../helpers/test.js";
 import { waitForMapReady } from "../helpers/panel";
+import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
  * E2E tests for src/features/recordings/
@@ -18,7 +19,7 @@ test.setTimeout(120000);
 
 /** Seed localStorage with permission granted and a known map view. */
 const withGrantedStorage = (page) =>
-  page.addInitScript(() => {
+  page.addInitScript((center) => {
     localStorage.setItem(
       "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
@@ -26,10 +27,10 @@ const withGrantedStorage = (page) =>
     localStorage.setItem(
       "ogis_view_app",
       JSON.stringify({
-        mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
+        mapView: { center, zoom: 14 },
       }),
     );
-  });
+  }, DEMO.center);
 
 /** Clear all app storage so the permission flow appears fresh. */
 const withNoStorage = (page) =>
@@ -42,7 +43,7 @@ const withNoStorage = (page) =>
 /** Grant browser geolocation permission and set a fixed position. */
 const grantGeolocation = (
   page,
-  coords = { latitude: 50.6539, longitude: -128.0094 },
+  coords = { latitude: DEMO.center.lat, longitude: DEMO.center.lng },
 ) =>
   page
     .context()
@@ -262,39 +263,41 @@ test.describe("Recordings / Save and Discard", () => {
 test.describe("Recordings / Saved list management", () => {
   /** Seed one saved recording directly into localStorage. */
   const withOneSavedRecording = (page) =>
-    page.addInitScript(() => {
-      localStorage.setItem(
-        "ogis_locate_app",
-        JSON.stringify({ permissionGranted: true }),
-      );
-      localStorage.setItem(
-        "ogis_view_app",
-        JSON.stringify({
-          mapView: {
-            center: { lat: 50.6539, lng: -128.0094 },
-            zoom: 14,
-          },
-        }),
-      );
-      localStorage.setItem(
-        "ogis_recordings_app",
-        JSON.stringify({
-          saved: [
-            {
-              id: "test-rec-1",
-              timestamp: Date.now(),
-              duration: 120000,
-              distance: 500,
-              points: [
-                { lat: 50.6539, lng: -128.0094, t: Date.now() - 120000 },
-                { lat: 50.655, lng: -128.008, t: Date.now() },
-              ],
-            },
-          ],
-          active: null,
-        }),
-      );
-    });
+    page.addInitScript(
+      ({ center, points }) => {
+        const now = Date.now();
+        localStorage.setItem(
+          "ogis_locate_app",
+          JSON.stringify({ permissionGranted: true }),
+        );
+        localStorage.setItem(
+          "ogis_view_app",
+          JSON.stringify({
+            mapView: { center, zoom: 14 },
+          }),
+        );
+        localStorage.setItem(
+          "ogis_recordings_app",
+          JSON.stringify({
+            saved: [
+              {
+                id: "test-rec-1",
+                timestamp: now,
+                duration: 120000,
+                distance: 500,
+                points: points.map((point, index) => ({
+                  lat: point.lat,
+                  lng: point.lng,
+                  t: now - (points.length - 1 - index) * 120000,
+                })),
+              },
+            ],
+            active: null,
+          }),
+        );
+      },
+      { center: DEMO.center, points: [DEMO.route[0], DEMO.route.at(-1)] },
+    );
 
   test.beforeEach(async ({ page }) => {
     await withOneSavedRecording(page);
@@ -338,39 +341,41 @@ test.describe("Recordings / Saved list management", () => {
 
 test.describe("Recordings / GPX export", () => {
   const withOneSavedRecording = (page) =>
-    page.addInitScript(() => {
-      localStorage.setItem(
-        "ogis_locate_app",
-        JSON.stringify({ permissionGranted: true }),
-      );
-      localStorage.setItem(
-        "ogis_view_app",
-        JSON.stringify({
-          mapView: {
-            center: { lat: 50.6539, lng: -128.0094 },
-            zoom: 14,
-          },
-        }),
-      );
-      localStorage.setItem(
-        "ogis_recordings_app",
-        JSON.stringify({
-          saved: [
-            {
-              id: "gpx-test-rec",
-              timestamp: Date.now(),
-              duration: 60000,
-              distance: 200,
-              points: [
-                { lat: 50.6539, lng: -128.0094, t: Date.now() - 60000 },
-                { lat: 50.654, lng: -128.009, t: Date.now() },
-              ],
-            },
-          ],
-          active: null,
-        }),
-      );
-    });
+    page.addInitScript(
+      ({ center, points }) => {
+        const now = Date.now();
+        localStorage.setItem(
+          "ogis_locate_app",
+          JSON.stringify({ permissionGranted: true }),
+        );
+        localStorage.setItem(
+          "ogis_view_app",
+          JSON.stringify({
+            mapView: { center, zoom: 14 },
+          }),
+        );
+        localStorage.setItem(
+          "ogis_recordings_app",
+          JSON.stringify({
+            saved: [
+              {
+                id: "gpx-test-rec",
+                timestamp: now,
+                duration: 60000,
+                distance: 200,
+                points: points.map((point, index) => ({
+                  lat: point.lat,
+                  lng: point.lng,
+                  t: now - (points.length - 1 - index) * 60000,
+                })),
+              },
+            ],
+            active: null,
+          }),
+        );
+      },
+      { center: DEMO.center, points: [DEMO.route[0], DEMO.route.at(-1)] },
+    );
 
   test("GPX button triggers a file download", async ({ page }) => {
     await withOneSavedRecording(page);

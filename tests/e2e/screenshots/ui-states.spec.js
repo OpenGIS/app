@@ -5,7 +5,8 @@ import {
 } from "../helpers/console.js";
 import { renderBurst, waitForMapIdle } from "../helpers/mapIdle.js";
 import { waitForLayoutSettled } from "../helpers/layout.js";
-import { DEMO_AREA } from "../fixtures/map/demoArea.mjs";
+import { DEMO } from "../../fixtures/demo.mjs";
+import { DEMO_AREA } from "../../fixtures/map/demoArea.mjs";
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
@@ -211,6 +212,173 @@ const collectDiagnostics = async (page) => {
         }));
 
       const canvas = map.getCanvas();
+      const canvasRect = canvas.getBoundingClientRect();
+      const scaleEl = document.querySelector(".maplibregl-ctrl-scale");
+      const scaleRect = scaleEl ? scaleEl.getBoundingClientRect() : null;
+
+      // Device/viewport state: a device-scale or viewport change re-rasterises
+      // every glyph, so record it to full precision.
+      const windowState = {
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        outerWidth: window.outerWidth,
+        outerHeight: window.outerHeight,
+        devicePixelRatio: window.devicePixelRatio,
+        visualViewport: window.visualViewport
+          ? {
+              width: window.visualViewport.width,
+              height: window.visualViewport.height,
+              scale: window.visualViewport.scale,
+              offsetLeft: window.visualViewport.offsetLeft,
+              offsetTop: window.visualViewport.offsetTop,
+            }
+          : null,
+        screen: {
+          width: window.screen.width,
+          height: window.screen.height,
+          availWidth: window.screen.availWidth,
+          availHeight: window.screen.availHeight,
+          colorDepth: window.screen.colorDepth,
+          pixelDepth: window.screen.pixelDepth,
+        },
+      };
+
+      // Full precision camera + the derived transform internals MapLibre uses
+      // to place symbols. `getCenter()` round-trips through LngLat, but the
+      // symbol projection is driven by `transform` — if any fractional field
+      // differs, labels shift sub-pixel.
+      const transform = map.transform;
+      const transformSnapshot = {
+        pixelRatio: transform.pixelRatio,
+        tileSize: transform.tileSize,
+        width: transform.width,
+        height: transform.height,
+        worldSize: transform.worldSize,
+        zoom: transform.zoom,
+        bearing: transform.bearing,
+        pitch: transform.pitch,
+        angle: transform.angle,
+        elevation: transform.elevation,
+        centerLng: transform.center ? transform.center.lng : null,
+        centerLat: transform.center ? transform.center.lat : null,
+        x: transform.x,
+        y: transform.y,
+        scale: transform.scale,
+      };
+
+      let contextAttributes = null;
+      try {
+        const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
+        contextAttributes = gl ? gl.getContextAttributes() : null;
+      } catch {
+        // Context may be unavailable; leave null.
+      }
+
+      // Which glyph ranges are resident in the atlas, and whether any font
+      // request has not completed (an in-flight glyph range can re-place
+      // symbols after the capture point).
+      let glyphRanges = null;
+      try {
+        const gm = map.style.glyphManager;
+        if (gm && gm.entries instanceof Map) {
+          glyphRanges = [...gm.entries.entries()]
+            .map(([font, ranges]) => ({
+              font,
+              ranges: [...ranges.keys()].sort(),
+            }))
+            .sort((a, b) => a.font.localeCompare(b.font));
+        }
+      } catch {
+        // Glyph manager internals are not stable API.
+      }
+
+      // Terrain: the active DEM source, its elevation, and which DEM tiles are
+      // resident. A local DEM-tile change rescales the terrain mesh and shifts
+      // draped symbols sub-pixel.
+      let terrainState = null;
+      try {
+        const terrain =
+          typeof map.getTerrain === "function" ? map.getTerrain() : map.terrain;
+        if (terrain) {
+          const cache = map.style.sourceCaches?.[terrain.source];
+          const values = cache?._tiles
+            ? cache._tiles instanceof Map
+              ? [...cache._tiles.values()]
+              : Object.values(cache._tiles)
+            : [];
+          const demTiles = values
+            .map((tile) => ({
+              key: tile.tileID?.canonical?.key ?? tile.tileID?.key ?? null,
+              z: tile.tileID?.canonical?.z ?? null,
+              state: tile.state ?? null,
+              loaded: !!tile.loaded,
+              hasTexture: !!tile.texture,
+            }))
+            .sort((a, b) => String(a.key).localeCompare(String(b.key)));
+          terrainState = {
+            source: terrain.source,
+            exaggeration: terrain.exaggeration,
+            transformElevation: transform.elevation,
+            tiles: demTiles,
+          };
+        }
+      } catch {
+        // Terrain internals are not stable API.
+      }
+
+      let styleLoaded = null;
+      try {
+        styleLoaded = map.isStyleLoaded();
+      } catch {
+        // Style may be mid-swap.
+      }
+
+      // Requests for map assets that never completed (in flight at capture).
+      let inFlight = [];
+      try {
+        inFlight = performance
+          .getEntriesByType("resource")
+          .filter((entry) => entry.responseEnd === 0 && entry.startTime > 0)
+          .map((entry) => entry.name)
+          .filter((name) => /__e2e_map__|\/fonts\/|\/sprite/.test(name));
+      } catch {
+        // Resource timing may be unavailable.
+      }
+
+      // Fade/opacity state: a symbol drawn with a fractional opacity is a fade
+      // that has not settled. Packed opacities are 0 or 1 when settled; any
+      // value strictly between identifies a mid-fade symbol.
+      const fractionalOpacities = [];
+      let fade = null;
+      try {
+        const placement = map.style?.placement;
+        fade = {
+          mapFadeDuration: map._fadeDuration,
+          idleTriggered: map._idleTriggered,
+          placementFadeDuration: placement?.fadeDuration ?? null,
+          painterFadeDuration: map.painter?.options?.fadeDuration ?? null,
+          symbolFadeChange: map.painter?.symbolFadeChange ?? null,
+        };
+        const opacities = placement?.opacities;
+        if (opacities) {
+          for (const [crossTileID, state] of Object.entries(opacities)) {
+            for (const kind of ["text", "icon"]) {
+              const o = state[kind];
+              if (o && o.opacity !== 0 && o.opacity !== 1) {
+                fractionalOpacities.push({
+                  crossTileID,
+                  kind,
+                  opacity: o.opacity,
+                  placed: o.placed,
+                });
+              }
+            }
+          }
+        }
+      } catch {
+        // Placement internals are not stable API.
+      }
+
       return {
         camera: {
           center: map.getCenter(),
@@ -218,21 +386,62 @@ const collectDiagnostics = async (page) => {
           bearing: map.getBearing(),
           pitch: map.getPitch(),
         },
+        transform: transformSnapshot,
+        fade,
+        fractionalOpacities,
+        window: windowState,
+        performanceNow: performance.now(),
+        fonts: document.fonts
+          ? { status: document.fonts.status, size: document.fonts.size }
+          : null,
         canvas: {
           width: canvas.width,
           height: canvas.height,
           clientWidth: canvas.clientWidth,
           clientHeight: canvas.clientHeight,
+          contextAttributes,
+          rect: {
+            x: canvasRect.x,
+            y: canvasRect.y,
+            width: canvasRect.width,
+            height: canvasRect.height,
+            top: canvasRect.top,
+            right: canvasRect.right,
+            bottom: canvasRect.bottom,
+            left: canvasRect.left,
+          },
         },
+        scale: scaleRect
+          ? {
+              textContent: scaleEl.textContent,
+              x: scaleRect.x,
+              y: scaleRect.y,
+              width: scaleRect.width,
+              height: scaleRect.height,
+              top: scaleRect.top,
+              right: scaleRect.right,
+              bottom: scaleRect.bottom,
+              left: scaleRect.left,
+              offsetWidth: scaleEl.offsetWidth,
+              offsetHeight: scaleEl.offsetHeight,
+              clientWidth: scaleEl.clientWidth,
+              clientHeight: scaleEl.clientHeight,
+              styleWidth: scaleEl.style.width,
+            }
+          : null,
         sources: Object.keys(style.sources ?? {}),
         symbolPairs,
         labelFeatures,
         tiles,
+        terrain: terrainState,
+        glyphRanges,
         resources,
+        inFlight,
         flags: {
           loaded: map.loaded(),
           tilesLoaded: map.areTilesLoaded(),
           moving: map.isMoving(),
+          styleLoaded,
           placementDirty: !!map.style._placementDirty,
           styleChanged: !!map.style._changed,
         },
@@ -244,54 +453,192 @@ const collectDiagnostics = async (page) => {
 };
 
 /**
+ * Toggle a full-viewport probe overlay so a screenshot can prove the renderer
+ * is live. Under heavy load the surface can lag the DOM by seconds; the probe
+ * must force renderer-side content (a fresh full-viewport layer to raster),
+ * not just a compositor-side property change — a stalled renderer can still
+ * let the compositor redraw existing tiles with a CSS filter. A frame that
+ * contains the overlay is newer than the toggle — and therefore also contains
+ * every earlier DOM change (e.g. an opened panel or a chip's new label).
+ */
+const setCaptureProbe = async (page, visible) => {
+  await page.evaluate((on) => {
+    let probe = document.getElementById("__capture_probe__");
+    if (!probe) {
+      probe = document.createElement("div");
+      probe.id = "__capture_probe__";
+      probe.style.cssText =
+        "position:fixed;inset:0;pointer-events:none;z-index:2147483647;background:rgba(255,0,255,0.08)";
+      document.documentElement.appendChild(probe);
+    }
+    probe.style.display = on ? "block" : "none";
+  }, visible);
+  // Let the renderer run a frame before the screenshot reads the surface.
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  );
+};
+
+/**
+ * Pin the terrain depth framebuffer to "no occlusion" for one capture.
+ *
+ * MapLibre multiplies every symbol's alpha by `calculate_visibility()`, which
+ * samples the terrain depth framebuffer (see the `TERRAIN3D` branch of the
+ * symbol vertex shaders). That framebuffer is redrawn only when the camera
+ * matrix changes or the renderable tile set changes — not when a raster-dem
+ * tile's *data* finishes loading (`TerrainTileManager.anyTilesAfterTime`
+ * compares a `now()` timestamp against the painter's `Date.now()`, so it never
+ * fires). A symbol that sits on the terrain surface can therefore be sampled
+ * once as "in front" and once, after an unrelated camera change, as "slightly
+ * behind" — a sub-pixel alpha difference (observed on the demo's food POI in
+ * `feature-offline`). Clearing the depth buffer to the far plane and freezing
+ * the depth pass makes the factor exactly 1 for every symbol, matching the
+ * committed capture. This is applied only to the one state that has shown the
+ * variance; the other captures keep their committed terrain occlusion.
+ *
+ * Best-effort: a missing map/terrain leaves the capture untouched.
+ */
+const pinTerrainDepthFar = (page) =>
+  page.evaluate(async () => {
+    const mod = await import("/src/composables/useMap.js");
+    const map = mod.getMapInstance("app");
+    const terrain = map?.terrain;
+    const painter = map?.painter;
+    if (!terrain || !painter) return false;
+    const fbo = terrain.getFramebuffer("depth");
+    const gl = painter.context.gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo.framebuffer);
+    gl.clearColor(1, 1, 1, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    if (!painter.__depthFrozen) {
+      painter.maybeDrawDepth = () => {};
+      painter.__depthFrozen = true;
+    }
+    map.triggerRepaint();
+    return true;
+  });
+
+/**
  * Screenshot one state once the composited output has stopped changing.
  *
  * The map can end a settle with a placement change that never scheduled a
  * render (`Style._updatePlacement` reports "no change" once a committed
  * placement has no transitions left), so a passive screenshot loop can read a
  * frame from before that placement — e.g. one whose labels are not yet drawn.
- * Each round therefore drives a render burst before taking a frame, and the
- * shot is accepted only when two consecutive burst-separated frames are
- * byte-identical. Bounded so a genuinely animated element cannot hang the run.
- * Console errors are asserted once settled. After the write, a diagnostics
- * snapshot is recorded under `.opencode/tmp/diag/<run>/` for run-to-run diffs.
+ * Each round therefore drives a render burst, then proves the compositor is
+ * live: under heavy load the surface can lag the DOM by seconds, and an
+ * equality-only loop will happily accept a stale (older, coherent) state. A
+ * temporary full-viewport overlay must change the captured frame; if it does
+ * not, the surface is stale and the probe retries. The shot is accepted only
+ * when two consecutive fresh frames are byte-identical. Bounded so a genuinely
+ * animated element cannot hang the run. Console errors are asserted once
+ * settled. After the write, a diagnostics snapshot is recorded under
+ * `${E2E_SCREENSHOTS_DIR}/diag/<run>/` for run-to-run diffs — opt-in via that
+ * env var; committed in-place runs (no env var) write nothing.
  */
 const capture = async (page, dir, name) => {
   const options = { type: "jpeg", quality: 80 };
   const MAX_ROUNDS = 12;
+  const MAX_PROBES = 10;
   let previous = null;
   let buffer = null;
   for (let round = 0; round < MAX_ROUNDS; round++) {
     await renderBurst(page, 300);
     // Let the compositor present the frame the burst just rendered.
     await page.waitForTimeout(250);
-    buffer = await page.screenshot(options);
+    // Freshness gate: a live compositor must reflect a full-viewport change.
+    let fresh = null;
+    for (let probe = 0; probe < MAX_PROBES; probe++) {
+      await setCaptureProbe(page, true);
+      const probed = await page.screenshot(options);
+      await setCaptureProbe(page, false);
+      const clear = await page.screenshot(options);
+      if (!probed.equals(clear)) {
+        fresh = clear;
+        break;
+      }
+      await page.waitForTimeout(250);
+    }
+    if (fresh === null) {
+      throw new Error(
+        `capture(${name}): the compositor never reflected a forced repaint`,
+      );
+    }
+    buffer = fresh;
     if (previous !== null && previous.equals(buffer)) break;
     previous = buffer;
   }
   writeFileSync(`${dir}/${name}.jpg`, buffer);
   expectNoConsoleErrors(page);
 
-  try {
-    const diagDir = `.opencode/tmp/diag/${basename(OUT_ROOT)}`;
-    mkdirSync(diagDir, { recursive: true });
-    const diag = await collectDiagnostics(page);
-    const diagName = `${dir
-      .replace(`${OUT_ROOT}/`, "")
-      .replaceAll("/", "-")}-${name}.json`;
-    writeFileSync(
-      `${diagDir}/${diagName}`,
-      JSON.stringify(
-        {
-          sha256: createHash("sha256").update(buffer).digest("hex"),
-          diag,
-        },
-        null,
-        2,
-      ),
-    );
-  } catch {
-    // Diagnostics must never fail a capture.
+  if (process.env.E2E_SCREENSHOTS_DIR) {
+    try {
+      const diagDir = `${process.env.E2E_SCREENSHOTS_DIR}/diag/${basename(OUT_ROOT)}`;
+      mkdirSync(diagDir, { recursive: true });
+      const diagName = `${dir
+        .replace(`${OUT_ROOT}/`, "")
+        .replaceAll("/", "-")}-${name}.json`;
+      // Lossless evidence is expensive under SwiftShader, so record it only for
+      // the feature state that has shown run-to-run variance. The JSON
+      // snapshot above is cheap and is still recorded for every capture.
+      const lossless = name === "feature-offline";
+      if (lossless) {
+        // The composited frame (no JPEG quantisation) and the raw map canvas.
+        // Two JPEG variants can differ only through JPEG quantisation; these
+        // PNGs show whether the underlying render itself differs.
+        try {
+          const png = await page.screenshot({ type: "png" });
+          writeFileSync(`${diagDir}/${diagName}.png`, png);
+          const canvasPng = await page
+            .locator(".ogis-map canvas")
+            .screenshot({ type: "png" });
+          writeFileSync(`${diagDir}/${diagName}.canvas.png`, canvasPng);
+        } catch {
+          // Lossless evidence is optional.
+        }
+      }
+      // Time-series evidence: is the accepted frame already a stable fixed
+      // point, or is the map still drifting? Capture the raw canvas three times
+      // with a render burst between, and record the lossless hashes. If they
+      // stop changing immediately the accepted state is converged; if the first
+      // hashes differ from later ones, capture accepted a transient frame.
+      let canvasStability = null;
+      if (lossless) {
+        try {
+          const hashes = [];
+          for (let i = 0; i < 3; i++) {
+            const shot = await page
+              .locator(".ogis-map canvas")
+              .screenshot({ type: "png" });
+            hashes.push(createHash("sha256").update(shot).digest("hex"));
+            await renderBurst(page, 300);
+            await page.waitForTimeout(250);
+          }
+          canvasStability = hashes;
+        } catch {
+          // Stability probe is optional.
+        }
+      }
+      const diag = await collectDiagnostics(page);
+      writeFileSync(
+        `${diagDir}/${diagName}`,
+        JSON.stringify(
+          {
+            sha256: createHash("sha256").update(buffer).digest("hex"),
+            canvasStability,
+            diag,
+          },
+          null,
+          2,
+        ),
+      );
+    } catch {
+      // Diagnostics must never fail a capture.
+    }
   }
 };
 
@@ -383,17 +730,56 @@ const withGrantedStorage = (page) =>
     );
   }, DEMO_CENTER);
 
-/** Grant geolocation permission and set a fixed position. */
-const grantGeolocation = (page) =>
-  page
+/**
+ * Grant geolocation permission and fix the position at the demo centre.
+ *
+ * The locate click flies to this position at zoom 16 — the same centre and
+ * zoom as the capture view — so the camera never moves during locate-active
+ * and no re-placement race can leave a labels-less frame.
+ */
+const grantGeolocation = (page) => {
+  const { lat, lng } = DEMO.center;
+  return page
     .context()
     .grantPermissions(["geolocation"])
     .then(() =>
-      page.context().setGeolocation({
-        latitude: DEMO_CENTER.lat,
-        longitude: DEMO_CENTER.lng,
-      }),
+      page.context().setGeolocation({ latitude: lat, longitude: lng }),
     );
+};
+
+/**
+ * Rebase the demo slice onto the pinned capture clock.
+ *
+ * Fixture timestamps are unix SECONDS; seeded recording points need the app's
+ * `{lat, lng, t}` epoch-MILLISECONDS shape, with the last point landing at
+ * `RECORDING_CLOCK` so the crafted ride shares the pinned clock.
+ */
+const rebaseSlice = () => {
+  const lastT = DEMO.slice.at(-1).t;
+  return DEMO.slice.map((point) => ({
+    lat: point.lat,
+    lng: point.lng,
+    t: RECORDING_CLOCK.getTime() - (lastT - point.t) * 1000,
+  }));
+};
+
+/**
+ * Seed a paused in-progress recording so the feature's crash recovery draws
+ * the crafted ride at load, alongside a "Paused" chip.
+ */
+const seedPausedRecording = (page) =>
+  page.addInitScript(
+    ({ points, startTime }) => {
+      localStorage.setItem(
+        "ogis_recordings_app",
+        JSON.stringify({ saved: [], active: { points, startTime } }),
+      );
+    },
+    {
+      points: rebaseSlice(),
+      startTime: RECORDING_CLOCK.getTime() - DEMO.sliceDuration * 1000,
+    },
+  );
 
 /**
  * Mouse-drag the map canvas horizontally to collapse the attribution chip.
@@ -551,17 +937,32 @@ for (const vp of VIEWPORTS) {
       await waitForLayoutSettled(page, testInfo);
       await capture(page, dir, "locate-active");
 
-      // record-active — Record chip becomes Recording and opens the panel.
-      // Pin Date.now() first: the live elapsed timer keeps ticking via
-      // setInterval, but `Date.now() - startTime` stays 0, so the panel renders
-      // a stable 0:00 instead of a wall-clock-dependent second.
+      // record-active — a paused in-progress ride is seeded and reloaded so the
+      // Record chip starts as "Paused". Pin Date.now() before resuming: the live
+      // elapsed timer keeps ticking via setInterval, but with the clock fixed
+      // the panel renders a stable elapsed time derived from the seeded
+      // startTime. The chip click takes the resume path (the app does not open
+      // the panel on resume), so open the panel deliberately.
+      await seedPausedRecording(page);
+      await page.reload();
+      await stabilizeCaptureRendering(page);
+      await waitForMapIdle(page, testInfo);
       await page.clock.setFixedTime(RECORDING_CLOCK);
+      // Resuming pushes the current position as the ride's next point; stubbing
+      // the slice end duplicates the track's last point (no spur from the
+      // centre stub used by the locate state).
+      const sliceEnd = DEMO.slice.at(-1);
+      await page.context().setGeolocation({
+        latitude: sliceEnd.lat,
+        longitude: sliceEnd.lng,
+      });
       await page.locator("#recordings-button").click();
       await expect
         .poll(() => page.locator("#recordings-button").textContent(), {
           timeout: 20000,
         })
         .toMatch(/Recording/);
+      await openPanelTab(page, { name: "Recordings", exact: true });
       await waitForLayoutSettled(page, testInfo);
       await capture(page, dir, "record-active");
     });
@@ -603,7 +1004,7 @@ test.describe("Feature states — desktop landscape", () => {
     await pinLineColor(page);
     await page
       .locator('.ogis-panel input[type="file"]')
-      .setInputFiles("tests/e2e/fixtures/route.gpx");
+      .setInputFiles("tests/fixtures/route.gpx");
     await expect(
       page.locator(".ogis-panel").getByText("Test Loop"),
     ).toBeVisible();
@@ -630,7 +1031,7 @@ test.describe("Feature states — desktop landscape", () => {
     // Seed one downloaded region so the panel shows its list state. The
     // displayed `createdAt` is pinned so the rendered date never drifts.
     await page.addInitScript(
-      ({ center, fixedTimestamp }) => {
+      ({ center, fixedTimestamp, bounds }) => {
         // The panel's storage summary reads the live Storage API, whose usage
         // grows as the profile's caches change between runs. Pin both values so
         // the rendered "x of y used" text and bar are stable.
@@ -657,12 +1058,7 @@ test.describe("Feature states — desktop landscape", () => {
               id: "test-region-1",
               name: "Test Region",
               createdAt: fixedTimestamp,
-              bounds: {
-                west: -128.02,
-                south: 50.64,
-                east: -128.0,
-                north: 50.66,
-              },
+              bounds,
               minZoom: 10,
               maxZoom: 11,
               tileCount: 12,
@@ -671,7 +1067,11 @@ test.describe("Feature states — desktop landscape", () => {
           ]),
         );
       },
-      { center: DEMO_CENTER, fixedTimestamp: FIXED_TIMESTAMP },
+      {
+        center: DEMO_CENTER,
+        fixedTimestamp: FIXED_TIMESTAMP,
+        bounds: DEMO.offlineRegion,
+      },
     );
 
     await page.goto(`/${BASE_HASH}`);
@@ -684,6 +1084,11 @@ test.describe("Feature states — desktop landscape", () => {
       page.locator(".ogis-panel").getByText("Test Region"),
     ).toBeVisible();
     await waitForLayoutSettled(page, testInfo);
+    // The demo food POI sits on the terrain surface, so the terrain
+    // depth-visibility factor can land on either side of the "in front" test
+    // depending on when the depth framebuffer was last drawn; pin it so the
+    // capture is reproducible without perturbing the other feature states.
+    await pinTerrainDepthFar(page);
     await capture(page, FEATURE_DIR, "feature-offline");
   });
 
@@ -691,7 +1096,7 @@ test.describe("Feature states — desktop landscape", () => {
     // Seed one saved recording so the panel lists it with its actions. The
     // displayed timestamp is pinned so the rendered date never drifts.
     await page.addInitScript(
-      ({ center, fixedTimestamp }) => {
+      ({ center, recording }) => {
         localStorage.setItem(
           "ogis_locate_app",
           JSON.stringify({ permissionGranted: true }),
@@ -704,28 +1109,19 @@ test.describe("Feature states — desktop landscape", () => {
         );
         localStorage.setItem(
           "ogis_recordings_app",
-          JSON.stringify({
-            saved: [
-              {
-                id: "test-rec-1",
-                timestamp: fixedTimestamp,
-                duration: 120000,
-                distance: 500,
-                points: [
-                  {
-                    lat: 50.6539,
-                    lng: -128.0094,
-                    t: fixedTimestamp - 120000,
-                  },
-                  { lat: 50.655, lng: -128.008, t: fixedTimestamp },
-                ],
-              },
-            ],
-            active: null,
-          }),
+          JSON.stringify({ saved: [recording], active: null }),
         );
       },
-      { center: DEMO_CENTER, fixedTimestamp: FIXED_TIMESTAMP },
+      {
+        center: DEMO_CENTER,
+        recording: {
+          id: "test-rec-1",
+          timestamp: RECORDING_CLOCK.getTime() - DEMO.sliceDuration * 1000,
+          duration: DEMO.sliceDuration * 1000,
+          distance: DEMO.sliceDistance,
+          points: rebaseSlice(),
+        },
+      },
     );
 
     await page.goto(`/${BASE_HASH}`);

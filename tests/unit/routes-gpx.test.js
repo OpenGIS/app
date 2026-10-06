@@ -8,8 +8,8 @@ describe("parseGPX / tracks", () => {
     const routes = parseGPX(
       trkGPX(
         `<trk><name>Morning Loop</name><trkseg>
-					<trkpt lat="50.65" lon="-128.00"/>
-					<trkpt lat="50.66" lon="-128.01"/>
+					<trkpt lat="12.34" lon="56.78"/>
+					<trkpt lat="12.35" lon="56.79"/>
 				</trkseg></trk>`,
       ),
     );
@@ -18,8 +18,8 @@ describe("parseGPX / tracks", () => {
     expect(routes[0].name).toBe("Morning Loop");
     expect(routes[0].type).toBe("trk");
     expect(routes[0].points).toEqual([
-      { lat: 50.65, lng: -128.0 },
-      { lat: 50.66, lng: -128.01 },
+      { lat: 12.34, lng: 56.78 },
+      { lat: 12.35, lng: 56.79 },
     ]);
   });
 

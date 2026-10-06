@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import { fileURLToPath, URL } from "node:url";
 import vue from "@vitejs/plugin-vue";
 
-import { e2eMapFixtures } from "./tests/e2e/fixtures/map/vitePlugin.mjs";
+import { e2eMapFixtures } from "./tests/fixtures/map/vitePlugin.mjs";
 
 // Serve the committed E2E map fixtures only when the Playwright webServer opts
 // in; production and normal dev runs are completely unaffected.

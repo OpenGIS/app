@@ -1,5 +1,6 @@
 import { test, expect } from "../helpers/test.js";
 import { waitForMapReady } from "../helpers/panel";
+import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
  * Tests for docs/guide/features/locate.md
@@ -43,7 +44,7 @@ const withGrantedStorage = (page) =>
 
 const grantGeolocation = (
   page,
-  coords = { latitude: 50.6539, longitude: -128.0094 },
+  coords = { latitude: DEMO.center.lat, longitude: DEMO.center.lng },
 ) =>
   page
     .context()
@@ -289,7 +290,10 @@ test.describe("Locate / Initial zoom", () => {
     page,
   }) => {
     await withGrantedStorage(page);
-    await grantGeolocation(page, { latitude: 50.6539, longitude: -128.0094 });
+    await grantGeolocation(page, {
+      latitude: DEMO.center.lat,
+      longitude: DEMO.center.lng,
+    });
     await page.goto("/");
     await waitForMapReady(page);
 
@@ -305,7 +309,10 @@ test.describe("Locate / Initial zoom", () => {
     page,
   }) => {
     await withGrantedStorage(page);
-    await grantGeolocation(page, { latitude: 50.6539, longitude: -128.0094 });
+    await grantGeolocation(page, {
+      latitude: DEMO.center.lat,
+      longitude: DEMO.center.lng,
+    });
     await page.goto("/");
     await waitForMapReady(page);
 
@@ -331,11 +338,11 @@ test.describe("Locate / Initial zoom", () => {
     // document: the previous page — including the still-running camera
     // animation from the Following click, whose programmatic moveend persists
     // the old z16 view — is already gone, so no late persist can clobber it.
-    await page.addInitScript(() => {
+    await page.addInitScript((center) => {
       const stored = JSON.parse(localStorage.getItem("ogis_view_app") || "{}");
-      stored.mapView = { center: { lat: 50.6539, lng: -128.0094 }, zoom: 10 };
+      stored.mapView = { center, zoom: 10 };
       localStorage.setItem("ogis_view_app", JSON.stringify(stored));
-    });
+    }, DEMO.center);
     await page.goto("/");
     await waitForMapReady(page);
 

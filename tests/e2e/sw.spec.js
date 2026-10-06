@@ -3,6 +3,7 @@ import {
   trackConsoleErrors,
   expectNoConsoleErrors,
 } from "./helpers/console.js";
+import { DEMO } from "../fixtures/demo.mjs";
 
 /**
  * E2E tests for the app-shell service worker under the opted-in dev path
@@ -22,14 +23,14 @@ test.setTimeout(120000);
 
 /** Seed a known map view so the map renders a consistent tile set. */
 const withViewStorage = (page) =>
-  page.addInitScript(() => {
+  page.addInitScript((center) => {
     localStorage.setItem(
       "ogis_view_app",
       JSON.stringify({
-        mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
+        mapView: { center, zoom: 14 },
       }),
     );
-  });
+  }, DEMO.center);
 
 /** Wait for MapLibre to finish rendering tiles. */
 const waitForMapIdle = (page) =>

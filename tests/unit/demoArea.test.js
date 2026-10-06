@@ -3,20 +3,36 @@ import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DEMO_AREA } from "../e2e/fixtures/map/demoArea.mjs";
-import { paddedTiles } from "../e2e/fixtures/map/enumerate.mjs";
+import { DEMO_AREA } from "../fixtures/map/demoArea.mjs";
+import { DEMO } from "../fixtures/demo.mjs";
+import { paddedTiles } from "../fixtures/map/enumerate.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const MAP_DIR = join(HERE, "..", "e2e", "fixtures", "map");
+const MAP_DIR = join(HERE, "..", "fixtures", "map");
 const STYLE_PATH = join(MAP_DIR, "style.json");
-const MANIFEST_PATH = join(MAP_DIR, "site.manifest.json");
-const SITE_ROOT = join(MAP_DIR, "site");
+const MANIFEST_PATH = join(MAP_DIR, "assets.manifest.json");
+const ASSETS_ROOT = join(MAP_DIR, "assets");
 
 const style = JSON.parse(readFileSync(STYLE_PATH, "utf8"));
 const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
 
 const excludedIds = new Set(DEMO_AREA.excludedSources.map((entry) => entry.id));
 const committableHosts = new Set(DEMO_AREA.committableHosts);
+
+/** Tight bounding box of `{lat, lng}` points. */
+const bboxOf = (points) => ({
+  west: Math.min(...points.map((point) => point.lng)),
+  south: Math.min(...points.map((point) => point.lat)),
+  east: Math.max(...points.map((point) => point.lng)),
+  north: Math.max(...points.map((point) => point.lat)),
+});
+
+/** Whether a `{west, south, east, north}` box fully contains another. */
+const containsBox = (outer, inner) =>
+  inner.west >= outer.west &&
+  inner.south >= outer.south &&
+  inner.east <= outer.east &&
+  inner.north <= outer.north;
 
 /** Collect every URL a source declares (its `url` and/or `tiles[]`). */
 const sourceUrls = (source) => {
@@ -56,8 +72,8 @@ const fixtureStyleHosts = () => {
   return hosts;
 };
 
-/** Mirror the generator's live-URL → `site/` path mapping. */
-const sitePathOf = (url) => {
+/** Mirror the generator's live-URL → `assets/` path mapping. */
+const assetPathOf = (url) => {
   const parsed = new URL(url);
   const path = url.slice(
     url.indexOf(`${parsed.protocol}//`) +
@@ -93,8 +109,27 @@ describe("DEMO_AREA — geometry", () => {
     expect(south).toBeLessThan(north);
   });
 
-  it("uses the project's default demo coordinates", () => {
-    expect(DEMO_AREA.center).toEqual({ lat: 50.6539, lng: -128.0094 });
+  it("sources its geometry from the demo fixture", () => {
+    expect(DEMO_AREA.center).toEqual(DEMO.center);
+    expect(DEMO_AREA.bounds).toEqual(DEMO.bounds);
+    expect(DEMO_AREA.screenshotZoom).toBe(DEMO.screenshotZoom);
+  });
+
+  it("contains the demo slice, offline region and GPX route", () => {
+    const { west, south, east, north } = DEMO_AREA.bounds;
+    for (const box of [
+      DEMO.sliceBBox,
+      DEMO.offlineRegion,
+      bboxOf(DEMO.route),
+    ]) {
+      expect(containsBox(DEMO_AREA.bounds, box)).toBe(true);
+    }
+    for (const { lat, lng } of [...DEMO.slice, ...DEMO.route]) {
+      expect(lng).toBeGreaterThanOrEqual(west);
+      expect(lng).toBeLessThanOrEqual(east);
+      expect(lat).toBeGreaterThanOrEqual(south);
+      expect(lat).toBeLessThanOrEqual(north);
+    }
   });
 });
 
@@ -268,13 +303,15 @@ describe("DEMO_AREA — manifest completeness", () => {
       expect(stats.zooms, `zooms mismatch for "${id}"`).toEqual(expectedZooms);
 
       // Every padded tile path at every zoom must be stored or recorded absent.
+      // The manifest is regenerated for the current demo area, so verify the
+      // vendored set covers DEMO_AREA.bounds — the single source of truth.
       const tiles = paddedTiles(DEMO_AREA.bounds, expectedZooms);
       for (const { z, x, y } of tiles) {
         const url = stats.template
           .replace("{z}", z)
           .replace("{x}", x)
           .replace("{y}", y);
-        const path = sitePathOf(url);
+        const path = assetPathOf(url);
         expect(
           storedPaths.has(path) || absentPaths.has(path),
           `unaccounted path for "${id}": ${path}`,
@@ -285,7 +322,7 @@ describe("DEMO_AREA — manifest completeness", () => {
 
   it("stores every recorded file on disk with matching bytes", () => {
     for (const file of manifest.files) {
-      const absolutePath = join(SITE_ROOT, file.path);
+      const absolutePath = join(ASSETS_ROOT, file.path);
       expect(existsSync(absolutePath), `missing fixture: ${file.path}`).toBe(
         true,
       );

@@ -1,6 +1,7 @@
 import { test, expect } from "./helpers/test.js";
 import { waitForMapReady, openMenuPanel } from "./helpers/panel";
 import { COUNTRY_BOUNDS } from "../../src/utils/countries.js";
+import { DEMO } from "../fixtures/demo.mjs";
 
 /**
  * Core app tests: returning-visit view persistence, the Info pane toggled via
@@ -14,14 +15,14 @@ import { COUNTRY_BOUNDS } from "../../src/utils/countries.js";
 test.setTimeout(120000);
 
 const withViewStorage = (page) =>
-  page.addInitScript(() =>
+  page.addInitScript((center) => {
     localStorage.setItem(
       "ogis_view_app",
       JSON.stringify({
-        mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 10 },
+        mapView: { center, zoom: 10 },
       }),
-    ),
-  );
+    );
+  }, DEMO.center);
 
 // ─── Returning visits / View persistence ─────────────────────────────────────
 
@@ -509,8 +510,8 @@ test.describe("First load / Country focus", () => {
 
       const view = await waitForFittedView(page);
       expect(view.zoom).toBe(10);
-      expect(view.lat).toBeCloseTo(50.6539, 3);
-      expect(view.lng).toBeCloseTo(-128.0094, 3);
+      expect(view.lat).toBeCloseTo(DEMO.center.lat, 3);
+      expect(view.lng).toBeCloseTo(DEMO.center.lng, 3);
     });
   });
 
@@ -549,8 +550,10 @@ test.describe("First load / Country focus", () => {
   test.describe("?country override", () => {
     test("?country=ch outranks a conflicting URL hash", async ({ page }) => {
       await withFreshView(page);
-      // A Holberg hash that would otherwise win is ignored in favour of CH.
-      await page.goto("/?country=ch#map=10/50.6539/-128.0094");
+      // A demo-area hash that would otherwise win is ignored in favour of CH.
+      await page.goto(
+        `/?country=ch#map=10/${DEMO.center.lat}/${DEMO.center.lng}`,
+      );
       await waitForMapReady(page);
 
       // The URL already carries a hash, so wait for the forced fit to settle

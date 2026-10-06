@@ -166,7 +166,7 @@ describe("useMapsBrowser", () => {
         data: {
           id: "map-1",
           title: "Selected Route",
-          center: { lat: 50.65, lng: -128.0 },
+          center: { lat: 12.34, lng: 56.78 },
           zoom: 12,
           geojson: {
             type: "FeatureCollection",
@@ -177,15 +177,15 @@ describe("useMapsBrowser", () => {
                 geometry: {
                   type: "LineString",
                   coordinates: [
-                    [-128.0, 50.65],
-                    [-127.99, 50.66],
+                    [56.78, 12.34],
+                    [56.79, 12.35],
                   ],
                 },
                 properties: {},
               },
               {
                 type: "Feature",
-                geometry: { type: "Point", coordinates: [-128.0, 50.65] },
+                geometry: { type: "Point", coordinates: [56.78, 12.34] },
                 properties: {},
               },
             ],
@@ -207,8 +207,8 @@ describe("useMapsBrowser", () => {
     );
     expect(fitBoundsMock).toHaveBeenCalledWith(
       [
-        [-128, 50.65],
-        [-127.99, 50.66],
+        [56.78, 12.34],
+        [56.79, 12.35],
       ],
       {
         padding: 60,
@@ -307,7 +307,7 @@ describe("useMapsBrowser", () => {
       data: {
         data: {
           id: "map-3",
-          center: { lat: 50.65, lng: -128.0 },
+          center: { lat: 12.34, lng: 56.78 },
           zoom: 11,
           geojson: {
             type: "FeatureCollection",
@@ -328,7 +328,7 @@ describe("useMapsBrowser", () => {
     expect(result).toEqual({ ok: true, status: 200 });
     expect(fitBoundsMock).not.toHaveBeenCalled();
     expect(flyToMock).toHaveBeenCalledWith({
-      center: [-128, 50.65],
+      center: [56.78, 12.34],
       zoom: 11,
     });
   });
@@ -347,7 +347,7 @@ describe("useMapsBrowser", () => {
             slug: "old-title",
             description: "Old description",
             visibility: "private",
-            center: { lat: 50.65, lng: -128.0 },
+            center: { lat: 12.34, lng: 56.78 },
             zoom: 12,
             collections: [{ id: "col-1" }, { id: "col-2" }],
             geojson: {
@@ -355,7 +355,7 @@ describe("useMapsBrowser", () => {
               features: [
                 {
                   type: "Feature",
-                  geometry: { type: "Point", coordinates: [-128.0, 50.65] },
+                  geometry: { type: "Point", coordinates: [56.78, 12.34] },
                   properties: {},
                 },
               ],
@@ -371,7 +371,7 @@ describe("useMapsBrowser", () => {
             slug: "new-title",
             description: "New description",
             visibility: "public",
-            center: { lat: 50.65, lng: -128.0 },
+            center: { lat: 12.34, lng: 56.78 },
             zoom: 12,
             collections: [{ id: "col-1" }, { id: "col-2" }],
             geojson: {
@@ -379,7 +379,7 @@ describe("useMapsBrowser", () => {
               features: [
                 {
                   type: "Feature",
-                  geometry: { type: "Point", coordinates: [-128.0, 50.65] },
+                  geometry: { type: "Point", coordinates: [56.78, 12.34] },
                   properties: {},
                 },
               ],
@@ -432,7 +432,7 @@ describe("useMapsBrowser", () => {
             features: [
               {
                 type: "Feature",
-                geometry: { type: "Point", coordinates: [-128.0, 50.65] },
+                geometry: { type: "Point", coordinates: [56.78, 12.34] },
                 properties: {},
               },
             ],
@@ -508,14 +508,14 @@ describe("useMapsBrowser", () => {
           title: "Delete Me",
           slug: "delete-me",
           visibility: "private",
-          center: { lat: 50.65, lng: -128.0 },
+          center: { lat: 12.34, lng: 56.78 },
           zoom: 12,
           geojson: {
             type: "FeatureCollection",
             features: [
               {
                 type: "Feature",
-                geometry: { type: "Point", coordinates: [-128.0, 50.65] },
+                geometry: { type: "Point", coordinates: [56.78, 12.34] },
                 properties: {},
               },
             ],

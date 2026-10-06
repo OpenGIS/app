@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="ogis.app" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Test Loop</name>
+    <trkseg>
+      <trkpt lat="48.949011" lon="-55.652574"/>
+      <trkpt lat="48.949055" lon="-55.652597"/>
+      <trkpt lat="48.949071" lon="-55.652666"/>
+      <trkpt lat="48.949165" lon="-55.652795"/>
+      <trkpt lat="48.949228" lon="-55.652928"/>
+      <trkpt lat="48.949291" lon="-55.653120"/>
+      <trkpt lat="48.949326" lon="-55.653181"/>
+      <trkpt lat="48.949357" lon="-55.653211"/>
+      <trkpt lat="48.949396" lon="-55.653203"/>
+      <trkpt lat="48.949440" lon="-55.653172"/>
+    </trkseg>
+  </trk>
+</gpx>

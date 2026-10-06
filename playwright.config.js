@@ -34,6 +34,12 @@ export default defineConfig({
        defaulting the whole suite to it. */
     colorScheme: "dark",
 
+    /* Pin the browser locale so units/date formatting is deterministic across
+       machines and matches the Canadian demo. Previously it followed the system
+       locale — Playwright's Chromium defaulted to en-US, which made a units
+       assertion pass only by accident. */
+    locale: "en-CA",
+
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
   },
@@ -98,6 +104,11 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         reducedMotion: "no-preference",
+        // Pin the capture timezone to the demo area's zone (Newfoundland):
+        // panels format timestamps with the machine's local zone, so captures
+        // render in the demo's zone and any runner (e.g. a UTC CI box)
+        // reproduces them.
+        timezoneId: "America/St_Johns",
         launchOptions: {
           args: [
             "--use-angle=swiftshader",

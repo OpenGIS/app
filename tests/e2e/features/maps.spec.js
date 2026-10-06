@@ -1,14 +1,17 @@
 // Skip: features are commented out in src/main.js:16-20,113-116 — remove the skip when the features ship.
 import { test, expect } from "../helpers/test.js";
+import { DEMO } from "../../fixtures/demo.mjs";
 
 const withViewStorage = (page) =>
-  page.addInitScript(() =>
-    localStorage.setItem(
-      "ogis_view_app",
-      JSON.stringify({
-        mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 12 },
-      }),
-    ),
+  page.addInitScript(
+    (center) =>
+      localStorage.setItem(
+        "ogis_view_app",
+        JSON.stringify({
+          mapView: { center, zoom: 12 },
+        }),
+      ),
+    DEMO.center,
   );
 
 test.describe.skip("Maps feature", () => {
@@ -44,7 +47,7 @@ test.describe.skip("Maps feature", () => {
             title: "Morning Route",
             slug: "morning-route",
             visibility: "private",
-            center: { lat: 50.6539, lng: -128.0094 },
+            center: DEMO.center,
             zoom: 12,
             geojson: {
               type: "FeatureCollection",
@@ -54,8 +57,8 @@ test.describe.skip("Maps feature", () => {
                   geometry: {
                     type: "LineString",
                     coordinates: [
-                      [-128.0094, 50.6539],
-                      [-128.005, 50.655],
+                      [DEMO.center.lng, DEMO.center.lat],
+                      [DEMO.route.at(-1).lng, DEMO.route.at(-1).lat],
                     ],
                   },
                   properties: {},
@@ -355,7 +358,7 @@ test.describe.skip("Maps feature", () => {
             slug: "morning-route",
             description: "Original description.",
             visibility: "private",
-            center: { lat: 50.6539, lng: -128.0094 },
+            center: DEMO.center,
             zoom: 12,
             collections: [],
             geojson: {
@@ -365,7 +368,7 @@ test.describe.skip("Maps feature", () => {
                   type: "Feature",
                   geometry: {
                     type: "Point",
-                    coordinates: [-128.0094, 50.6539],
+                    coordinates: [DEMO.center.lng, DEMO.center.lat],
                   },
                   properties: {},
                 },
@@ -521,7 +524,7 @@ test.describe.skip("Maps feature", () => {
             slug,
             description,
             visibility,
-            center: { lat: 50.6539, lng: -128.0094 },
+            center: DEMO.center,
             zoom: 12,
             collections,
             geojson: {
@@ -531,7 +534,7 @@ test.describe.skip("Maps feature", () => {
                   type: "Feature",
                   geometry: {
                     type: "Point",
-                    coordinates: [-128.0094, 50.6539],
+                    coordinates: [DEMO.center.lng, DEMO.center.lat],
                   },
                   properties: {},
                 },

@@ -83,12 +83,13 @@ npm run dev
 ### Test
 
 ```bash
-npm test                                          # unit tests (vitest, < 10 s)
+npm test                                          # unit tests (vitest, < 10 s; needs Node 24)
 npm run test:e2e -- tests/e2e/{spec}.spec.js      # single E2E spec during development
-npm run test:e2e                                  # full E2E suite incl. screenshots — local final verification
+npm run test:e2e -- --workers=4                   # full E2E suite incl. screenshots — local final verification
+npm run test:e2e -- --project=screenshots tests/e2e/screenshots/ui-states.spec.js  # screenshot matrix only
 ```
 
-See [docs/9.testing.md](docs/9.testing.md) for the testing strategy.
+Screenshot captures run in a dedicated, always-SwiftShader Playwright project so the committed matrix regenerates byte-for-byte; set `E2E_SCREENSHOTS_DIR` to write captures to a temporary directory instead. See [docs/9.testing.md](docs/9.testing.md) for the testing strategy.
 
 ### Continuous integration
 

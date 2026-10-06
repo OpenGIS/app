@@ -8,15 +8,15 @@ import {
   E2E_MAP_MOUNT,
   E2E_MAP_PLACEHOLDER,
   substitutePlaceholder,
-} from "../e2e/fixtures/map/vitePlugin.mjs";
+} from "../fixtures/map/vitePlugin.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SITE_ROOT = join(HERE, "..", "e2e", "fixtures", "map", "site");
+const ASSETS_ROOT = join(HERE, "..", "fixtures", "map", "assets");
 
 const TEST_ORIGIN = "http://example.test:5174";
 const TEST_BASE = `${TEST_ORIGIN}${E2E_MAP_MOUNT}`;
 
-/** Every file under `site/` whose bytes contain the origin placeholder. */
+/** Every file under `assets/` whose bytes contain the origin placeholder. */
 const placeholderFiles = () => {
   const found = [];
   const walk = (dir) => {
@@ -27,7 +27,7 @@ const placeholderFiles = () => {
         found.push(full);
     }
   };
-  walk(SITE_ROOT);
+  walk(ASSETS_ROOT);
   return found;
 };
 
@@ -112,7 +112,7 @@ describe("e2e map fixture middleware serves no raw placeholder", () => {
       const extension = extname(file).toLowerCase();
       expect(
         extension,
-        `${relative(SITE_ROOT, file)} embeds the placeholder but is not JSON`,
+        `${relative(ASSETS_ROOT, file)} embeds the placeholder but is not JSON`,
       ).toBe(".json");
 
       const rewritten = substitutePlaceholder(
@@ -122,7 +122,7 @@ describe("e2e map fixture middleware serves no raw placeholder", () => {
       );
       expect(
         rewritten,
-        `${relative(SITE_ROOT, file)} survives the substitution path`,
+        `${relative(ASSETS_ROOT, file)} survives the substitution path`,
       ).not.toContain(E2E_MAP_PLACEHOLDER);
     }
   });

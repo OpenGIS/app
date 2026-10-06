@@ -1,14 +1,17 @@
 // Skip: features are commented out in src/main.js:16-20,113-116 — remove the skip when the features ship.
 import { test, expect } from "../helpers/test.js";
+import { DEMO } from "../../fixtures/demo.mjs";
 
 const withViewStorage = (page) =>
-  page.addInitScript(() =>
-    localStorage.setItem(
-      "ogis_view_app",
-      JSON.stringify({
-        mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 12 },
-      }),
-    ),
+  page.addInitScript(
+    (center) =>
+      localStorage.setItem(
+        "ogis_view_app",
+        JSON.stringify({
+          mapView: { center, zoom: 12 },
+        }),
+      ),
+    DEMO.center,
   );
 
 test.describe.skip("Account feature", () => {

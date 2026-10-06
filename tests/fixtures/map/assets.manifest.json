@@ -1,0 +1,7271 @@
+{
+  "generatedFrom": "https://raw.githubusercontent.com/OpenGIS/outdoors/refs/heads/master/style.json",
+  "bounds": {
+    "west": -55.693056999999996,
+    "south": 48.928134,
+    "east": -55.593057,
+    "north": 48.978134
+  },
+  "coverageZooms": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+  ],
+  "fonts": [
+    "Noto Sans Regular",
+    "Open Sans Bold Italic,Noto Sans Regular",
+    "Open Sans Bold,Noto Sans Bold",
+    "Open Sans Italic,Noto Sans Italic",
+    "Open Sans Regular,Noto Sans Bold",
+    "Open Sans Regular,Noto Sans Regular",
+    "Open Sans Regular,Open Sans Light",
+    "Open Sans Semibold Italic,Noto Sans Bold",
+    "Open Sans Semibold Italic,Noto Sans Italic",
+    "Open Sans Semibold Italic,Noto Sans Regular",
+    "Open Sans Semibold,Noto Sans Bold",
+    "Open Sans Semibold,Noto Sans Regular"
+  ],
+  "sources": [
+    {
+      "id": "openmaptiles",
+      "type": "vector",
+      "template": "https://tiles.openfreemap.org/planet/20260927_080001_pt/{z}/{x}/{y}.pbf",
+      "minzoom": 0,
+      "maxzoom": 14,
+      "zooms": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "descriptor": true,
+      "stored": 169,
+      "absent": 0
+    },
+    {
+      "id": "demSource",
+      "type": "raster-dem",
+      "template": "https://tiles.mapterhorn.com/{z}/{x}/{y}.webp",
+      "minzoom": 0,
+      "maxzoom": 15,
+      "zooms": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "descriptor": false,
+      "stored": 282,
+      "absent": 7
+    },
+    {
+      "id": "contour-source",
+      "type": "vector",
+      "template": "https://tile.ogis.app/terrain/{z}/{x}/{y}.pbf",
+      "minzoom": 9,
+      "maxzoom": 14,
+      "zooms": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "descriptor": false,
+      "stored": 101,
+      "absent": 0
+    },
+    {
+      "id": "outdoor-paths",
+      "type": "vector",
+      "template": "https://tile.ogis.app/paths/{z}/{x}/{y}.pbf",
+      "minzoom": 9,
+      "maxzoom": 13,
+      "zooms": [
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "descriptor": false,
+      "stored": 30,
+      "absent": 29
+    },
+    {
+      "id": "outdoor-poi",
+      "type": "vector",
+      "template": "https://tile.ogis.app/pois/{z}/{x}/{y}.pbf",
+      "minzoom": 12,
+      "maxzoom": 16,
+      "zooms": [
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "descriptor": false,
+      "stored": 57,
+      "absent": 494
+    }
+  ],
+  "files": [
+    {
+      "path": "tile.ogis.app/paths/12/1413/1406.pbf",
+      "bytes": 705,
+      "source": "outdoor-paths",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/paths/12/1413/1407.pbf",
+      "bytes": 1155,
+      "source": "outdoor-paths",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/paths/12/1413/1408.pbf",
+      "bytes": 1153,
+      "source": "outdoor-paths",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/paths/12/1414/1406.pbf",
+      "bytes": 1095,
+      "source": "outdoor-paths",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/paths/12/1414/1407.pbf",
+      "bytes": 4050,
+      "source": "outdoor-paths",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/paths/12/1414/1408.pbf",
+      "bytes": 400,
+      "source": "outdoor-paths",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/paths/12/1415/1406.pbf",
+      "bytes": 1947,
+      "source": "outdoor-paths",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/paths/12/1415/1407.pbf",
+      "bytes": 1102,
+      "source": "outdoor-paths",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/paths/12/1415/1408.pbf",
+      "bytes": 191,
+      "source": "outdoor-paths",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/paths/12/1416/1406.pbf",
+      "bytes": 2064,
+      "source": "outdoor-paths",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/paths/12/1416/1407.pbf",
+      "bytes": 1067,
+      "source": "outdoor-paths",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/paths/12/1416/1408.pbf",
+      "bytes": 1389,
+      "source": "outdoor-paths",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2827/2813.pbf",
+      "bytes": 453,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2827/2814.pbf",
+      "bytes": 721,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2827/2815.pbf",
+      "bytes": 327,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2827/2816.pbf",
+      "bytes": 637,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2828/2813.pbf",
+      "bytes": 373,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2828/2814.pbf",
+      "bytes": 686,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2828/2815.pbf",
+      "bytes": 1081,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2828/2816.pbf",
+      "bytes": 478,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2829/2813.pbf",
+      "bytes": 433,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2829/2814.pbf",
+      "bytes": 1783,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2829/2815.pbf",
+      "bytes": 2233,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2830/2813.pbf",
+      "bytes": 1089,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2830/2814.pbf",
+      "bytes": 1033,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2830/2815.pbf",
+      "bytes": 447,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2830/2816.pbf",
+      "bytes": 236,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2831/2813.pbf",
+      "bytes": 481,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2831/2814.pbf",
+      "bytes": 355,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2831/2815.pbf",
+      "bytes": 131,
+      "source": "outdoor-paths",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/pois/12/1413/1407.pbf",
+      "bytes": 59,
+      "source": "outdoor-poi",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/pois/12/1414/1407.pbf",
+      "bytes": 1819,
+      "source": "outdoor-poi",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/pois/12/1415/1407.pbf",
+      "bytes": 181,
+      "source": "outdoor-poi",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/pois/12/1416/1406.pbf",
+      "bytes": 252,
+      "source": "outdoor-poi",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2827/2815.pbf",
+      "bytes": 59,
+      "source": "outdoor-poi",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2828/2815.pbf",
+      "bytes": 167,
+      "source": "outdoor-poi",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2829/2814.pbf",
+      "bytes": 132,
+      "source": "outdoor-poi",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2829/2815.pbf",
+      "bytes": 1621,
+      "source": "outdoor-poi",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2830/2814.pbf",
+      "bytes": 128,
+      "source": "outdoor-poi",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2830/2815.pbf",
+      "bytes": 178,
+      "source": "outdoor-poi",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5656/5630.pbf",
+      "bytes": 167,
+      "source": "outdoor-poi",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5658/5630.pbf",
+      "bytes": 225,
+      "source": "outdoor-poi",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5658/5631.pbf",
+      "bytes": 811,
+      "source": "outdoor-poi",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5659/5629.pbf",
+      "bytes": 132,
+      "source": "outdoor-poi",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5659/5630.pbf",
+      "bytes": 109,
+      "source": "outdoor-poi",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5659/5631.pbf",
+      "bytes": 747,
+      "source": "outdoor-poi",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5660/5629.pbf",
+      "bytes": 59,
+      "source": "outdoor-poi",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5660/5630.pbf",
+      "bytes": 180,
+      "source": "outdoor-poi",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11313/11260.pbf",
+      "bytes": 124,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11313/11261.pbf",
+      "bytes": 59,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11316/11262.pbf",
+      "bytes": 59,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11316/11263.pbf",
+      "bytes": 110,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11317/11261.pbf",
+      "bytes": 225,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11317/11262.pbf",
+      "bytes": 419,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11317/11263.pbf",
+      "bytes": 312,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11318/11259.pbf",
+      "bytes": 95,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11318/11261.pbf",
+      "bytes": 109,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11318/11262.pbf",
+      "bytes": 235,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11318/11263.pbf",
+      "bytes": 317,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11319/11259.pbf",
+      "bytes": 63,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11319/11262.pbf",
+      "bytes": 121,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11319/11263.pbf",
+      "bytes": 258,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11321/11260.pbf",
+      "bytes": 181,
+      "source": "outdoor-poi",
+      "zoom": 15
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22525.pbf",
+      "bytes": 59,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22526.pbf",
+      "bytes": 110,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22523.pbf",
+      "bytes": 87,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22525.pbf",
+      "bytes": 59,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22522.pbf",
+      "bytes": 83,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22523.pbf",
+      "bytes": 122,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22524.pbf",
+      "bytes": 84,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22525.pbf",
+      "bytes": 355,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22526.pbf",
+      "bytes": 270,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22527.pbf",
+      "bytes": 80,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22519.pbf",
+      "bytes": 95,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22525.pbf",
+      "bytes": 80,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22526.pbf",
+      "bytes": 101,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22527.pbf",
+      "bytes": 126,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22523.pbf",
+      "bytes": 59,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22524.pbf",
+      "bytes": 152,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22525.pbf",
+      "bytes": 100,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22526.pbf",
+      "bytes": 148,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22527.pbf",
+      "bytes": 56,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22518.pbf",
+      "bytes": 63,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22524.pbf",
+      "bytes": 101,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22527.pbf",
+      "bytes": 87,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22527.pbf",
+      "bytes": 217,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22520.pbf",
+      "bytes": 181,
+      "source": "outdoor-poi",
+      "zoom": 16
+    },
+    {
+      "path": "tile.ogis.app/terrain/10/352/350.pbf",
+      "bytes": 131072,
+      "source": "contour-source",
+      "zoom": 10
+    },
+    {
+      "path": "tile.ogis.app/terrain/10/352/351.pbf",
+      "bytes": 131072,
+      "source": "contour-source",
+      "zoom": 10
+    },
+    {
+      "path": "tile.ogis.app/terrain/10/352/352.pbf",
+      "bytes": 131072,
+      "source": "contour-source",
+      "zoom": 10
+    },
+    {
+      "path": "tile.ogis.app/terrain/10/353/350.pbf",
+      "bytes": 131072,
+      "source": "contour-source",
+      "zoom": 10
+    },
+    {
+      "path": "tile.ogis.app/terrain/10/353/351.pbf",
+      "bytes": 131072,
+      "source": "contour-source",
+      "zoom": 10
+    },
+    {
+      "path": "tile.ogis.app/terrain/10/353/352.pbf",
+      "bytes": 131072,
+      "source": "contour-source",
+      "zoom": 10
+    },
+    {
+      "path": "tile.ogis.app/terrain/10/354/350.pbf",
+      "bytes": 131072,
+      "source": "contour-source",
+      "zoom": 10
+    },
+    {
+      "path": "tile.ogis.app/terrain/10/354/351.pbf",
+      "bytes": 131072,
+      "source": "contour-source",
+      "zoom": 10
+    },
+    {
+      "path": "tile.ogis.app/terrain/10/354/352.pbf",
+      "bytes": 131072,
+      "source": "contour-source",
+      "zoom": 10
+    },
+    {
+      "path": "tile.ogis.app/terrain/11/706/702.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 11
+    },
+    {
+      "path": "tile.ogis.app/terrain/11/706/703.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 11
+    },
+    {
+      "path": "tile.ogis.app/terrain/11/706/704.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 11
+    },
+    {
+      "path": "tile.ogis.app/terrain/11/707/702.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 11
+    },
+    {
+      "path": "tile.ogis.app/terrain/11/707/703.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 11
+    },
+    {
+      "path": "tile.ogis.app/terrain/11/707/704.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 11
+    },
+    {
+      "path": "tile.ogis.app/terrain/11/708/702.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 11
+    },
+    {
+      "path": "tile.ogis.app/terrain/11/708/703.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 11
+    },
+    {
+      "path": "tile.ogis.app/terrain/11/708/704.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 11
+    },
+    {
+      "path": "tile.ogis.app/terrain/12/1413/1406.pbf",
+      "bytes": 16384,
+      "source": "contour-source",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/terrain/12/1413/1407.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/terrain/12/1413/1408.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/terrain/12/1414/1406.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/terrain/12/1414/1407.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/terrain/12/1414/1408.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/terrain/12/1415/1406.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/terrain/12/1415/1407.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/terrain/12/1415/1408.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/terrain/12/1416/1406.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/terrain/12/1416/1407.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/terrain/12/1416/1408.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 12
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2827/2813.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2827/2814.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2827/2815.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2827/2816.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2828/2813.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2828/2814.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2828/2815.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2828/2816.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2829/2813.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2829/2814.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2829/2815.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2829/2816.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2830/2813.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2830/2814.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2830/2815.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2830/2816.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2831/2813.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2831/2814.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2831/2815.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/13/2831/2816.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 13
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5656/5627.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5656/5628.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5656/5629.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5656/5630.pbf",
+      "bytes": 16384,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5656/5631.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5656/5632.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5657/5627.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5657/5628.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5657/5629.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5657/5630.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5657/5631.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5657/5632.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5658/5627.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5658/5628.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5658/5629.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5658/5630.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5658/5631.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5658/5632.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5659/5627.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5659/5628.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5659/5629.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5659/5630.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5659/5631.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5659/5632.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5660/5627.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5660/5628.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5660/5629.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5660/5630.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5660/5631.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5660/5632.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5661/5627.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5661/5628.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5661/5629.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5661/5630.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5661/5631.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5661/5632.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5662/5627.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5662/5628.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5662/5629.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5662/5630.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5662/5631.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/14/5662/5632.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 14
+    },
+    {
+      "path": "tile.ogis.app/terrain/9/175/174.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 9
+    },
+    {
+      "path": "tile.ogis.app/terrain/9/175/175.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 9
+    },
+    {
+      "path": "tile.ogis.app/terrain/9/175/176.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 9
+    },
+    {
+      "path": "tile.ogis.app/terrain/9/176/174.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 9
+    },
+    {
+      "path": "tile.ogis.app/terrain/9/176/175.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 9
+    },
+    {
+      "path": "tile.ogis.app/terrain/9/176/176.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 9
+    },
+    {
+      "path": "tile.ogis.app/terrain/9/177/174.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 9
+    },
+    {
+      "path": "tile.ogis.app/terrain/9/177/175.pbf",
+      "bytes": 65536,
+      "source": "contour-source",
+      "zoom": 9
+    },
+    {
+      "path": "tile.ogis.app/terrain/9/177/176.pbf",
+      "bytes": 32768,
+      "source": "contour-source",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.mapterhorn.com/0/0/0.webp",
+      "bytes": 121656,
+      "source": "demSource",
+      "zoom": 0
+    },
+    {
+      "path": "tiles.mapterhorn.com/1/0/0.webp",
+      "bytes": 100100,
+      "source": "demSource",
+      "zoom": 1
+    },
+    {
+      "path": "tiles.mapterhorn.com/1/0/1.webp",
+      "bytes": 88858,
+      "source": "demSource",
+      "zoom": 1
+    },
+    {
+      "path": "tiles.mapterhorn.com/1/1/0.webp",
+      "bytes": 123828,
+      "source": "demSource",
+      "zoom": 1
+    },
+    {
+      "path": "tiles.mapterhorn.com/1/1/1.webp",
+      "bytes": 105446,
+      "source": "demSource",
+      "zoom": 1
+    },
+    {
+      "path": "tiles.mapterhorn.com/10/352/350.webp",
+      "bytes": 82112,
+      "source": "demSource",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.mapterhorn.com/10/352/351.webp",
+      "bytes": 80460,
+      "source": "demSource",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.mapterhorn.com/10/352/352.webp",
+      "bytes": 89550,
+      "source": "demSource",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.mapterhorn.com/10/353/350.webp",
+      "bytes": 93208,
+      "source": "demSource",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.mapterhorn.com/10/353/351.webp",
+      "bytes": 80826,
+      "source": "demSource",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.mapterhorn.com/10/353/352.webp",
+      "bytes": 87658,
+      "source": "demSource",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.mapterhorn.com/10/354/350.webp",
+      "bytes": 83610,
+      "source": "demSource",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.mapterhorn.com/10/354/351.webp",
+      "bytes": 86462,
+      "source": "demSource",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.mapterhorn.com/10/354/352.webp",
+      "bytes": 76316,
+      "source": "demSource",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.mapterhorn.com/11/706/702.webp",
+      "bytes": 55024,
+      "source": "demSource",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.mapterhorn.com/11/706/703.webp",
+      "bytes": 56704,
+      "source": "demSource",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.mapterhorn.com/11/706/704.webp",
+      "bytes": 63786,
+      "source": "demSource",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.mapterhorn.com/11/707/702.webp",
+      "bytes": 55720,
+      "source": "demSource",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.mapterhorn.com/11/707/703.webp",
+      "bytes": 61202,
+      "source": "demSource",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.mapterhorn.com/11/707/704.webp",
+      "bytes": 64310,
+      "source": "demSource",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.mapterhorn.com/11/708/702.webp",
+      "bytes": 57504,
+      "source": "demSource",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.mapterhorn.com/11/708/703.webp",
+      "bytes": 64132,
+      "source": "demSource",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.mapterhorn.com/11/708/704.webp",
+      "bytes": 60446,
+      "source": "demSource",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.mapterhorn.com/12/1413/1406.webp",
+      "bytes": 60036,
+      "source": "demSource",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.mapterhorn.com/12/1413/1407.webp",
+      "bytes": 65204,
+      "source": "demSource",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.mapterhorn.com/12/1413/1408.webp",
+      "bytes": 77670,
+      "source": "demSource",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.mapterhorn.com/12/1414/1406.webp",
+      "bytes": 66298,
+      "source": "demSource",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.mapterhorn.com/12/1414/1407.webp",
+      "bytes": 70132,
+      "source": "demSource",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.mapterhorn.com/12/1414/1408.webp",
+      "bytes": 70372,
+      "source": "demSource",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.mapterhorn.com/12/1415/1406.webp",
+      "bytes": 73040,
+      "source": "demSource",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.mapterhorn.com/12/1415/1407.webp",
+      "bytes": 72368,
+      "source": "demSource",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.mapterhorn.com/12/1415/1408.webp",
+      "bytes": 74400,
+      "source": "demSource",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.mapterhorn.com/12/1416/1406.webp",
+      "bytes": 71304,
+      "source": "demSource",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.mapterhorn.com/12/1416/1407.webp",
+      "bytes": 77850,
+      "source": "demSource",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.mapterhorn.com/12/1416/1408.webp",
+      "bytes": 78606,
+      "source": "demSource",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2827/2813.webp",
+      "bytes": 61700,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2827/2814.webp",
+      "bytes": 74428,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2827/2815.webp",
+      "bytes": 51420,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2827/2816.webp",
+      "bytes": 70078,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2828/2813.webp",
+      "bytes": 66084,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2828/2814.webp",
+      "bytes": 68994,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2828/2815.webp",
+      "bytes": 67934,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2828/2816.webp",
+      "bytes": 76906,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2829/2813.webp",
+      "bytes": 85144,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2829/2814.webp",
+      "bytes": 78548,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2829/2815.webp",
+      "bytes": 80846,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2829/2816.webp",
+      "bytes": 75436,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2830/2813.webp",
+      "bytes": 76298,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2830/2814.webp",
+      "bytes": 70830,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2830/2815.webp",
+      "bytes": 77164,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2830/2816.webp",
+      "bytes": 69248,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2831/2813.webp",
+      "bytes": 73298,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2831/2814.webp",
+      "bytes": 71818,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2831/2815.webp",
+      "bytes": 73836,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/13/2831/2816.webp",
+      "bytes": 73136,
+      "source": "demSource",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5656/5627.webp",
+      "bytes": 55546,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5656/5628.webp",
+      "bytes": 69638,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5656/5629.webp",
+      "bytes": 52938,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5656/5630.webp",
+      "bytes": 45298,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5656/5631.webp",
+      "bytes": 64686,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5656/5632.webp",
+      "bytes": 72954,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5657/5627.webp",
+      "bytes": 65186,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5657/5628.webp",
+      "bytes": 73554,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5657/5629.webp",
+      "bytes": 65590,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5657/5630.webp",
+      "bytes": 66078,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5657/5631.webp",
+      "bytes": 71168,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5657/5632.webp",
+      "bytes": 68040,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5658/5627.webp",
+      "bytes": 83952,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5658/5628.webp",
+      "bytes": 74888,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5658/5629.webp",
+      "bytes": 76800,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5658/5630.webp",
+      "bytes": 73712,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5658/5631.webp",
+      "bytes": 76786,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5658/5632.webp",
+      "bytes": 70540,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5659/5627.webp",
+      "bytes": 89982,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5659/5628.webp",
+      "bytes": 70760,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5659/5629.webp",
+      "bytes": 68532,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5659/5630.webp",
+      "bytes": 76844,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5659/5631.webp",
+      "bytes": 81342,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5659/5632.webp",
+      "bytes": 80704,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5660/5627.webp",
+      "bytes": 62952,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5660/5628.webp",
+      "bytes": 59642,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5660/5629.webp",
+      "bytes": 66898,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5660/5630.webp",
+      "bytes": 76010,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5660/5631.webp",
+      "bytes": 65994,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5660/5632.webp",
+      "bytes": 70094,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5661/5627.webp",
+      "bytes": 56948,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5661/5628.webp",
+      "bytes": 64946,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5661/5629.webp",
+      "bytes": 66062,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5661/5630.webp",
+      "bytes": 71524,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5661/5631.webp",
+      "bytes": 75136,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5661/5632.webp",
+      "bytes": 58660,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5662/5627.webp",
+      "bytes": 71840,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5662/5628.webp",
+      "bytes": 67150,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5662/5629.webp",
+      "bytes": 67348,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5662/5630.webp",
+      "bytes": 77896,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5662/5631.webp",
+      "bytes": 59686,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/14/5662/5632.webp",
+      "bytes": 55656,
+      "source": "demSource",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11313/11255.webp",
+      "bytes": 52414,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11313/11256.webp",
+      "bytes": 54250,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11313/11257.webp",
+      "bytes": 61690,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11313/11258.webp",
+      "bytes": 69590,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11313/11259.webp",
+      "bytes": 12766,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11313/11260.webp",
+      "bytes": 34928,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11313/11261.webp",
+      "bytes": 63120,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11313/11262.webp",
+      "bytes": 59954,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11313/11263.webp",
+      "bytes": 57342,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11313/11264.webp",
+      "bytes": 57452,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11314/11255.webp",
+      "bytes": 54294,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11314/11256.webp",
+      "bytes": 55138,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11314/11257.webp",
+      "bytes": 67796,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11314/11258.webp",
+      "bytes": 62520,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11314/11259.webp",
+      "bytes": 57508,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11314/11260.webp",
+      "bytes": 41838,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11314/11261.webp",
+      "bytes": 63708,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11314/11262.webp",
+      "bytes": 56350,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11314/11263.webp",
+      "bytes": 63740,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11314/11264.webp",
+      "bytes": 57508,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11315/11255.webp",
+      "bytes": 51724,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11315/11256.webp",
+      "bytes": 66544,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11315/11257.webp",
+      "bytes": 60678,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11315/11258.webp",
+      "bytes": 51542,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11315/11259.webp",
+      "bytes": 59066,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11315/11260.webp",
+      "bytes": 65502,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11315/11261.webp",
+      "bytes": 53088,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11315/11262.webp",
+      "bytes": 53426,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11315/11263.webp",
+      "bytes": 67010,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11315/11264.webp",
+      "bytes": 59696,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11316/11255.webp",
+      "bytes": 66074,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11316/11256.webp",
+      "bytes": 68186,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11316/11257.webp",
+      "bytes": 58562,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11316/11258.webp",
+      "bytes": 64054,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11316/11259.webp",
+      "bytes": 68242,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11316/11260.webp",
+      "bytes": 64158,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11316/11261.webp",
+      "bytes": 50424,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11316/11262.webp",
+      "bytes": 47884,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11316/11263.webp",
+      "bytes": 74698,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11316/11264.webp",
+      "bytes": 60866,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11317/11255.webp",
+      "bytes": 74274,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11317/11256.webp",
+      "bytes": 72186,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11317/11257.webp",
+      "bytes": 55102,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11317/11258.webp",
+      "bytes": 63672,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11317/11259.webp",
+      "bytes": 68468,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11317/11260.webp",
+      "bytes": 63566,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11317/11261.webp",
+      "bytes": 67804,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11317/11262.webp",
+      "bytes": 65682,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11317/11263.webp",
+      "bytes": 72842,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11317/11264.webp",
+      "bytes": 71498,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11318/11255.webp",
+      "bytes": 83900,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11318/11256.webp",
+      "bytes": 69330,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11318/11257.webp",
+      "bytes": 66540,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11318/11258.webp",
+      "bytes": 59340,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11318/11259.webp",
+      "bytes": 59710,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11318/11260.webp",
+      "bytes": 61032,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11318/11261.webp",
+      "bytes": 69260,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11318/11262.webp",
+      "bytes": 70428,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11318/11263.webp",
+      "bytes": 75634,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11318/11264.webp",
+      "bytes": 77298,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11319/11255.webp",
+      "bytes": 63226,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11319/11256.webp",
+      "bytes": 56624,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11319/11257.webp",
+      "bytes": 47906,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11319/11258.webp",
+      "bytes": 50032,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11319/11259.webp",
+      "bytes": 62812,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11319/11260.webp",
+      "bytes": 65570,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11319/11261.webp",
+      "bytes": 66220,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11319/11262.webp",
+      "bytes": 70582,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11319/11263.webp",
+      "bytes": 58716,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11319/11264.webp",
+      "bytes": 72932,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11320/11255.webp",
+      "bytes": 49752,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11320/11256.webp",
+      "bytes": 47646,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11320/11257.webp",
+      "bytes": 58920,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11320/11258.webp",
+      "bytes": 58002,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11320/11259.webp",
+      "bytes": 59356,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11320/11260.webp",
+      "bytes": 56120,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11320/11261.webp",
+      "bytes": 65254,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11320/11262.webp",
+      "bytes": 72956,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11320/11263.webp",
+      "bytes": 42482,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11320/11264.webp",
+      "bytes": 71854,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11321/11255.webp",
+      "bytes": 44690,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11321/11256.webp",
+      "bytes": 51870,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11321/11257.webp",
+      "bytes": 46096,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11321/11258.webp",
+      "bytes": 52414,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11321/11259.webp",
+      "bytes": 59048,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11321/11260.webp",
+      "bytes": 61468,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11321/11261.webp",
+      "bytes": 73198,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11321/11262.webp",
+      "bytes": 45688,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11321/11263.webp",
+      "bytes": 68096,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11321/11264.webp",
+      "bytes": 58838,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11322/11255.webp",
+      "bytes": 46468,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11322/11256.webp",
+      "bytes": 48910,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11322/11257.webp",
+      "bytes": 49720,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11322/11258.webp",
+      "bytes": 58134,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11322/11259.webp",
+      "bytes": 53778,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11322/11260.webp",
+      "bytes": 64358,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11322/11261.webp",
+      "bytes": 42928,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11322/11262.webp",
+      "bytes": 70594,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11322/11263.webp",
+      "bytes": 68226,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11322/11264.webp",
+      "bytes": 52250,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11323/11255.webp",
+      "bytes": 43096,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11323/11256.webp",
+      "bytes": 52720,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11323/11257.webp",
+      "bytes": 64718,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11323/11258.webp",
+      "bytes": 55904,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11323/11259.webp",
+      "bytes": 59868,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11323/11260.webp",
+      "bytes": 64190,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11323/11261.webp",
+      "bytes": 65370,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11323/11262.webp",
+      "bytes": 62896,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11323/11263.webp",
+      "bytes": 50254,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11323/11264.webp",
+      "bytes": 45232,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11324/11255.webp",
+      "bytes": 56732,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11324/11256.webp",
+      "bytes": 59228,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11324/11257.webp",
+      "bytes": 55834,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11324/11258.webp",
+      "bytes": 59950,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11324/11259.webp",
+      "bytes": 59848,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11324/11260.webp",
+      "bytes": 70880,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11324/11261.webp",
+      "bytes": 72226,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11324/11262.webp",
+      "bytes": 53316,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11324/11263.webp",
+      "bytes": 45014,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/15/11324/11264.webp",
+      "bytes": 45790,
+      "source": "demSource",
+      "zoom": 15
+    },
+    {
+      "path": "tiles.mapterhorn.com/2/0/0.webp",
+      "bytes": 45178,
+      "source": "demSource",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.mapterhorn.com/2/0/1.webp",
+      "bytes": 104504,
+      "source": "demSource",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.mapterhorn.com/2/0/2.webp",
+      "bytes": 566,
+      "source": "demSource",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.mapterhorn.com/2/1/0.webp",
+      "bytes": 125924,
+      "source": "demSource",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.mapterhorn.com/2/1/1.webp",
+      "bytes": 77306,
+      "source": "demSource",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.mapterhorn.com/2/1/2.webp",
+      "bytes": 53316,
+      "source": "demSource",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.mapterhorn.com/2/2/0.webp",
+      "bytes": 38432,
+      "source": "demSource",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.mapterhorn.com/2/2/1.webp",
+      "bytes": 200638,
+      "source": "demSource",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.mapterhorn.com/2/2/2.webp",
+      "bytes": 33434,
+      "source": "demSource",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.mapterhorn.com/3/1/1.webp",
+      "bytes": 99794,
+      "source": "demSource",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.mapterhorn.com/3/1/2.webp",
+      "bytes": 216028,
+      "source": "demSource",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.mapterhorn.com/3/1/3.webp",
+      "bytes": 84718,
+      "source": "demSource",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.mapterhorn.com/3/2/1.webp",
+      "bytes": 141410,
+      "source": "demSource",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.mapterhorn.com/3/2/2.webp",
+      "bytes": 116826,
+      "source": "demSource",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.mapterhorn.com/3/2/3.webp",
+      "bytes": 64112,
+      "source": "demSource",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.mapterhorn.com/3/3/1.webp",
+      "bytes": 94658,
+      "source": "demSource",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.mapterhorn.com/3/3/2.webp",
+      "bytes": 36774,
+      "source": "demSource",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.mapterhorn.com/3/3/3.webp",
+      "bytes": 55716,
+      "source": "demSource",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.mapterhorn.com/4/4/4.webp",
+      "bytes": 93154,
+      "source": "demSource",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.mapterhorn.com/4/4/5.webp",
+      "bytes": 173180,
+      "source": "demSource",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.mapterhorn.com/4/4/6.webp",
+      "bytes": 74674,
+      "source": "demSource",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.mapterhorn.com/4/5/4.webp",
+      "bytes": 79842,
+      "source": "demSource",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.mapterhorn.com/4/5/5.webp",
+      "bytes": 75186,
+      "source": "demSource",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.mapterhorn.com/4/5/6.webp",
+      "bytes": 132,
+      "source": "demSource",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.mapterhorn.com/4/6/4.webp",
+      "bytes": 35794,
+      "source": "demSource",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.mapterhorn.com/4/6/6.webp",
+      "bytes": 582,
+      "source": "demSource",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.mapterhorn.com/5/10/10.webp",
+      "bytes": 183980,
+      "source": "demSource",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.mapterhorn.com/5/10/11.webp",
+      "bytes": 61336,
+      "source": "demSource",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.mapterhorn.com/5/10/9.webp",
+      "bytes": 78414,
+      "source": "demSource",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.mapterhorn.com/5/11/10.webp",
+      "bytes": 10630,
+      "source": "demSource",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.mapterhorn.com/5/11/11.webp",
+      "bytes": 16320,
+      "source": "demSource",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.mapterhorn.com/5/11/9.webp",
+      "bytes": 17318,
+      "source": "demSource",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.mapterhorn.com/5/12/9.webp",
+      "bytes": 19384,
+      "source": "demSource",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.mapterhorn.com/6/21/20.webp",
+      "bytes": 159358,
+      "source": "demSource",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.mapterhorn.com/6/21/21.webp",
+      "bytes": 140902,
+      "source": "demSource",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.mapterhorn.com/6/21/22.webp",
+      "bytes": 59448,
+      "source": "demSource",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.mapterhorn.com/6/22/20.webp",
+      "bytes": 6506,
+      "source": "demSource",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.mapterhorn.com/6/22/21.webp",
+      "bytes": 28654,
+      "source": "demSource",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.mapterhorn.com/6/22/22.webp",
+      "bytes": 54548,
+      "source": "demSource",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.mapterhorn.com/7/43/42.webp",
+      "bytes": 139434,
+      "source": "demSource",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.mapterhorn.com/7/43/43.webp",
+      "bytes": 112630,
+      "source": "demSource",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.mapterhorn.com/7/43/44.webp",
+      "bytes": 129742,
+      "source": "demSource",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.mapterhorn.com/7/44/42.webp",
+      "bytes": 29312,
+      "source": "demSource",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.mapterhorn.com/7/44/43.webp",
+      "bytes": 63446,
+      "source": "demSource",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.mapterhorn.com/7/44/44.webp",
+      "bytes": 139454,
+      "source": "demSource",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.mapterhorn.com/7/45/43.webp",
+      "bytes": 84,
+      "source": "demSource",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.mapterhorn.com/7/45/44.webp",
+      "bytes": 23446,
+      "source": "demSource",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.mapterhorn.com/8/87/86.webp",
+      "bytes": 132940,
+      "source": "demSource",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.mapterhorn.com/8/87/87.webp",
+      "bytes": 152822,
+      "source": "demSource",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.mapterhorn.com/8/87/88.webp",
+      "bytes": 134274,
+      "source": "demSource",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.mapterhorn.com/8/88/86.webp",
+      "bytes": 22812,
+      "source": "demSource",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.mapterhorn.com/8/88/87.webp",
+      "bytes": 108548,
+      "source": "demSource",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.mapterhorn.com/8/88/88.webp",
+      "bytes": 122514,
+      "source": "demSource",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.mapterhorn.com/8/89/86.webp",
+      "bytes": 52,
+      "source": "demSource",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.mapterhorn.com/8/89/87.webp",
+      "bytes": 71772,
+      "source": "demSource",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.mapterhorn.com/8/89/88.webp",
+      "bytes": 118076,
+      "source": "demSource",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.mapterhorn.com/9/175/174.webp",
+      "bytes": 120436,
+      "source": "demSource",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.mapterhorn.com/9/175/175.webp",
+      "bytes": 103952,
+      "source": "demSource",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.mapterhorn.com/9/175/176.webp",
+      "bytes": 107990,
+      "source": "demSource",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.mapterhorn.com/9/176/174.webp",
+      "bytes": 99266,
+      "source": "demSource",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.mapterhorn.com/9/176/175.webp",
+      "bytes": 111154,
+      "source": "demSource",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.mapterhorn.com/9/176/176.webp",
+      "bytes": 106070,
+      "source": "demSource",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.mapterhorn.com/9/177/174.webp",
+      "bytes": 30758,
+      "source": "demSource",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.mapterhorn.com/9/177/175.webp",
+      "bytes": 105272,
+      "source": "demSource",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.mapterhorn.com/9/177/176.webp",
+      "bytes": 98508,
+      "source": "demSource",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.openfreemap.org/planet.json",
+      "bytes": 29096,
+      "source": "openmaptiles",
+      "zoom": null
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/0/0/0.pbf",
+      "bytes": 80890,
+      "source": "openmaptiles",
+      "zoom": 0
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/1/0/0.pbf",
+      "bytes": 198009,
+      "source": "openmaptiles",
+      "zoom": 1
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/1/0/1.pbf",
+      "bytes": 191905,
+      "source": "openmaptiles",
+      "zoom": 1
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/1/1/0.pbf",
+      "bytes": 221780,
+      "source": "openmaptiles",
+      "zoom": 1
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/1/1/1.pbf",
+      "bytes": 194025,
+      "source": "openmaptiles",
+      "zoom": 1
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/10/352/350.pbf",
+      "bytes": 24325,
+      "source": "openmaptiles",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/10/352/351.pbf",
+      "bytes": 18836,
+      "source": "openmaptiles",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/10/352/352.pbf",
+      "bytes": 24795,
+      "source": "openmaptiles",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/10/353/350.pbf",
+      "bytes": 25009,
+      "source": "openmaptiles",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/10/353/351.pbf",
+      "bytes": 23744,
+      "source": "openmaptiles",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/10/353/352.pbf",
+      "bytes": 20467,
+      "source": "openmaptiles",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/10/354/350.pbf",
+      "bytes": 33933,
+      "source": "openmaptiles",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/10/354/351.pbf",
+      "bytes": 29407,
+      "source": "openmaptiles",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/10/354/352.pbf",
+      "bytes": 18759,
+      "source": "openmaptiles",
+      "zoom": 10
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/11/706/702.pbf",
+      "bytes": 8971,
+      "source": "openmaptiles",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/11/706/703.pbf",
+      "bytes": 11923,
+      "source": "openmaptiles",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/11/706/704.pbf",
+      "bytes": 10155,
+      "source": "openmaptiles",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/11/707/702.pbf",
+      "bytes": 13101,
+      "source": "openmaptiles",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/11/707/703.pbf",
+      "bytes": 18324,
+      "source": "openmaptiles",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/11/707/704.pbf",
+      "bytes": 12447,
+      "source": "openmaptiles",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/11/708/702.pbf",
+      "bytes": 11233,
+      "source": "openmaptiles",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/11/708/703.pbf",
+      "bytes": 15405,
+      "source": "openmaptiles",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/11/708/704.pbf",
+      "bytes": 12250,
+      "source": "openmaptiles",
+      "zoom": 11
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/12/1413/1406.pbf",
+      "bytes": 14233,
+      "source": "openmaptiles",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/12/1413/1407.pbf",
+      "bytes": 8754,
+      "source": "openmaptiles",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/12/1413/1408.pbf",
+      "bytes": 4987,
+      "source": "openmaptiles",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/12/1414/1406.pbf",
+      "bytes": 8301,
+      "source": "openmaptiles",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/12/1414/1407.pbf",
+      "bytes": 22800,
+      "source": "openmaptiles",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/12/1414/1408.pbf",
+      "bytes": 8873,
+      "source": "openmaptiles",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/12/1415/1406.pbf",
+      "bytes": 6200,
+      "source": "openmaptiles",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/12/1415/1407.pbf",
+      "bytes": 10631,
+      "source": "openmaptiles",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/12/1415/1408.pbf",
+      "bytes": 8506,
+      "source": "openmaptiles",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/12/1416/1406.pbf",
+      "bytes": 10320,
+      "source": "openmaptiles",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/12/1416/1407.pbf",
+      "bytes": 8553,
+      "source": "openmaptiles",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/12/1416/1408.pbf",
+      "bytes": 6897,
+      "source": "openmaptiles",
+      "zoom": 12
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2827/2813.pbf",
+      "bytes": 4654,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2827/2814.pbf",
+      "bytes": 2626,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2827/2815.pbf",
+      "bytes": 6357,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2827/2816.pbf",
+      "bytes": 2101,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2828/2813.pbf",
+      "bytes": 2556,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2828/2814.pbf",
+      "bytes": 4023,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2828/2815.pbf",
+      "bytes": 7028,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2828/2816.pbf",
+      "bytes": 4087,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2829/2813.pbf",
+      "bytes": 3716,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2829/2814.pbf",
+      "bytes": 13357,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2829/2815.pbf",
+      "bytes": 28874,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2829/2816.pbf",
+      "bytes": 6121,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2830/2813.pbf",
+      "bytes": 1866,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2830/2814.pbf",
+      "bytes": 6740,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2830/2815.pbf",
+      "bytes": 9551,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2830/2816.pbf",
+      "bytes": 5545,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2831/2813.pbf",
+      "bytes": 3958,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2831/2814.pbf",
+      "bytes": 4392,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2831/2815.pbf",
+      "bytes": 2739,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/13/2831/2816.pbf",
+      "bytes": 3272,
+      "source": "openmaptiles",
+      "zoom": 13
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5656/5627.pbf",
+      "bytes": 1477,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5656/5628.pbf",
+      "bytes": 949,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5656/5629.pbf",
+      "bytes": 1221,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5656/5630.pbf",
+      "bytes": 3886,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5656/5631.pbf",
+      "bytes": 2500,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5656/5632.pbf",
+      "bytes": 2096,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5657/5627.pbf",
+      "bytes": 692,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5657/5628.pbf",
+      "bytes": 1669,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5657/5629.pbf",
+      "bytes": 4636,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5657/5630.pbf",
+      "bytes": 6344,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5657/5631.pbf",
+      "bytes": 2192,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5657/5632.pbf",
+      "bytes": 2082,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5658/5627.pbf",
+      "bytes": 408,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5658/5628.pbf",
+      "bytes": 1546,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5658/5629.pbf",
+      "bytes": 31271,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5658/5630.pbf",
+      "bytes": 34743,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5658/5631.pbf",
+      "bytes": 24727,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5658/5632.pbf",
+      "bytes": 2561,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5659/5627.pbf",
+      "bytes": 2178,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5659/5628.pbf",
+      "bytes": 5343,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5659/5629.pbf",
+      "bytes": 21243,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5659/5630.pbf",
+      "bytes": 32093,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5659/5631.pbf",
+      "bytes": 41638,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5659/5632.pbf",
+      "bytes": 3495,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5660/5627.pbf",
+      "bytes": 1059,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5660/5628.pbf",
+      "bytes": 1806,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5660/5629.pbf",
+      "bytes": 11186,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5660/5630.pbf",
+      "bytes": 17761,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5660/5631.pbf",
+      "bytes": 10376,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5660/5632.pbf",
+      "bytes": 2870,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5661/5627.pbf",
+      "bytes": 659,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5661/5628.pbf",
+      "bytes": 7515,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5661/5629.pbf",
+      "bytes": 6207,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5661/5630.pbf",
+      "bytes": 2120,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5661/5631.pbf",
+      "bytes": 1798,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5661/5632.pbf",
+      "bytes": 1448,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5662/5627.pbf",
+      "bytes": 2324,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5662/5628.pbf",
+      "bytes": 5877,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5662/5629.pbf",
+      "bytes": 2054,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5662/5630.pbf",
+      "bytes": 1148,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5662/5631.pbf",
+      "bytes": 1167,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/14/5662/5632.pbf",
+      "bytes": 1174,
+      "source": "openmaptiles",
+      "zoom": 14
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/2/0/0.pbf",
+      "bytes": 440086,
+      "source": "openmaptiles",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/2/0/1.pbf",
+      "bytes": 657987,
+      "source": "openmaptiles",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/2/0/2.pbf",
+      "bytes": 635222,
+      "source": "openmaptiles",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/2/1/0.pbf",
+      "bytes": 1081709,
+      "source": "openmaptiles",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/2/1/1.pbf",
+      "bytes": 1295654,
+      "source": "openmaptiles",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/2/1/2.pbf",
+      "bytes": 1276421,
+      "source": "openmaptiles",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/2/2/0.pbf",
+      "bytes": 1223369,
+      "source": "openmaptiles",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/2/2/1.pbf",
+      "bytes": 1561084,
+      "source": "openmaptiles",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/2/2/2.pbf",
+      "bytes": 1507013,
+      "source": "openmaptiles",
+      "zoom": 2
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/3/1/1.pbf",
+      "bytes": 99884,
+      "source": "openmaptiles",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/3/1/2.pbf",
+      "bytes": 277177,
+      "source": "openmaptiles",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/3/1/3.pbf",
+      "bytes": 390392,
+      "source": "openmaptiles",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/3/2/1.pbf",
+      "bytes": 110260,
+      "source": "openmaptiles",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/3/2/2.pbf",
+      "bytes": 344619,
+      "source": "openmaptiles",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/3/2/3.pbf",
+      "bytes": 473940,
+      "source": "openmaptiles",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/3/3/1.pbf",
+      "bytes": 389841,
+      "source": "openmaptiles",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/3/3/2.pbf",
+      "bytes": 876103,
+      "source": "openmaptiles",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/3/3/3.pbf",
+      "bytes": 1111790,
+      "source": "openmaptiles",
+      "zoom": 3
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/4/4/4.pbf",
+      "bytes": 131141,
+      "source": "openmaptiles",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/4/4/5.pbf",
+      "bytes": 268236,
+      "source": "openmaptiles",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/4/4/6.pbf",
+      "bytes": 338934,
+      "source": "openmaptiles",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/4/5/4.pbf",
+      "bytes": 78032,
+      "source": "openmaptiles",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/4/5/5.pbf",
+      "bytes": 118699,
+      "source": "openmaptiles",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/4/5/6.pbf",
+      "bytes": 184349,
+      "source": "openmaptiles",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/4/6/4.pbf",
+      "bytes": 46693,
+      "source": "openmaptiles",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/4/6/5.pbf",
+      "bytes": 82172,
+      "source": "openmaptiles",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/4/6/6.pbf",
+      "bytes": 146716,
+      "source": "openmaptiles",
+      "zoom": 4
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/5/10/10.pbf",
+      "bytes": 97844,
+      "source": "openmaptiles",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/5/10/11.pbf",
+      "bytes": 108276,
+      "source": "openmaptiles",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/5/10/9.pbf",
+      "bytes": 60238,
+      "source": "openmaptiles",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/5/11/10.pbf",
+      "bytes": 37184,
+      "source": "openmaptiles",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/5/11/11.pbf",
+      "bytes": 34921,
+      "source": "openmaptiles",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/5/11/9.pbf",
+      "bytes": 24208,
+      "source": "openmaptiles",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/5/12/10.pbf",
+      "bytes": 6835,
+      "source": "openmaptiles",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/5/12/11.pbf",
+      "bytes": 7865,
+      "source": "openmaptiles",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/5/12/9.pbf",
+      "bytes": 9636,
+      "source": "openmaptiles",
+      "zoom": 5
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/6/21/20.pbf",
+      "bytes": 56413,
+      "source": "openmaptiles",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/6/21/21.pbf",
+      "bytes": 63767,
+      "source": "openmaptiles",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/6/21/22.pbf",
+      "bytes": 56093,
+      "source": "openmaptiles",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/6/22/20.pbf",
+      "bytes": 18701,
+      "source": "openmaptiles",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/6/22/21.pbf",
+      "bytes": 34078,
+      "source": "openmaptiles",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/6/22/22.pbf",
+      "bytes": 35635,
+      "source": "openmaptiles",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/6/23/20.pbf",
+      "bytes": 3344,
+      "source": "openmaptiles",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/6/23/21.pbf",
+      "bytes": 3979,
+      "source": "openmaptiles",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/6/23/22.pbf",
+      "bytes": 3978,
+      "source": "openmaptiles",
+      "zoom": 6
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/7/43/42.pbf",
+      "bytes": 60681,
+      "source": "openmaptiles",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/7/43/43.pbf",
+      "bytes": 60352,
+      "source": "openmaptiles",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/7/43/44.pbf",
+      "bytes": 57306,
+      "source": "openmaptiles",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/7/44/42.pbf",
+      "bytes": 25755,
+      "source": "openmaptiles",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/7/44/43.pbf",
+      "bytes": 52265,
+      "source": "openmaptiles",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/7/44/44.pbf",
+      "bytes": 71571,
+      "source": "openmaptiles",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/7/45/42.pbf",
+      "bytes": 4194,
+      "source": "openmaptiles",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/7/45/43.pbf",
+      "bytes": 9429,
+      "source": "openmaptiles",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/7/45/44.pbf",
+      "bytes": 24907,
+      "source": "openmaptiles",
+      "zoom": 7
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/8/87/86.pbf",
+      "bytes": 52977,
+      "source": "openmaptiles",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/8/87/87.pbf",
+      "bytes": 77839,
+      "source": "openmaptiles",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/8/87/88.pbf",
+      "bytes": 68303,
+      "source": "openmaptiles",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/8/88/86.pbf",
+      "bytes": 24442,
+      "source": "openmaptiles",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/8/88/87.pbf",
+      "bytes": 61379,
+      "source": "openmaptiles",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/8/88/88.pbf",
+      "bytes": 66599,
+      "source": "openmaptiles",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/8/89/86.pbf",
+      "bytes": 9971,
+      "source": "openmaptiles",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/8/89/87.pbf",
+      "bytes": 57923,
+      "source": "openmaptiles",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/8/89/88.pbf",
+      "bytes": 69378,
+      "source": "openmaptiles",
+      "zoom": 8
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/9/175/174.pbf",
+      "bytes": 47469,
+      "source": "openmaptiles",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/9/175/175.pbf",
+      "bytes": 35638,
+      "source": "openmaptiles",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/9/175/176.pbf",
+      "bytes": 36477,
+      "source": "openmaptiles",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/9/176/174.pbf",
+      "bytes": 44302,
+      "source": "openmaptiles",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/9/176/175.pbf",
+      "bytes": 42329,
+      "source": "openmaptiles",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/9/176/176.pbf",
+      "bytes": 41459,
+      "source": "openmaptiles",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/9/177/174.pbf",
+      "bytes": 29404,
+      "source": "openmaptiles",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/9/177/175.pbf",
+      "bytes": 55461,
+      "source": "openmaptiles",
+      "zoom": 9
+    },
+    {
+      "path": "tiles.openfreemap.org/planet/20260927_080001_pt/9/177/176.pbf",
+      "bytes": 24046,
+      "source": "openmaptiles",
+      "zoom": 9
+    },
+    {
+      "path": "www.ogis.org/basemap/fonts/Noto%20Sans%20Regular/0-255.pbf",
+      "bytes": 76580,
+      "source": "glyph",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/fonts/Open%20Sans%20Bold,Noto%20Sans%20Bold/0-255.pbf",
+      "bytes": 80473,
+      "source": "glyph",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/fonts/Open%20Sans%20Bold%20Italic,Noto%20Sans%20Regular/0-255.pbf",
+      "bytes": 84062,
+      "source": "glyph",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/fonts/Open%20Sans%20Italic,Noto%20Sans%20Italic/0-255.pbf",
+      "bytes": 78502,
+      "source": "glyph",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/fonts/Open%20Sans%20Regular,Noto%20Sans%20Bold/0-255.pbf",
+      "bytes": 75144,
+      "source": "glyph",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/fonts/Open%20Sans%20Regular,Noto%20Sans%20Regular/0-255.pbf",
+      "bytes": 75144,
+      "source": "glyph",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/fonts/Open%20Sans%20Regular,Open%20Sans%20Light/0-255.pbf",
+      "bytes": 74696,
+      "source": "glyph",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/fonts/Open%20Sans%20Semibold,Noto%20Sans%20Bold/0-255.pbf",
+      "bytes": 78019,
+      "source": "glyph",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/fonts/Open%20Sans%20Semibold,Noto%20Sans%20Regular/0-255.pbf",
+      "bytes": 78019,
+      "source": "glyph",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/fonts/Open%20Sans%20Semibold%20Italic,Noto%20Sans%20Bold/0-255.pbf",
+      "bytes": 81126,
+      "source": "glyph",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/fonts/Open%20Sans%20Semibold%20Italic,Noto%20Sans%20Italic/0-255.pbf",
+      "bytes": 81126,
+      "source": "glyph",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/fonts/Open%20Sans%20Semibold%20Italic,Noto%20Sans%20Regular/0-255.pbf",
+      "bytes": 81126,
+      "source": "glyph",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/sprite.json",
+      "bytes": 32381,
+      "source": "sprite",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/basemap/sprite.png",
+      "bytes": 313037,
+      "source": "sprite",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/outdoors/sprite.json",
+      "bytes": 2022,
+      "source": "sprite",
+      "zoom": null
+    },
+    {
+      "path": "www.ogis.org/outdoors/sprite.png",
+      "bytes": 2040,
+      "source": "sprite",
+      "zoom": null
+    }
+  ],
+  "absent": [
+    {
+      "path": "tile.ogis.app/paths/10/352/350.pbf",
+      "source": "outdoor-paths",
+      "zoom": 10,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/10/352/351.pbf",
+      "source": "outdoor-paths",
+      "zoom": 10,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/10/352/352.pbf",
+      "source": "outdoor-paths",
+      "zoom": 10,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/10/353/350.pbf",
+      "source": "outdoor-paths",
+      "zoom": 10,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/10/353/351.pbf",
+      "source": "outdoor-paths",
+      "zoom": 10,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/10/353/352.pbf",
+      "source": "outdoor-paths",
+      "zoom": 10,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/10/354/350.pbf",
+      "source": "outdoor-paths",
+      "zoom": 10,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/10/354/351.pbf",
+      "source": "outdoor-paths",
+      "zoom": 10,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/10/354/352.pbf",
+      "source": "outdoor-paths",
+      "zoom": 10,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/11/706/702.pbf",
+      "source": "outdoor-paths",
+      "zoom": 11,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/11/706/703.pbf",
+      "source": "outdoor-paths",
+      "zoom": 11,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/11/706/704.pbf",
+      "source": "outdoor-paths",
+      "zoom": 11,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/11/707/702.pbf",
+      "source": "outdoor-paths",
+      "zoom": 11,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/11/707/703.pbf",
+      "source": "outdoor-paths",
+      "zoom": 11,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/11/707/704.pbf",
+      "source": "outdoor-paths",
+      "zoom": 11,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/11/708/702.pbf",
+      "source": "outdoor-paths",
+      "zoom": 11,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/11/708/703.pbf",
+      "source": "outdoor-paths",
+      "zoom": 11,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/11/708/704.pbf",
+      "source": "outdoor-paths",
+      "zoom": 11,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2829/2816.pbf",
+      "source": "outdoor-paths",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/13/2831/2816.pbf",
+      "source": "outdoor-paths",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/9/175/174.pbf",
+      "source": "outdoor-paths",
+      "zoom": 9,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/9/175/175.pbf",
+      "source": "outdoor-paths",
+      "zoom": 9,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/9/175/176.pbf",
+      "source": "outdoor-paths",
+      "zoom": 9,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/9/176/174.pbf",
+      "source": "outdoor-paths",
+      "zoom": 9,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/9/176/175.pbf",
+      "source": "outdoor-paths",
+      "zoom": 9,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/9/176/176.pbf",
+      "source": "outdoor-paths",
+      "zoom": 9,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/9/177/174.pbf",
+      "source": "outdoor-paths",
+      "zoom": 9,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/9/177/175.pbf",
+      "source": "outdoor-paths",
+      "zoom": 9,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/paths/9/177/176.pbf",
+      "source": "outdoor-paths",
+      "zoom": 9,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/12/1413/1406.pbf",
+      "source": "outdoor-poi",
+      "zoom": 12,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/12/1413/1408.pbf",
+      "source": "outdoor-poi",
+      "zoom": 12,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/12/1414/1406.pbf",
+      "source": "outdoor-poi",
+      "zoom": 12,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/12/1414/1408.pbf",
+      "source": "outdoor-poi",
+      "zoom": 12,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/12/1415/1406.pbf",
+      "source": "outdoor-poi",
+      "zoom": 12,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/12/1415/1408.pbf",
+      "source": "outdoor-poi",
+      "zoom": 12,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/12/1416/1407.pbf",
+      "source": "outdoor-poi",
+      "zoom": 12,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/12/1416/1408.pbf",
+      "source": "outdoor-poi",
+      "zoom": 12,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2827/2813.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2827/2814.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2827/2816.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2828/2813.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2828/2814.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2828/2816.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2829/2813.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2829/2816.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2830/2813.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2830/2816.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2831/2813.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2831/2814.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2831/2815.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/13/2831/2816.pbf",
+      "source": "outdoor-poi",
+      "zoom": 13,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5656/5627.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5656/5628.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5656/5629.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5656/5631.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5656/5632.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5657/5627.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5657/5628.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5657/5629.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5657/5630.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5657/5631.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5657/5632.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5658/5627.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5658/5628.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5658/5629.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5658/5632.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5659/5627.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5659/5628.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5659/5632.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5660/5627.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5660/5628.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5660/5631.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5660/5632.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5661/5627.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5661/5628.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5661/5629.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5661/5630.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5661/5631.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5661/5632.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5662/5627.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5662/5628.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5662/5629.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5662/5630.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5662/5631.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/14/5662/5632.pbf",
+      "source": "outdoor-poi",
+      "zoom": 14,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11313/11255.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11313/11256.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11313/11257.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11313/11258.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11313/11259.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11313/11262.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11313/11263.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11313/11264.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11314/11255.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11314/11256.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11314/11257.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11314/11258.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11314/11259.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11314/11260.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11314/11261.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11314/11262.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11314/11263.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11314/11264.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11315/11255.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11315/11256.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11315/11257.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11315/11258.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11315/11259.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11315/11260.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11315/11261.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11315/11262.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11315/11263.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11315/11264.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11316/11255.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11316/11256.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11316/11257.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11316/11258.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11316/11259.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11316/11260.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11316/11261.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11316/11264.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11317/11255.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11317/11256.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11317/11257.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11317/11258.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11317/11259.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11317/11260.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11317/11264.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11318/11255.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11318/11256.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11318/11257.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11318/11258.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11318/11260.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11318/11264.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11319/11255.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11319/11256.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11319/11257.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11319/11258.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11319/11260.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11319/11261.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11319/11264.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11320/11255.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11320/11256.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11320/11257.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11320/11258.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11320/11259.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11320/11260.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11320/11261.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11320/11262.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11320/11263.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11320/11264.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11321/11255.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11321/11256.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11321/11257.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11321/11258.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11321/11259.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11321/11261.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11321/11262.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11321/11263.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11321/11264.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11322/11255.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11322/11256.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11322/11257.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11322/11258.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11322/11259.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11322/11260.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11322/11261.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11322/11262.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11322/11263.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11322/11264.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11323/11255.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11323/11256.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11323/11257.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11323/11258.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11323/11259.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11323/11260.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11323/11261.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11323/11262.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11323/11263.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11323/11264.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11324/11255.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11324/11256.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11324/11257.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11324/11258.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11324/11259.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11324/11260.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11324/11261.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11324/11262.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11324/11263.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/15/11324/11264.pbf",
+      "source": "outdoor-poi",
+      "zoom": 15,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22628/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22629/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22630/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22631/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22632/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22633/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22634/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22635/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22636/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22637/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22638/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22639/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22640/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22641/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22642/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22643/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22644/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22645/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22646/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22647/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22511.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22512.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22513.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22514.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22515.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22516.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22517.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22518.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22519.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22520.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22521.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22522.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22523.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22524.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22525.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22526.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tile.ogis.app/pois/16/22648/22527.pbf",
+      "source": "outdoor-poi",
+      "zoom": 16,
+      "status": "204/404"
+    },
+    {
+      "path": "tiles.mapterhorn.com/4/6/5.webp",
+      "source": "demSource",
+      "zoom": 4,
+      "status": "204/404"
+    },
+    {
+      "path": "tiles.mapterhorn.com/5/12/10.webp",
+      "source": "demSource",
+      "zoom": 5,
+      "status": "204/404"
+    },
+    {
+      "path": "tiles.mapterhorn.com/5/12/11.webp",
+      "source": "demSource",
+      "zoom": 5,
+      "status": "204/404"
+    },
+    {
+      "path": "tiles.mapterhorn.com/6/23/20.webp",
+      "source": "demSource",
+      "zoom": 6,
+      "status": "204/404"
+    },
+    {
+      "path": "tiles.mapterhorn.com/6/23/21.webp",
+      "source": "demSource",
+      "zoom": 6,
+      "status": "204/404"
+    },
+    {
+      "path": "tiles.mapterhorn.com/6/23/22.webp",
+      "source": "demSource",
+      "zoom": 6,
+      "status": "204/404"
+    },
+    {
+      "path": "tiles.mapterhorn.com/7/45/42.webp",
+      "source": "demSource",
+      "zoom": 7,
+      "status": "204/404"
+    }
+  ]
+}

@@ -6,15 +6,15 @@ import { mapDefaults } from "../../../src/defaults/maplibre.js";
 import {
   E2E_MAP_MOUNT,
   E2E_MAP_PLACEHOLDER,
-} from "../fixtures/map/vitePlugin.mjs";
+} from "../../fixtures/map/vitePlugin.mjs";
 
 /**
  * Map-asset stubs for the E2E suite.
  *
- * The committed fixture style ([`fixtures/map/style.json`](../fixtures/map/style.json))
+ * The committed fixture style ([`fixtures/map/style.json`](../../fixtures/map/style.json))
  * now points every committable source at the `__E2E_MAP_BASE__` placeholder, so
  * tiles, glyphs and sprites load same-origin from the E2E Vite middleware with
- * **zero Playwright interception** (`tests/e2e/fixtures/map/vitePlugin.mjs`).
+ * **zero Playwright interception** (`tests/fixtures/map/vitePlugin.mjs`).
  *
  * This module therefore only does three things:
  *
@@ -30,7 +30,7 @@ import {
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const STYLE_FIXTURE = join(HERE, "..", "fixtures", "map", "style.json");
+const STYLE_FIXTURE = join(HERE, "..", "..", "fixtures", "map", "style.json");
 
 const CORS_HEADERS = { "access-control-allow-origin": "*" };
 

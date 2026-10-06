@@ -4,6 +4,7 @@ import {
   expectNoConsoleErrors,
 } from "../helpers/console.js";
 import { waitForMapReady } from "../helpers/panel";
+import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
  * E2E tests for src/features/routes/
@@ -25,7 +26,7 @@ const ROUTE_IMPORT_TIMEOUT = 15000;
 
 /** Seed localStorage with permission granted and a known map view. */
 const withGrantedStorage = (page) =>
-  page.addInitScript(() => {
+  page.addInitScript((center) => {
     localStorage.setItem(
       "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
@@ -33,15 +34,15 @@ const withGrantedStorage = (page) =>
     localStorage.setItem(
       "ogis_view_app",
       JSON.stringify({
-        mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
+        mapView: { center, zoom: 14 },
       }),
     );
-  });
+  }, DEMO.center);
 
 /** Grant browser geolocation permission and set a fixed position. */
 const grantGeolocation = (
   page,
-  coords = { latitude: 50.6539, longitude: -128.0094 },
+  coords = { latitude: DEMO.center.lat, longitude: DEMO.center.lng },
 ) =>
   page
     .context()
@@ -67,7 +68,7 @@ const openRoutesPanel = async (page) => {
 const importFixture = async (page) => {
   await page
     .locator('input[type="file"]')
-    .setInputFiles("tests/e2e/fixtures/route.gpx");
+    .setInputFiles("tests/fixtures/route.gpx");
   // The import reads the file asynchronously, so the row can lag behind the
   // setInputFiles call under a starved software renderer; wait for the
   // concrete condition with a bounded budget rather than the 5 s default.
@@ -130,7 +131,7 @@ test.describe("Routes / Import", () => {
   }) => {
     await page
       .locator('input[type="file"]')
-      .setInputFiles("tests/e2e/fixtures/route.gpx");
+      .setInputFiles("tests/fixtures/route.gpx");
 
     const routeRow = page.locator(".border-top.py-2", {
       hasText: "Test Loop",

@@ -1,4 +1,5 @@
 import { test, expect } from "../helpers/test.js";
+import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
  * E2E tests for src/features/offline/
@@ -9,79 +10,84 @@ import { test, expect } from "../helpers/test.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// A wide box around the demo area for the Show test. Expanding the demo bounds
+// by a degree on each side keeps the fitted view below the seeded zoom 14.
+const SHOW_REGION = {
+  west: DEMO.bounds.west - 1,
+  south: DEMO.bounds.south - 1,
+  east: DEMO.bounds.east + 1,
+  north: DEMO.bounds.north + 1,
+};
+
 /** Seed a known map view and clear regions. */
 const withViewStorage = (page) =>
-  page.addInitScript(() => {
+  page.addInitScript((center) => {
     localStorage.setItem(
       "ogis_view_app",
       JSON.stringify({
-        mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
+        mapView: { center, zoom: 14 },
       }),
     );
     localStorage.removeItem("ogis_offline-regions_app");
-  });
+  }, DEMO.center);
 
 /** Seed one downloaded region directly into localStorage. */
 const withOneRegion = (page) =>
-  page.addInitScript(() => {
-    localStorage.setItem(
-      "ogis_view_app",
-      JSON.stringify({
-        mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
-      }),
-    );
-    localStorage.setItem(
-      "ogis_offline-regions_app",
-      JSON.stringify([
-        {
-          id: "test-region-1",
-          name: "Test Region",
-          createdAt: Date.now(),
-          bounds: {
-            west: -128.02,
-            south: 50.64,
-            east: -128.0,
-            north: 50.66,
+  page.addInitScript(
+    ({ center, bounds }) => {
+      localStorage.setItem(
+        "ogis_view_app",
+        JSON.stringify({
+          mapView: { center, zoom: 14 },
+        }),
+      );
+      localStorage.setItem(
+        "ogis_offline-regions_app",
+        JSON.stringify([
+          {
+            id: "test-region-1",
+            name: "Test Region",
+            createdAt: Date.now(),
+            bounds,
+            minZoom: 10,
+            maxZoom: 11,
+            tileCount: 12,
+            estimatedBytes: 720000,
           },
-          minZoom: 10,
-          maxZoom: 11,
-          tileCount: 12,
-          estimatedBytes: 720000,
-        },
-      ]),
-    );
-  });
+        ]),
+      );
+    },
+    { center: DEMO.center, bounds: DEMO.offlineRegion },
+  );
 
-/** Seed one downloaded region with bounds around the default coords (for Show). */
+/** Seed one downloaded region with bounds around the demo area (for Show). */
 const withShowRegion = (page) =>
-  page.addInitScript(() => {
-    localStorage.setItem(
-      "ogis_view_app",
-      JSON.stringify({
-        mapView: { center: { lat: 50.6539, lng: -128.0094 }, zoom: 14 },
-      }),
-    );
-    localStorage.setItem(
-      "ogis_offline-regions_app",
-      JSON.stringify([
-        {
-          id: "show-region-1",
-          name: "Test Region",
-          createdAt: Date.now(),
-          bounds: {
-            west: -129,
-            south: 49.5,
-            east: -127,
-            north: 52,
+  page.addInitScript(
+    ({ center, bounds }) => {
+      localStorage.setItem(
+        "ogis_view_app",
+        JSON.stringify({
+          mapView: { center, zoom: 14 },
+        }),
+      );
+      localStorage.setItem(
+        "ogis_offline-regions_app",
+        JSON.stringify([
+          {
+            id: "show-region-1",
+            name: "Test Region",
+            createdAt: Date.now(),
+            bounds,
+            minZoom: 10,
+            maxZoom: 11,
+            tileCount: 12,
+            estimatedBytes: 720000,
           },
-          minZoom: 10,
-          maxZoom: 11,
-          tileCount: 12,
-          estimatedBytes: 720000,
-        },
-      ]),
-    );
-  });
+        ]),
+      );
+    },
+    { center: DEMO.center, bounds: SHOW_REGION },
+  );
 
 /** Open the Offline Maps panel via its side panel nav tab. */
 const openOfflinePanel = async (page) => {
@@ -277,10 +283,11 @@ test.describe("Offline / Show", () => {
         .getByRole("button", { name: "Show", exact: true }),
     ).toBeVisible();
 
-    // The map starts at the seeded view (zoom 14 at the default coords)
+    // The map starts at the seeded view (zoom 14 at the demo centre)
+    const seededHash = `#map=14/${DEMO.center.lat.toFixed(6)}/${DEMO.center.lng.toFixed(6)}`;
     await expect
       .poll(() => page.url(), { timeout: 6000 })
-      .toMatch(/#map=14\/50\.653900\/-128\.009400/);
+      .toContain(seededHash);
 
     // The map canvas is visible while the panel is open
     await expect(page.locator(".ogis-map canvas")).toBeVisible();
@@ -300,7 +307,13 @@ test.describe("Offline / Show", () => {
       const zoom = Number(match[1]);
       const lat = Number(match[2]);
       const lng = Number(match[3]);
-      return lat > 49.5 && lat < 52 && lng > -129 && lng < -127 && zoom < 14;
+      return (
+        lat > SHOW_REGION.south &&
+        lat < SHOW_REGION.north &&
+        lng > SHOW_REGION.west &&
+        lng < SHOW_REGION.east &&
+        zoom < 14
+      );
     };
 
     await expect.poll(isWithinRegion, { timeout: 15000 }).toBe(true);

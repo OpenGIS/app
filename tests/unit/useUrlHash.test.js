@@ -7,20 +7,20 @@ import {
 
 describe("formatUrlHash", () => {
   it("formats all five segments", () => {
-    expect(formatUrlHash(16, 50.6539, -128.0094, 45, 120)).toBe(
-      "#map=16/50.653900/-128.009400/45/120",
+    expect(formatUrlHash(16, 12.34, 56.78, 45, 120)).toBe(
+      "#map=16/12.340000/56.780000/45/120",
     );
   });
 
   it("defaults pitch and bearing to zero", () => {
-    expect(formatUrlHash(14.7, 50.6539, -128.0094)).toBe(
-      "#map=15/50.653900/-128.009400/0/0",
+    expect(formatUrlHash(14.7, 12.34, 56.78)).toBe(
+      "#map=15/12.340000/56.780000/0/0",
     );
   });
 
   it("rounds zoom, pitch and bearing to integers", () => {
-    expect(formatUrlHash(10.5, 50.6539, -128.0094, 44.4, 120.5)).toBe(
-      "#map=11/50.653900/-128.009400/44/121",
+    expect(formatUrlHash(10.5, 12.34, 56.78, 44.4, 120.5)).toBe(
+      "#map=11/12.340000/56.780000/44/121",
     );
   });
 
@@ -46,11 +46,11 @@ describe("parseUrlHash", () => {
   });
 
   it("parses integer zoom with positive coords", () => {
-    window.location.hash = "#map=10/50.653900/-128.009400";
+    window.location.hash = "#map=10/12.340000/56.780000";
     const result = parseUrlHash();
     expect(result).toEqual({
       zoom: 10,
-      center: [-128.0094, 50.6539], // [lng, lat]
+      center: [56.78, 12.34], // [lng, lat]
       pitch: 0,
       bearing: 0,
     });
@@ -90,60 +90,60 @@ describe("parseUrlHash", () => {
   });
 
   it("parses a five-segment hash with pitch and bearing", () => {
-    window.location.hash = "#map=16/50.653900/-128.009400/45/120";
+    window.location.hash = "#map=16/12.340000/56.780000/45/120";
     const result = parseUrlHash();
     expect(result).toEqual({
       zoom: 16,
-      center: [-128.0094, 50.6539],
+      center: [56.78, 12.34],
       pitch: 45,
       bearing: 120,
     });
   });
 
   it("defaults pitch and bearing to zero for a three-segment hash", () => {
-    window.location.hash = "#map=12/50.6539/-128.0094";
+    window.location.hash = "#map=12/12.34/56.78";
     const result = parseUrlHash();
     expect(result.pitch).toBe(0);
     expect(result.bearing).toBe(0);
   });
 
   it("ignores extra path segments after the three values", () => {
-    window.location.hash = "#map=12/50.6539/-128.0094/extra/stuff";
+    window.location.hash = "#map=12/12.34/56.78/extra/stuff";
     const result = parseUrlHash();
     expect(result).toEqual({
       zoom: 12,
-      center: [-128.0094, 50.6539],
+      center: [56.78, 12.34],
       pitch: 0,
       bearing: 0,
     });
   });
 
   it("ignores extra path segments after the five values", () => {
-    window.location.hash = "#map=12/50.6539/-128.0094/45/120/extra";
+    window.location.hash = "#map=12/12.34/56.78/45/120/extra";
     const result = parseUrlHash();
     expect(result).toEqual({
       zoom: 12,
-      center: [-128.0094, 50.6539],
+      center: [56.78, 12.34],
       pitch: 45,
       bearing: 120,
     });
   });
 
   it("returns null when zoom is missing", () => {
-    window.location.hash = "#map=/50.6539/-128.0094";
+    window.location.hash = "#map=/12.34/56.78";
     expect(parseUrlHash()).toBeNull();
   });
 
   it("returns null when longitude is missing", () => {
-    window.location.hash = "#map=10/50.6539";
+    window.location.hash = "#map=10/12.34";
     expect(parseUrlHash()).toBeNull();
   });
 });
 
 describe("updateUrlHash", () => {
   it("formats hash with rounded zoom, pitch and bearing", () => {
-    updateUrlHash(14.7, 50.6539, -128.0094, 44.6, 120.2);
-    expect(window.location.hash).toBe("#map=15/50.653900/-128.009400/45/120");
+    updateUrlHash(14.7, 12.34, 56.78, 44.6, 120.2);
+    expect(window.location.hash).toBe("#map=15/12.340000/56.780000/45/120");
   });
 
   it("formats zero coordinates", () => {
@@ -157,17 +157,17 @@ describe("updateUrlHash", () => {
   });
 
   it("rounds zoom down from .4", () => {
-    updateUrlHash(10.4, 50.6539, -128.0094);
-    expect(window.location.hash).toBe("#map=10/50.653900/-128.009400/0/0");
+    updateUrlHash(10.4, 12.34, 56.78);
+    expect(window.location.hash).toBe("#map=10/12.340000/56.780000/0/0");
   });
 
   it("rounds zoom up from .5", () => {
-    updateUrlHash(10.5, 50.6539, -128.0094);
-    expect(window.location.hash).toBe("#map=11/50.653900/-128.009400/0/0");
+    updateUrlHash(10.5, 12.34, 56.78);
+    expect(window.location.hash).toBe("#map=11/12.340000/56.780000/0/0");
   });
 
   it("rounds pitch and bearing to integers", () => {
-    updateUrlHash(16, 50.6539, -128.0094, 59.5, 359.6);
-    expect(window.location.hash).toBe("#map=16/50.653900/-128.009400/60/360");
+    updateUrlHash(16, 12.34, 56.78, 59.5, 359.6);
+    expect(window.location.hash).toBe("#map=16/12.340000/56.780000/60/360");
   });
 });

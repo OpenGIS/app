@@ -14,8 +14,8 @@ describe("lonLatToTile", () => {
   });
 
   it("computes a known tile", () => {
-    // Holberg, BC (default coordinates) at z6
-    const { x, y } = lonLatToTile(-128.0094, 50.6539, 6);
+    // An illustrative location at z6
+    const { x, y } = lonLatToTile(56.78, 12.34, 6);
     expect(x).toBeGreaterThanOrEqual(0);
     expect(y).toBeGreaterThanOrEqual(0);
     expect(Number.isInteger(x)).toBe(true);
@@ -23,7 +23,7 @@ describe("lonLatToTile", () => {
   });
 
   it("respects the 2^z world width", () => {
-    const { x, y } = lonLatToTile(-128.0094, 50.6539, 6);
+    const { x, y } = lonLatToTile(56.78, 12.34, 6);
     expect(x).toBeLessThan(2 ** 6);
     expect(y).toBeLessThan(2 ** 6);
   });
