@@ -4,7 +4,10 @@ import {
   expectNoConsoleErrors,
 } from "../helpers/console.js";
 import { renderBurst, waitForMapIdle } from "../helpers/mapIdle.js";
-import { waitForLayoutSettled } from "../helpers/layout.js";
+import {
+  waitForLayoutSettled,
+  normaliseCaptureState,
+} from "../helpers/layout.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 import { DEMO_AREA } from "../../fixtures/map/demoArea.mjs";
 import { createHash } from "node:crypto";
@@ -483,46 +486,6 @@ const setCaptureProbe = async (page, visible) => {
 };
 
 /**
- * Pin the terrain depth framebuffer to "no occlusion" for one capture.
- *
- * MapLibre multiplies every symbol's alpha by `calculate_visibility()`, which
- * samples the terrain depth framebuffer (see the `TERRAIN3D` branch of the
- * symbol vertex shaders). That framebuffer is redrawn only when the camera
- * matrix changes or the renderable tile set changes — not when a raster-dem
- * tile's *data* finishes loading (`TerrainTileManager.anyTilesAfterTime`
- * compares a `now()` timestamp against the painter's `Date.now()`, so it never
- * fires). A symbol that sits on the terrain surface can therefore be sampled
- * once as "in front" and once, after an unrelated camera change, as "slightly
- * behind" — a sub-pixel alpha difference (observed on the demo's food POI in
- * `feature-offline`). Clearing the depth buffer to the far plane and freezing
- * the depth pass makes the factor exactly 1 for every symbol, matching the
- * committed capture. This is applied only to the one state that has shown the
- * variance; the other captures keep their committed terrain occlusion.
- *
- * Best-effort: a missing map/terrain leaves the capture untouched.
- */
-const pinTerrainDepthFar = (page) =>
-  page.evaluate(async () => {
-    const mod = await import("/src/composables/useMap.js");
-    const map = mod.getMapInstance("app");
-    const terrain = map?.terrain;
-    const painter = map?.painter;
-    if (!terrain || !painter) return false;
-    const fbo = terrain.getFramebuffer("depth");
-    const gl = painter.context.gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo.framebuffer);
-    gl.clearColor(1, 1, 1, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    if (!painter.__depthFrozen) {
-      painter.maybeDrawDepth = () => {};
-      painter.__depthFrozen = true;
-    }
-    map.triggerRepaint();
-    return true;
-  });
-
-/**
  * Screenshot one state once the composited output has stopped changing.
  *
  * The map can end a settle with a placement change that never scheduled a
@@ -883,7 +846,7 @@ for (const vp of VIEWPORTS) {
 
       // closed — no panel. Desktop auto-opens the Info pane, so close it first.
       await closePanel(page);
-      await waitForLayoutSettled(page, testInfo);
+      await normaliseCaptureState(page, testInfo);
       await capture(page, dir, "closed");
 
       // menu-open — the tab strip (menu pane). Opened from a closed panel so
@@ -891,7 +854,7 @@ for (const vp of VIEWPORTS) {
       await page.locator("#menu-button").click();
       await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
       await expect(page.locator(".panel-nav")).toBeVisible();
-      await waitForLayoutSettled(page, testInfo);
+      await normaliseCaptureState(page, testInfo);
       await capture(page, dir, "menu-open");
 
       // info-open — the Info pane, rendered without the tab strip. Close the
@@ -901,7 +864,7 @@ for (const vp of VIEWPORTS) {
       await page.locator("#attribution-button").click();
       await expect(page.locator(".ogis-info-panel")).toBeVisible();
       await expect(page.locator(".panel-nav")).toHaveCount(0);
-      await waitForLayoutSettled(page, testInfo);
+      await normaliseCaptureState(page, testInfo);
       await capture(page, dir, "info-open");
 
       // drag-collapsed — close the pane so the bottom-left chip is visible,
@@ -920,13 +883,14 @@ for (const vp of VIEWPORTS) {
       await expect(
         page.locator("#attribution-button .ogis-attribution-chip__text"),
       ).toHaveCount(0, { timeout: 20000 });
-      await waitForLayoutSettled(page, testInfo);
+      await normaliseCaptureState(page, testInfo);
       await capture(page, dir, "drag-collapsed");
 
       // scale-collapsed — the MapLibre scale control sits inline beside the
       // collapsed chip (the root data attribute drives the CSS). Geometry is
       // asserted softly here: the matrix runs at every viewport.
       await expect(page.locator(".maplibregl-ctrl-scale")).toBeVisible();
+      await normaliseCaptureState(page, testInfo);
       await capture(page, dir, "scale-collapsed");
 
       // locate-active — Locate chip becomes Located (permission pre-seeded).
@@ -934,7 +898,7 @@ for (const vp of VIEWPORTS) {
       await expect(page.locator("#locate-button")).toContainText("Located", {
         timeout: 5000,
       });
-      await waitForLayoutSettled(page, testInfo);
+      await normaliseCaptureState(page, testInfo);
       await capture(page, dir, "locate-active");
 
       // record-active — a paused in-progress ride is seeded and reloaded so the
@@ -963,7 +927,7 @@ for (const vp of VIEWPORTS) {
         })
         .toMatch(/Recording/);
       await openPanelTab(page, { name: "Recordings", exact: true });
-      await waitForLayoutSettled(page, testInfo);
+      await normaliseCaptureState(page, testInfo);
       await capture(page, dir, "record-active");
     });
   });
@@ -1014,7 +978,7 @@ test.describe("Feature states — desktop landscape", () => {
       .locator(".ogis-panel")
       .getByRole("button", { name: "Show", exact: true })
       .click();
-    await waitForLayoutSettled(page, testInfo);
+    await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "feature-routes");
 
     // Start navigation — the panel reports the active navigation banner.
@@ -1023,7 +987,7 @@ test.describe("Feature states — desktop landscape", () => {
       .getByRole("button", { name: "Navigate", exact: true })
       .click();
     await expect(page.getByText(/Navigation active/)).toBeVisible();
-    await waitForLayoutSettled(page, testInfo);
+    await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "feature-route-navigating");
   });
 
@@ -1083,12 +1047,11 @@ test.describe("Feature states — desktop landscape", () => {
     await expect(
       page.locator(".ogis-panel").getByText("Test Region"),
     ).toBeVisible();
-    await waitForLayoutSettled(page, testInfo);
     // The demo food POI sits on the terrain surface, so the terrain
     // depth-visibility factor can land on either side of the "in front" test
-    // depending on when the depth framebuffer was last drawn; pin it so the
-    // capture is reproducible without perturbing the other feature states.
-    await pinTerrainDepthFar(page);
+    // depending on when the depth framebuffer was last drawn; the shared
+    // normalisation pins it, as it does for every other capture.
+    await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "feature-offline");
   });
 
@@ -1139,7 +1102,7 @@ test.describe("Feature states — desktop landscape", () => {
       .locator(".ogis-panel")
       .getByRole("button", { name: "Show", exact: true })
       .click();
-    await waitForLayoutSettled(page, testInfo);
+    await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "feature-recordings");
   });
 });
