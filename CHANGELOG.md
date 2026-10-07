@@ -1,3 +1,10 @@
+# [3.8.0](https://github.com/OpenGIS/app/compare/v3.7.2...v3.8.0) (2026-10-07)
+
+
+### Features
+
+* **icons:** vendor icon set as first-party ([a6925eb](https://github.com/OpenGIS/app/commit/a6925ebd91eca27c35615764a3e17f95f3b73e54))
+
 ## [3.7.2](https://github.com/OpenGIS/app/compare/v3.7.1...v3.7.2) (2026-10-05)
 
 
