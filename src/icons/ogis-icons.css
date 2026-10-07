@@ -1,0 +1,176 @@
+@font-face {
+    font-family: "ogis-icons";
+    src: url("./ogis-icons.woff2?80d6f4025e072a73503c7a495ad033c9") format("woff2"),
+url("./ogis-icons.woff?80d6f4025e072a73503c7a495ad033c9") format("woff");
+}
+
+i[class^="oi-"]:before, i[class*=" oi-"]:before {
+    font-family: ogis-icons !important;
+    font-style: normal;
+    font-weight: normal !important;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.oi-x:before {
+    content: "\f101";
+}
+.oi-x-circle:before {
+    content: "\f102";
+}
+.oi-trash:before {
+    content: "\f103";
+}
+.oi-three-dots:before {
+    content: "\f104";
+}
+.oi-sun:before {
+    content: "\f105";
+}
+.oi-speedometer2:before {
+    content: "\f106";
+}
+.oi-sidebar-info:before {
+    content: "\f107";
+}
+.oi-search:before {
+    content: "\f108";
+}
+.oi-route:before {
+    content: "\f109";
+}
+.oi-record-btn-fill:before {
+    content: "\f10a";
+}
+.oi-question-circle:before {
+    content: "\f10b";
+}
+.oi-position:before {
+    content: "\f10c";
+}
+.oi-position-lock:before {
+    content: "\f10d";
+}
+.oi-position-heading:before {
+    content: "\f10e";
+}
+.oi-plus-circle:before {
+    content: "\f10f";
+}
+.oi-person-circle:before {
+    content: "\f110";
+}
+.oi-pencil:before {
+    content: "\f111";
+}
+.oi-pause-circle:before {
+    content: "\f112";
+}
+.oi-moon:before {
+    content: "\f113";
+}
+.oi-logo:before {
+    content: "\f114";
+}
+.oi-lock:before {
+    content: "\f115";
+}
+.oi-list:before {
+    content: "\f116";
+}
+.oi-layout-sidebar-inset:before {
+    content: "\f117";
+}
+.oi-info-circle:before {
+    content: "\f118";
+}
+.oi-house:before {
+    content: "\f119";
+}
+.oi-heart:before {
+    content: "\f11a";
+}
+.oi-graph-down:before {
+    content: "\f11b";
+}
+.oi-globe:before {
+    content: "\f11c";
+}
+.oi-gear:before {
+    content: "\f11d";
+}
+.oi-folder2-open:before {
+    content: "\f11e";
+}
+.oi-folder:before {
+    content: "\f11f";
+}
+.oi-file-text:before {
+    content: "\f120";
+}
+.oi-file-earmark:before {
+    content: "\f121";
+}
+.oi-exclamation-circle:before {
+    content: "\f122";
+}
+.oi-eraser:before {
+    content: "\f123";
+}
+.oi-envelope:before {
+    content: "\f124";
+}
+.oi-dash-circle:before {
+    content: "\f125";
+}
+.oi-cloud-arrow-up:before {
+    content: "\f126";
+}
+.oi-circle:before {
+    content: "\f127";
+}
+.oi-check:before {
+    content: "\f128";
+}
+.oi-check-circle:before {
+    content: "\f129";
+}
+.oi-caret-up:before {
+    content: "\f12a";
+}
+.oi-caret-right:before {
+    content: "\f12b";
+}
+.oi-caret-left:before {
+    content: "\f12c";
+}
+.oi-caret-down:before {
+    content: "\f12d";
+}
+.oi-bell:before {
+    content: "\f12e";
+}
+.oi-arrow-left-right:before {
+    content: "\f12f";
+}
+.oi-arrow-down-right:before {
+    content: "\f130";
+}
+.oi-arrow-clockwise:before {
+    content: "\f131";
+}
+.oi-ogis-logo:before {
+    content: "\f132";
+}
+.oi-file-arrow-down:before {
+    content: "\f133";
+}
+.oi-map:before {
+    content: "\f134";
+}
+.oi-waymark-logo:before {
+    content: "\f135";
+}

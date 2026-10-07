@@ -7,5 +7,8 @@ tests/e2e/fixtures/
 package-lock.json
 CHANGELOG.md
 
+# Generated icon bundle (regenerate with: npm run icons:build)
+src/icons/
+
 # Local agent scratch space
 .opencode/

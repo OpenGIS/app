@@ -53,6 +53,7 @@ A _loveletter_ to the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem 
 | **Rendering**      | [MapLibre GL JS](https://maplibre.org/)                                                                           |
 | **Tile Schema**    | [OpenMapTiles](https://www.openmaptiles.org/) / [OSM Bright](https://github.com/openmaptiles/osm-bright-gl-style) |
 | **User Interface** | [Vue JS](https://vuejs.org/) / [Bootstrap](https://getbootstrap.com/)                                             |
+| **Icons**          | [OpenGIS icons](https://github.com/OpenGIS/icons) / [Bootstrap Icons](https://github.com/twbs/icons)              |
 
 ## Development
 
@@ -67,6 +68,16 @@ npm install
 ```bash
 npm run build
 ```
+
+### Icons
+
+Icon sources are vendored in `src/icons/` alongside the committed generated bundle.
+
+```bash
+npm run icons:build   # regenerate the bundle after adding or updating source icons
+```
+
+See [docs/14.icons.md](docs/14.icons.md) for the pipeline.
 
 ### Local
 

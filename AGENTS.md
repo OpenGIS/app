@@ -21,7 +21,7 @@ npm run format       # rewrite files with Prettier
 
 ### Running tests — timing guidance
 
-`npm test` runs the unit suite (Vitest) only: 318 tests across 23 files, completing in under 10 seconds. Use it, plus targeted single-spec E2E runs, during rapid development.
+`npm test` runs the unit suite (Vitest) only: 327 tests across 24 files, completing in under 10 seconds. Use it, plus targeted single-spec E2E runs, during rapid development.
 
 CI is a quick gate: unit tests, Prettier, and the **functional** E2E suite only — the screenshot matrix is excluded (`--grep-invert @screenshots`) and sharded three ways. Functional shards are expected to finish in single-digit minutes (measured at ~8 min before the screenshot exclusion). See `docs/13.ci.md`.
 

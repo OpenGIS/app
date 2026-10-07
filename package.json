@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "icons:build": "node scripts/icons.js",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
@@ -20,7 +21,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@ogis/icons": "^0.3.0",
     "axios": "^1.15.0",
     "bootstrap": "^5.3.8",
     "magvar": "^2.0.1",
@@ -36,10 +36,17 @@
     "@semantic-release/npm": "^12.0.2",
     "@semantic-release/release-notes-generator": "^14.1.1",
     "@vitejs/plugin-vue": "^6.0.5",
+    "fantasticon": "^3.0.0",
+    "fs-extra": "^11.3.0",
+    "glob": "^11.0.0",
     "happy-dom": "^20.8.9",
+    "potrace": "^2.1.8",
     "prettier": "^3.9.9",
     "sass": "^1.98.0",
     "semantic-release": "^24.2.9",
+    "svg-path-commander": "^2.1.0",
+    "svg-sprite": "^2.0.0",
+    "svgo": "^4.0.0",
     "vite": "^8.0.0",
     "vitest": "^4.1.2"
   }

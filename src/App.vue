@@ -1,6 +1,6 @@
 <script setup>
 import { ref, inject, onMounted } from "vue";
-import iconSprite from "@ogis/icons/dist/ogis-icons.svg?raw";
+import iconSprite from "@/icons/ogis-icons.svg?raw";
 
 // UI
 import Controls from "@/components/ui/controls.vue";
