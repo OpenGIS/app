@@ -94,12 +94,16 @@ echo "VITE_API_BASE_URL=https://api.example.com" > .env.local
 npm run dev
 ```
 
-### Test
+### Testing
 
 ```bash
-npm test                                          # unit tests (vitest, < 10 s)
-npm run test:e2e -- tests/e2e/{spec}.spec.js      # single E2E spec during development
-npm run test:e2e                                  # full E2E suite incl. screenshots — local final verification
+# Unit
+npm test
+
+# E2E
+npx playwright install chromium
+npm run test:e2e -- tests/e2e/{spec}.spec.js
+npm run test:e2e
 ```
 
 See [docs/9.testing.md](docs/9.testing.md) for the testing strategy.
