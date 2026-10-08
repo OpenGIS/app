@@ -1,3 +1,10 @@
+# [3.9.0](https://github.com/OpenGIS/app/compare/v3.8.0...v3.9.0) (2026-10-08)
+
+
+### Features
+
+* **e2e:** crack screenshot determinism ([5fc875f](https://github.com/OpenGIS/app/commit/5fc875fe67254b31394481438469380094dee80f))
+
 # [3.8.0](https://github.com/OpenGIS/app/compare/v3.7.2...v3.8.0) (2026-10-07)
 
 
