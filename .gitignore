@@ -27,3 +27,6 @@ dist-ssr
 playwright-report/
 test-results/
 .env
+
+# Written at runtime by tests/e2e/helpers/determinismSetup.js
+SwiftShader.ini

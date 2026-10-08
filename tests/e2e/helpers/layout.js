@@ -30,7 +30,10 @@ import {
  * On timeout the offending animations are dumped in the thrown error. An
  * infinite-iteration or paused animation never reaches `"finished"`, so without
  * this evidence the failure is a bare "waitForFunction timed out" with nothing
- * naming what is stuck.
+ * naming what is stuck. The 300 s ceiling (raised from 30 s) covers the
+ * single-threaded SwiftShader capture pin, where the heavyweight record-active
+ * reload can leave the main thread busy on one long synchronous render for over
+ * a minute; the interval poll is only re-evaluated once that render yields.
  */
 export const waitForAnimationsSettled = async (page) => {
   try {
@@ -43,7 +46,7 @@ export const waitForAnimationsSettled = async (page) => {
           .some((animation) => animation.playState !== "finished");
       },
       null,
-      { timeout: 30000, polling: 100 },
+      { timeout: 300000, polling: 100 },
     );
   } catch (error) {
     const details = await page
@@ -90,7 +93,7 @@ export const waitForAnimationsSettled = async (page) => {
         animations: null,
         evaluateError: String(evaluateError),
       }));
-    error.message = `waitForAnimationsSettled timed out after 30000ms. Stuck animations: ${JSON.stringify(
+    error.message = `waitForAnimationsSettled timed out after 300000ms. Stuck animations: ${JSON.stringify(
       details,
     )}`;
     throw error;
@@ -98,40 +101,54 @@ export const waitForAnimationsSettled = async (page) => {
 };
 
 /**
- * Wait until MapLibre's canvas drawing buffer matches its container and the
- * geometry is stable across three consecutive animation frames. Canvas and
- * container briefly agree on every intermediate ResizeObserver tick, so the
- * multi-frame hold after the CSS transition ends is what rules out a
- * mid-resize frame.
+ * Wait until MapLibre's canvas drawing buffer matches its container.
+ *
+ * MapLibre resizes its canvas through its own ResizeObserver, one render behind
+ * the CSS transition that moves `.ogis-map` (a 0.3 s `left`/`width` change).
+ * A fixed timeout therefore sometimes captures a mid-transition frame (a
+ * ~340 px horizontal shift). A ResizeObserver on both the container and the
+ * canvas resolves exactly when the canvas' content-box matches the container's,
+ * then holds one animation frame for the resize render to land. Observing the
+ * canvas as well as the container matters: once the container reaches its final
+ * width its own observer stops firing, so a still-lagging canvas would otherwise
+ * only be caught by the next container resize. The timeout is the ceiling the
+ * old three-rAF hold lacked — under rAF starvation that hold could hang to the
+ * 15-minute file timeout.
  */
-export const waitForCanvasResize = (page) =>
+export const waitForCanvasResize = (page, { timeout = 30000 } = {}) =>
   page.evaluate(
-    () =>
+    (waitTimeout) =>
       new Promise((resolve) => {
         const container = document.querySelector(".ogis-map");
         const canvas = container?.querySelector(".maplibregl-canvas");
         if (!container || !canvas) return resolve();
 
-        let stable = 0;
-        let lastSignature = "";
-        const tick = () => {
-          const signature = [
-            container.clientWidth,
-            container.clientHeight,
-            canvas.clientWidth,
-            canvas.clientHeight,
-          ].join("x");
-          const matches =
-            canvas.clientWidth === container.clientWidth &&
-            canvas.clientHeight === container.clientHeight;
-          if (matches && signature === lastSignature) stable++;
-          else stable = 0;
-          lastSignature = signature;
-          if (stable >= 3) return resolve();
-          requestAnimationFrame(tick);
+        let settled = false;
+        let timer = null;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          observer.disconnect();
+          clearTimeout(timer);
+          resolve();
         };
-        requestAnimationFrame(tick);
+        const matches = () =>
+          canvas.clientWidth === container.clientWidth &&
+          canvas.clientHeight === container.clientHeight;
+        const check = () => {
+          if (settled || !matches()) return;
+          // Match confirmed: stop watching, then present one frame so the
+          // resize render lands. The timer still covers a starved rAF.
+          observer.disconnect();
+          requestAnimationFrame(finish);
+        };
+        const observer = new ResizeObserver(check);
+        observer.observe(container);
+        observer.observe(canvas);
+        timer = setTimeout(finish, waitTimeout);
+        check();
       }),
+    timeout,
   );
 
 /**
@@ -150,7 +167,7 @@ export const waitForLayoutSettled = async (page, testInfo) => {
   // Tiles read as loaded before their glyph ranges do; wait for the fetches to
   // quiesce so the paint settle below re-places with every glyph cached.
   await waitForGlyphsLoaded(page);
-  await waitForMapPainted(page);
+  await waitForMapPainted(page, testInfo);
 };
 
 /**
@@ -236,7 +253,7 @@ export const refreshScaleControl = (page) =>
  * Normalise the capture state immediately before a screenshot: the caller's
  * settle plus the two capture-time pins (terrain depth and scale width). Call
  * this — rather than `waitForLayoutSettled` alone — before every `capture()`,
- * so every committed JPEG is generated from the same normalised state.
+ * so every committed PNG is generated from the same normalised state.
  */
 export const normaliseCaptureState = async (page, testInfo) => {
   await waitForLayoutSettled(page, testInfo);

@@ -11,16 +11,27 @@ const useSwiftShader = !!process.env.CI || process.env.E2E_SWIFTSHADER === "1";
  */
 export default defineConfig({
   testDir: "./tests/e2e",
+  /* Pin SwiftShader to a single raster worker whenever the committed matrix is
+     rendered so it is bit-reproducible — local runs and the CI matrix identity
+     run; the functional-only CI job is left unpinned to stay fast. See
+     tests/e2e/helpers/determinismSetup.js. */
+  globalSetup: "./tests/e2e/helpers/determinismSetup.js",
+  globalTeardown: "./tests/e2e/helpers/determinismTeardown.js",
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* CI runs a single worker: SwiftShader is contention-sensitive, and 2 workers
-     produced screenshot stalls without speeding the long shard. Local runs keep
-     Playwright's default. */
-  workers: process.env.CI ? 1 : undefined,
+  /* A single worker everywhere. SwiftShader is contention-sensitive: at 4
+     workers the screenshot matrix's `waitForAnimationsSettled` intermittently
+     times out even though no animation is actually stuck (measured 2/9 matrix
+     tests flaky in a matrix-only run; the poller is starved by the concurrent
+     SwiftShader workers). CI has always pinned 1 for the same reason. The full
+     local suite measured ~10 min at 1 worker vs ~8 min at 4 — a modest cost for
+     flake-free, byte-reproducible committed artefacts. `--workers=N` still
+     overrides this for exploratory runs. */
+  workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [["html", { open: "never" }]],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -92,7 +103,7 @@ export default defineConfig({
       // The committed screenshot matrix (`screenshots/**` + README heroes).
       // Always software-rendered: SwiftShader is byte-reproducible across
       // browser launches, whereas the local GPU backends (ANGLE/Metal) leave
-      // sub-perceptual anti-aliasing drift that dirties the committed JPEGs on
+      // sub-perceptual anti-aliasing drift that dirties the committed PNGs on
       // every run. Runs regardless of CI/E2E_SWIFTSHADER, and always uses the
       // bundled Chromium build (no `channel`).
       name: "screenshots",
@@ -104,6 +115,14 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         reducedMotion: "no-preference",
+        // Headless is the required default for the committed matrix: a headed
+        // capture composites the corner-control chips (backdrop-filter/box-shadow
+        // GPU layers) and window chrome differently, producing non-reproducible
+        // captures that previously clobbered the committed files. This pin only
+        // sets the default — `--headed` still overrides it (verified), so the
+        // real protection against an in-place headed write is the
+        // screenshotsGuard in ui-states.spec.js.
+        headless: true,
         // Pin the capture timezone to the demo area's zone (Newfoundland):
         // panels format timestamps with the machine's local zone, so captures
         // render in the demo's zone and any runner (e.g. a UTC CI box)

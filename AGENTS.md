@@ -47,7 +47,7 @@ npm run dev          # start Vite dev server (app at http://localhost:5174)
 npm run build        # build the app for distribution
 npm run test:unit    # run vitest unit tests (<10 s)
 npm run test:e2e -- tests/e2e/{spec}.spec.js   # run only the relevant E2E spec (development)
-npm run test:e2e -- --workers=4                # full E2E suite incl. screenshots — local final verification
+npm run test:e2e                            # full E2E suite incl. screenshots — local final verification
 npm run test:e2e -- --project=screenshots tests/e2e/screenshots/ui-states.spec.js  # screenshot matrix only
 npm test             # run unit tests only (rapid development)
 npm run format:check # Prettier format gate (the same check CI runs)
@@ -60,13 +60,13 @@ npm run format       # rewrite files with Prettier
 
 CI is a quick gate: unit tests, Prettier, and the **functional** E2E suite only — the screenshot matrix is excluded (`--grep-invert @screenshots`) and sharded three ways. Functional shards are expected to finish in single-digit minutes (measured at ~8 min before the screenshot exclusion). See `docs/13.ci.md`.
 
-**Final verification before declaring a task complete is the full local E2E run** (`npm run test:e2e -- --workers=4`). It includes the `@screenshots` matrix — which runs in a dedicated, always-SwiftShader `screenshots` Playwright project so the regenerated 46 JPEGs are byte-reproducible — plus the functional specs on the local GPU path. Visual verification belongs on the development machine: GitHub runners render with SwiftShader, where a capture costs ~50–60 s versus ~15 s locally, and the full matrix would need ~60–75 minutes of runner CPU.
+**Final verification before declaring a task complete is the full local E2E run** (`npm run test:e2e`). It includes the `@screenshots` matrix — which runs in a dedicated, always-SwiftShader `screenshots` Playwright project with SwiftShader pinned to a single raster thread so the regenerated 46 PNGs are byte-reproducible — plus the functional specs on the local GPU path. Visual verification belongs on the development machine: GitHub runners render with SwiftShader, where a capture costs ~50–60 s versus ~15 s locally, and the full matrix would need ~60–75 minutes of runner CPU.
 
 Formatting is gated by Prettier: CI's `unit` job runs `npm run format:check`. Run `npm run format` before completing a task. The `format`/`format:check` scripts pass [`.gitignore`](.gitignore), [`.prettierignore`](.prettierignore) and a global `~/.config/prettier/ignore` explicitly via `--ignore-path` — Prettier has no native global ignore, and `--ignore-path` overrides its defaults rather than adding to them, so every ignore file is named on the command line. [`.prettierignore`](.prettierignore) excludes generated and vendored output (build directories, `tests/fixtures/`, the lockfile, `CHANGELOG.md`); the global file excludes tooling scratch space.
 
-Locally, functional E2E specs run against the full Chromium build with GPU rendering (the default; `--use-angle=metal` on macOS); CI and `E2E_SWIFTSHADER=1` swap them to SwiftShader. The `screenshots` project is **always** SwiftShader-rendered regardless of environment, so the committed matrix regenerates deterministically. Run the full suite with `--workers=4` — fast and stable: seconds to a few minutes per test subset, with the screenshot matrix dominating (~18–20 min end to end). Prefer targeted single-spec runs while developing; run just the matrix with `npm run test:e2e -- --project=screenshots tests/e2e/screenshots/ui-states.spec.js`, and set `E2E_SCREENSHOTS_DIR="$TMPDIR/ogis-shots"` to capture it to a throwaway directory without touching the committed JPEGs. On a fresh machine, `npx playwright install chromium` installs the full build required by the local GPU mode. See `docs/9.testing.md` for rendering-mode and permission details.
+Locally, functional E2E specs run against the full Chromium build with GPU rendering (the default; `--use-angle=metal` on macOS); CI and `E2E_SWIFTSHADER=1` swap them to SwiftShader. The `screenshots` project is **always** SwiftShader-rendered regardless of environment and pins SwiftShader to a single raster thread, so the committed matrix regenerates deterministically. Run the full suite with the default single worker — the `screenshots` matrix is contention-sensitive, so concurrent SwiftShader workers starve the page's main thread and the animation-settle poller times out with nothing actually stuck; one worker is flake-free and measured ≈ 30 min for the full suite (matrix-only ≈ 28 min under the pin; functional-only ≈ 2 min). Do not pass `--workers=N`: an explicit flag overrides the default and reintroduces the flake. Prefer targeted single-spec runs while developing; run just the matrix with `npm run test:e2e -- --project=screenshots tests/e2e/screenshots/ui-states.spec.js`, and set `E2E_SCREENSHOTS_DIR="$TMPDIR/ogis-shots"` to capture it to a throwaway directory without touching the committed PNGs. On a fresh machine, `npx playwright install chromium` installs the full build required by the local GPU mode. See `docs/9.testing.md` for rendering-mode and permission details.
 
-When running E2E tests with a shell tool, use `mode="sync"` with `initial_wait` set to at least **180** for a single spec and **600** for the full suite. You will be automatically notified when the command completes — **do not poll repeatedly with short waits**. Wait for the completion notification, then read the output once.
+When running E2E tests with a shell tool, use `mode="sync"` with `initial_wait` set to at least **180** for a single spec and **1800** for the full suite (one worker runs ~30 min under the single-thread SwiftShader pin). You will be automatically notified when the command completes — **do not poll repeatedly with short waits**. Wait for the completion notification, then read the output once.
 
 ---
 
@@ -223,7 +223,7 @@ Features are plain objects with an `install(ctx)` method. A feature lives in `sr
 2. Create `src/features/{name}/{Name}Button.vue` and `{Name}Panel.vue` as needed
 3. Register in `src/main.js`: `MyFeature.install(featureCtx)`
 4. Create `tests/e2e/features/{name}.spec.js`
-5. Run `npm run test:e2e -- tests/e2e/features/{name}.spec.js` during development; run the full local E2E suite (`npm run test:e2e -- --workers=4`) as final verification
+5. Run `npm run test:e2e -- tests/e2e/features/{name}.spec.js` during development; run the full local E2E suite (`npm run test:e2e`) as final verification
 
 See `docs/10.features.md` for the full feature pattern.
 

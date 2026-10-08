@@ -57,7 +57,7 @@ jobs:
         run: |
           if [ -d ci-capture ]; then
             if command -v sha256sum > /dev/null; then SUMS="sha256sum"; else SUMS="shasum -a 256"; fi
-            (cd ci-capture && find . -name "*.jpg" | sort | xargs $SUMS) > "ci-capture-shard-${{ matrix.shard }}.sha"
+            (cd ci-capture && find . -name "*.png" | sort | xargs $SUMS) > "ci-capture-shard-${{ matrix.shard }}.sha"
             wc -l "ci-capture-shard-${{ matrix.shard }}.sha"
           else
             echo "no ci-capture output" > "ci-capture-shard-${{ matrix.shard }}.sha"
