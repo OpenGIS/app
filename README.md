@@ -98,7 +98,7 @@ npm run dev
 
 ```bash
 # Unit
-npm test    # unit tests (vitest, < 10 s; needs Node 24)
+npm test    # unit tests (vitest; needs Node 24)
 
 # E2E
 npx playwright install chromium
