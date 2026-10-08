@@ -1,3 +1,17 @@
+# [3.8.0](https://github.com/OpenGIS/app/compare/v3.7.2...v3.8.0) (2026-10-07)
+
+
+### Features
+
+* **icons:** vendor icon set as first-party ([a6925eb](https://github.com/OpenGIS/app/commit/a6925ebd91eca27c35615764a3e17f95f3b73e54))
+
+## [3.7.2](https://github.com/OpenGIS/app/compare/v3.7.1...v3.7.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **mobile:** drop viewport-fit=cover and restore h-100 ([5d452bd](https://github.com/OpenGIS/app/commit/5d452bde92d94cd4e6be0cbfb98021dfcf6e95b0))
+
 ## [3.7.1](https://github.com/OpenGIS/app/compare/v3.7.0...v3.7.1) (2026-10-04)
 
 

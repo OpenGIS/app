@@ -71,13 +71,31 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+  commits:
+    name: Commit messages
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 so the BEFORE..AFTER range exists for the checker.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Check commit messages
+        run: node .github/scripts/checkCommits.mjs
+        env:
+          # PRs compare against the base branch; pushes against the previous tip.
+          BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          AFTER: ${{ github.sha }}
+
   release:
-    needs: [unit, e2e]
+    needs: [unit, e2e, commits]
     # `always()` + `!cancelled()` keeps this evaluable when e2e was skipped
     # via `[skip e2e]` (without running on a cancelled workflow); the explicit
-    # result checks preserve the gate — release runs only when unit passed and
-    # e2e either passed or was deliberately skipped.
-    if: ${{ always() && !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.unit.result == 'success' && (needs.e2e.result == 'success' || needs.e2e.result == 'skipped') }}
+    # result checks preserve the gate — release runs only when unit, commits
+    # and e2e (passed or deliberately skipped) are all satisfied.
+    if: ${{ always() && !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.unit.result == 'success' && needs.commits.result == 'success' && (needs.e2e.result == 'success' || needs.e2e.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -85,6 +103,7 @@ jobs:
       pull-requests: write
     outputs:
       released: ${{ steps.release.outputs.released }}
+      sha: ${{ steps.release.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -104,6 +123,7 @@ jobs:
           AFTER=$(git rev-parse HEAD)
           if [ "$BEFORE" != "$AFTER" ]; then
             echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "sha=$AFTER" >> "$GITHUB_OUTPUT"
           else
             echo "released=false" >> "$GITHUB_OUTPUT"
           fi
@@ -125,7 +145,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: master
+          # Pin to the released commit (semantic-release's version commit) so a
+          # mid-run push to master cannot leak unreleased commits into the build.
+          ref: ${{ needs.release.outputs.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: "24"

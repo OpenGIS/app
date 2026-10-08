@@ -1,6 +1,6 @@
 <script setup>
 import { ref, inject, onMounted } from "vue";
-import iconSprite from "@ogis/icons/dist/ogis-icons.svg?raw";
+import iconSprite from "@/icons/ogis-icons.svg?raw";
 
 // UI
 import Controls from "@/components/ui/controls.vue";
@@ -49,11 +49,12 @@ onMounted(() => initWakeLock());
 </script>
 
 <template>
-  <!-- vh (not %) so the shell fills the screen in installed iOS PWAs, where
-       WebKit reports % heights short by the bottom safe-area inset (#254868). -->
+  <!-- Percentage height fills the visible viewport in browser modes. iOS
+       standalone viewport handling is addressed via the viewport meta (cover
+       removed), as cover triggers an iOS 26.5.2 viewport shortfall. -->
   <div
     ref="rootEl"
-    class="ogis-root position-fixed top-0 start-0 w-100 vh-100 overflow-hidden"
+    class="ogis-root position-fixed top-0 start-0 w-100 h-100 overflow-hidden"
     :data-attrib-collapsed="attributionCollapsed ? 'true' : 'false'"
   >
     <div style="display: none" v-html="iconSprite"></div>

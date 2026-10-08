@@ -1,10 +1,10 @@
-# ogis.app
+[ogis.app](https://www.ogis.app/?country=random)
 
-A navigation and mapping tool for everyone, right in the browser.
+> A navigational tool to rule them all, right in the browser.
 
-No API keys, no registration, no app stores and no invasions of privacy. Just open the app and get where you are going.
+No API keys, no registration, no app stores and no invasions of privacy.
 
-Built with the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem. Special thanks to [OpenFreeMap](https://openfreemap.org/) for tile hosting.
+A _loveletter_ to the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem ❤️ Special thanks to [OpenFreeMap](https://openfreemap.org/) for tile hosting.
 
 > [!NOTE]
 > The app is currently in **SPA front-end only mode** — the account, maps and collections features (which require a backend) are disabled in the UI.
@@ -25,7 +25,7 @@ Built with the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem. Specia
 - Import GPX routes and navigate offline
 - Download map regions for offline use (via a service worker)
 - Multilingual — follows your device language
-- Shareable map links
+- Shareable camera views
 - Map view persisted between sessions
 - Light and dark mode, following your device setting
 - Works on any device
@@ -33,19 +33,16 @@ Built with the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem. Specia
 > [!NOTE]
 > **Offline maps** — drag a region on the map to download its tiles and glyphs for offline use. A hand-rolled service worker (`public/sw.js`) caches the app shell and map resources; see [docs/12.offline.md](docs/12.offline.md).
 
-## Planned Changes
-
-- Worldwide language support
-- Search ([Nominatim](https://nominatim.org/) integration)
-- Better handling of denied location permissions
-- Dark map style
-
 ## Drawbacks and Limitations
 
 - Location permissions are required for GPS/Compass features. Some users have a deny-all approach to browser permissions and changing them varies between browsers and devices.
 - The app does not work in the background or when the device is locked — a common limitation of web apps.
-- Depending on a single tile provider ([OpenFreeMap](https://openfreemap.org/)) creates a single point of failure. Self-hosting is an option worth pursuing.
 - The app requires an initial connection to load assets and map tiles, even though it works offline thereafter.
+
+## Planned Changes
+
+- Much more language support
+- Better handling of denied location permissions
 
 ## Thanks Open Source!
 
@@ -56,6 +53,7 @@ Built with the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem. Specia
 | **Rendering**      | [MapLibre GL JS](https://maplibre.org/)                                                                           |
 | **Tile Schema**    | [OpenMapTiles](https://www.openmaptiles.org/) / [OSM Bright](https://github.com/openmaptiles/osm-bright-gl-style) |
 | **User Interface** | [Vue JS](https://vuejs.org/) / [Bootstrap](https://getbootstrap.com/)                                             |
+| **Icons**          | [OpenGIS icons](https://github.com/OpenGIS/icons) / [Bootstrap Icons](https://github.com/twbs/icons)              |
 
 ## Development
 
@@ -65,7 +63,23 @@ Built with the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem. Specia
 npm install
 ```
 
-### Run
+### Build
+
+```bash
+npm run build
+```
+
+### Icons
+
+Icon sources are vendored in `src/icons/` alongside the committed generated bundle.
+
+```bash
+npm run icons:build   # regenerate the bundle after adding or updating source icons
+```
+
+See [docs/14.icons.md](docs/14.icons.md) for the pipeline.
+
+### Local
 
 Set the backend API origin for cross-subdomain auth/API calls:
 
@@ -80,26 +94,42 @@ echo "VITE_API_BASE_URL=https://api.example.com" > .env.local
 npm run dev
 ```
 
-### Test
+### Testing
 
 ```bash
-npm test                                          # unit tests (vitest, < 10 s; needs Node 24)
-npm run test:e2e -- tests/e2e/{spec}.spec.js      # single E2E spec during development
-npm run test:e2e                                 # full E2E suite incl. screenshots — local final verification
-npm run test:e2e -- --project=screenshots tests/e2e/screenshots/ui-states.spec.js  # screenshot matrix only
+# Unit
+npm test    # unit tests (vitest, < 10 s; needs Node 24)
+
+# E2E
+npx playwright install chromium
+npm run test:e2e -- tests/e2e/{spec}.spec.js
+npm run test:e2e
+npm run test:e2e -- --project=screenshots tests/e2e/screenshots/ui-states.spec.js
 ```
 
 Screenshot captures run in a dedicated, always-SwiftShader Playwright project with SwiftShader pinned to a single raster thread, so the committed PNG matrix regenerates byte-for-byte; set `E2E_SCREENSHOTS_DIR` to write captures to a temporary directory instead. The `DARK.jpg`/`LIGHT.jpg` heroes are the deliberate exception — intentionally non-deterministic live captures that a full-suite run refreshes in place every time. See [docs/9.testing.md](docs/9.testing.md) for the testing strategy.
 
-### Continuous integration
+## Contributing
 
-CI runs the Vitest suite (including a Prettier format check) and the functional Playwright suite (screenshot specs excluded) in parallel on every push to `master` and every pull request, and uploads the Playwright report as a build artefact. The screenshot matrix runs only in the full local E2E suite — the final verification before declaring a task complete. Releases are automated from [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) — semantic-release bumps the version, updates the changelog, and deploys to GitHub Pages on `master`. See [docs/13.ci.md](docs/13.ci.md).
+Please use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
-### Build
+CI's semantic-release job derives versions, changelogs and GitHub releases from commit messages, so a message that does not parse is invisible to the release process.
 
-```bash
-npm run build
-```
+Format: `<type>(optional scope): <description>`, e.g. `fix(offline): purge stale tile URLs`.
+
+| Type       | Use for                                              |
+| ---------- | ---------------------------------------------------- |
+| `feat`     | A new feature (minor release)                        |
+| `fix`      | A bug fix (patch release)                            |
+| `perf`     | A performance improvement (patch release)            |
+| `refactor` | A change that neither fixes a bug nor adds a feature |
+| `docs`     | Documentation only                                   |
+| `test`     | Tests only                                           |
+| `ci`       | CI configuration and scripts                         |
+| `chore`    | Maintenance that does not fit the above              |
+| `build`    | Build system or dependencies                         |
+
+Breaking changes use `!` after the type/scope (`feat(api)!: …`) or a `BREAKING CHANGE:` footer, and trigger a major release. See `docs/13.ci.md` for the full release flow.
 
 ## Docs
 

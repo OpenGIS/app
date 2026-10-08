@@ -1,6 +1,6 @@
 ---
-git_hash: "59caa9751d1b2a7681b16bbb3404f1b39433c9b1"
-modified: "2026-10-04"
+git_hash: "195b27fb8957f791c70ae8c6c47f4467d04c188f"
+modified: "2026-10-06"
 ---
 
 # ogis.app — Docs
@@ -29,3 +29,4 @@ Developer documentation for the ogis.app codebase.
 | [11. Routes](./11.routes.md)         | GPX import, route rendering, offline navigation                                              |
 | [12. Offline](./12.offline.md)       | Offline region download: service worker, tile enumeration, storage                           |
 | [13. CI](./13.ci.md)                 | GitHub Actions: jobs, artefacts, conventional commits, semantic-release, Pages deploy        |
+| [14. Icons](./14.icons.md)           | End-to-end icon pipeline: sources, generated bundle, `icons:build`, codepoints               |
