@@ -104,10 +104,10 @@ npm test    # unit tests (vitest; needs Node 24)
 npx playwright install chromium
 npm run test:e2e -- tests/e2e/{spec}.spec.js
 npm run test:e2e
-npm run test:e2e -- --project=screenshots tests/e2e/screenshots/ui-states.spec.js
+npm run test:matrix   # screenshot matrix only (fast local; temp output)
 ```
 
-Screenshot captures run in a dedicated, always-SwiftShader Playwright project with SwiftShader pinned to a single raster thread, so the committed PNG matrix regenerates byte-for-byte; set `E2E_SCREENSHOTS_DIR` to write captures to a temporary directory instead. The `DARK.jpg`/`LIGHT.jpg` heroes are the deliberate exception — intentionally non-deterministic live captures that a full-suite run refreshes in place every time. See [docs/9.testing.md](docs/9.testing.md) for the testing strategy.
+Screenshot captures run in a dedicated, always-SwiftShader Playwright project. A plain local run is unpinned and parallel, and writes the matrix to a gitignored temp directory, so it never touches the committed PNGs; re-baseline them explicitly with `npm run test:matrix:update`, and GitHub's `Screenshots` workflow reproduces the committed bytes in its macOS capture shards and verifies the full matrix in an aggregate check. The `DARK.jpg`/`LIGHT.jpg` heroes are the deliberate exception — intentionally non-deterministic live captures that a full-suite run refreshes in place every time. See [docs/9.testing.md](docs/9.testing.md) for the testing strategy.
 
 ## Contributing
 

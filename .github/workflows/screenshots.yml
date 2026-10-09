@@ -1,0 +1,283 @@
+name: Screenshots
+
+# GitHub-hosted macOS is the deterministic authority for the committed
+# screenshot matrix. The always-SwiftShader `screenshots` Playwright project
+# regenerates the matrix on macos-15 in six shards; each shard verifies the
+# captures it produced byte-for-byte against the committed PNGs.
+#
+# The `screenshots` job is only a capture matrix. The intended branch-protection
+# required check is the aggregate `Screenshots — verify committed matrix` job:
+# it runs after every shard even when one fails, merges all shard captures and
+# verifies the FULL committed matrix in both directions — every committed PNG
+# must have been captured byte-for-byte, and every captured matrix PNG must
+# exist in the committed set. A shard that emits some but not all of its
+# assigned captures is caught here, not by the per-shard step. Require just this
+# one check.
+#
+# Why macOS: Linux (ubuntu-latest) substitutes fonts (panel copy wraps) and
+# rasterises differently, so it cannot reproduce the macOS-captured matrix.
+# Only the capture shards need macOS; the aggregate verify job hashes files and
+# so runs on ubuntu-latest.
+#
+# Why no E2E_SCREENSHOTS_DIR / E2E_SCREENSHOTS_COMMIT: `CI` is set on Actions,
+# so the deterministic path (single-thread SwiftShader pin via
+# determinismSetup.js, one Playwright worker) applies with no extra flag.
+# With neither override set, ui-states.spec.js captures into the gitignored
+# `.opencode/tmp/screenshots/` (never the committed tree) and writes no
+# diagnostics — exactly what this job wants.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: screenshots-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  screenshots:
+    name: screenshots (shard ${{ matrix.shard }}/6)
+    runs-on: macos-15
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+      - run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+      - name: Capture matrix shard
+        run: npx playwright test --project=screenshots --shard=${{ matrix.shard }}/6
+        env:
+          CI: "1"
+      - name: Verify captures against the committed matrix
+        run: |
+          set -euo pipefail
+
+          CAPTURE_ROOT=".opencode/tmp/screenshots"
+          COMMITTED_ROOT="screenshots"
+          REPORT="screenshot-verify-shard-${{ matrix.shard }}.txt"
+
+          if command -v sha256sum > /dev/null 2>&1; then
+            SHA="sha256sum"
+          else
+            SHA="shasum -a 256"
+          fi
+
+          {
+            echo "Screenshot matrix verification — shard ${{ matrix.shard }}/6"
+            echo "capture root:   $CAPTURE_ROOT"
+            echo "committed root: $COMMITTED_ROOT"
+            echo "hash tool:      $SHA"
+            echo
+          } > "$REPORT"
+
+          if [ ! -d "$CAPTURE_ROOT" ]; then
+            echo "FAIL: no capture directory '$CAPTURE_ROOT' — this shard produced no captures." | tee -a "$REPORT"
+            exit 1
+          fi
+
+          # Matrix PNGs only — never compare diagnostics.
+          find "$CAPTURE_ROOT" -type f -name '*.png' -not -path '*/diag/*' | sort > captures.txt
+
+          count=0
+          failed=0
+          while IFS= read -r captured; do
+            count=$((count + 1))
+            rel="${captured#"$CAPTURE_ROOT"/}"
+            committed="$COMMITTED_ROOT/$rel"
+
+            if [ ! -f "$committed" ]; then
+              echo "FAIL missing baseline: $rel (captured but not committed under $COMMITTED_ROOT/)" | tee -a "$REPORT"
+              failed=1
+              continue
+            fi
+
+            captured_hash=$($SHA "$captured" | awk '{print $1}')
+            committed_hash=$($SHA "$committed" | awk '{print $1}')
+            if [ "$captured_hash" != "$committed_hash" ]; then
+              {
+                echo "FAIL differs: $rel"
+                echo "     captured  $captured_hash"
+                echo "     committed $committed_hash"
+              } | tee -a "$REPORT"
+              failed=1
+            fi
+          done < captures.txt
+
+          if [ "$count" -eq 0 ]; then
+            echo "FAIL: no matrix captures found under '$CAPTURE_ROOT' — this shard produced nothing to verify." | tee -a "$REPORT"
+            failed=1
+          fi
+
+          if [ "$failed" -ne 0 ]; then
+            echo "---" | tee -a "$REPORT"
+            echo "FAIL: $count capture(s) checked; mismatches listed above. Re-baseline with E2E_SCREENSHOTS_COMMIT=1 on a macOS host and commit the updated screenshots/ matrix." | tee -a "$REPORT"
+            exit 1
+          fi
+
+          echo "PASS: all $count capture(s) from this shard are byte-identical to the committed matrix." | tee -a "$REPORT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-shard-${{ matrix.shard }}
+          path: |
+            .opencode/tmp/screenshots/
+            screenshot-verify-shard-${{ matrix.shard }}.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Aggregate verification — the intended required check. Each shard can only
+  # see the files it produced, so a shard that emits some but not all of its
+  # assigned captures passes its own step. This job merges every shard's
+  # captures and verifies the FULL committed matrix in both directions. It runs
+  # with `if: always()` so a mismatch is still reported when a shard fails.
+  verify:
+    name: Screenshots — verify committed matrix
+    needs: screenshots
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all shard captures
+        uses: actions/download-artifact@v4
+        with:
+          pattern: screenshots-shard-*
+          path: captured
+          merge-multiple: true
+      - name: Verify the full committed matrix
+        run: |
+          set -uo pipefail
+
+          COMMITTED_ROOT="screenshots"
+          CAPTURE_DL="captured"
+          REPORT="screenshot-verify-aggregate.txt"
+
+          if command -v sha256sum > /dev/null 2>&1; then
+            SHA="sha256sum"
+          else
+            SHA="shasum -a 256"
+          fi
+          hash_of() { $SHA "$1" | awk '{print $1}'; }
+
+          {
+            echo "Screenshot matrix aggregate verification"
+            echo "capture root (downloads): $CAPTURE_DL"
+            echo "committed root:           $COMMITTED_ROOT"
+            echo "hash tool:                $SHA"
+            echo
+          } > "$REPORT"
+
+          if [ ! -d "$CAPTURE_DL" ]; then
+            echo "FAIL: no downloaded captures directory '$CAPTURE_DL' — nothing to verify." | tee -a "$REPORT"
+            exit 1
+          fi
+
+          # Committed PNGs, relative to the committed root.
+          find "$COMMITTED_ROOT" -type f -name '*.png' | sed "s|^$COMMITTED_ROOT/||" | sort > committed-rels.txt
+          # Captured matrix PNGs only — diagnostics are never compared.
+          find "$CAPTURE_DL" -type f -name '*.png' -not -path '*/diag/*' | sort > captured-paths.txt
+
+          committed_count=$(wc -l < committed-rels.txt | tr -d ' ')
+          captured_count=$(wc -l < captured-paths.txt | tr -d ' ')
+
+          missing=0
+          differs=0
+          extra=0
+
+          # Direction A: committed -> captured (detects missing and changed
+          # captures). The download layout is not assumed: every captured PNG is
+          # mapped to its committed relative path by suffix match.
+          while IFS= read -r rel; do
+            [ -z "$rel" ] && continue
+            match=""
+            while IFS= read -r cap; do
+              [ -z "$cap" ] && continue
+              case "$cap" in
+                */"$rel") match="$cap"; break ;;
+              esac
+            done < captured-paths.txt
+
+            if [ -z "$match" ]; then
+              {
+                echo "MISSING: $rel (committed but never captured)"
+                echo "     committed $COMMITTED_ROOT/$rel  $(hash_of "$COMMITTED_ROOT/$rel")"
+              } | tee -a "$REPORT"
+              missing=$((missing + 1))
+              continue
+            fi
+
+            committed_hash=$(hash_of "$COMMITTED_ROOT/$rel")
+            captured_hash=$(hash_of "$match")
+            if [ "$committed_hash" != "$captured_hash" ]; then
+              {
+                echo "DIFFERS: $rel"
+                echo "     committed $committed_hash"
+                echo "     captured  $captured_hash"
+                echo "     captured path: $match"
+              } | tee -a "$REPORT"
+              differs=$((differs + 1))
+            fi
+          done < committed-rels.txt
+
+          # Direction B: captured -> committed (detects extra captures).
+          while IFS= read -r cap; do
+            [ -z "$cap" ] && continue
+            matched=0
+            while IFS= read -r rel; do
+              [ -z "$rel" ] && continue
+              case "$cap" in
+                */"$rel") matched=1; break ;;
+              esac
+            done < committed-rels.txt
+            if [ "$matched" -eq 0 ]; then
+              {
+                echo "EXTRA: $cap (captured but not committed)"
+                echo "     captured  $(hash_of "$cap")"
+              } | tee -a "$REPORT"
+              extra=$((extra + 1))
+            fi
+          done < captured-paths.txt
+
+          {
+            echo
+            echo "---"
+            echo "committed PNGs: $committed_count"
+            echo "captured PNGs:  $captured_count"
+            echo "missing:        $missing"
+            echo "differs:        $differs"
+            echo "extra:          $extra"
+          } | tee -a "$REPORT"
+
+          if [ "$committed_count" -eq 0 ]; then
+            echo "FAIL: no committed PNGs found under '$COMMITTED_ROOT' — cannot verify." | tee -a "$REPORT"
+            exit 1
+          fi
+
+          if [ "$missing" -ne 0 ] || [ "$differs" -ne 0 ] || [ "$extra" -ne 0 ]; then
+            echo "FAIL: committed matrix not reproduced. Re-baseline with E2E_SCREENSHOTS_COMMIT=1 on a macOS host and commit the updated screenshots/ matrix." | tee -a "$REPORT"
+            exit 1
+          fi
+
+          echo "PASS: all $committed_count committed PNG(s) were captured byte-for-byte." | tee -a "$REPORT"
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-verify-aggregate
+          path: screenshot-verify-aggregate.txt
+          if-no-files-found: ignore
+          retention-days: 7

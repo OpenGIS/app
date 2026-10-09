@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { isDeterministicRun } from "./tests/e2e/helpers/determinism.js";
 
 // Rendering mode is env-gated. CI must keep the deterministic SwiftShader
 // software renderer used on GitHub runners, while local runs prefer the full
@@ -11,10 +12,11 @@ const useSwiftShader = !!process.env.CI || process.env.E2E_SWIFTSHADER === "1";
  */
 export default defineConfig({
   testDir: "./tests/e2e",
-  /* Pin SwiftShader to a single raster worker whenever the committed matrix is
-     rendered so it is bit-reproducible — local runs and the CI matrix identity
-     run; the functional-only CI job is left unpinned to stay fast. See
-     tests/e2e/helpers/determinismSetup.js. */
+  /* Pin SwiftShader to a single raster worker on the deterministic path only —
+     `isDeterministicRun()` (CI, E2E_SWIFTSHADER_PIN=1, or the
+     E2E_SCREENSHOTS_COMMIT=1 re-baseline) — so the committed pixels are
+     byte-reproducible. A plain local run renders the GPU-capable Chromium
+     build and is left unpinned. See tests/e2e/helpers/determinism.js. */
   globalSetup: "./tests/e2e/helpers/determinismSetup.js",
   globalTeardown: "./tests/e2e/helpers/determinismTeardown.js",
   /* Run tests in files in parallel */
@@ -23,15 +25,15 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* A single worker everywhere. SwiftShader is contention-sensitive: at 4
-     workers the screenshot matrix's `waitForAnimationsSettled` intermittently
-     times out even though no animation is actually stuck (measured 2/9 matrix
-     tests flaky in a matrix-only run; the poller is starved by the concurrent
-     SwiftShader workers). CI has always pinned 1 for the same reason. The full
-     local suite measured ~10 min at 1 worker vs ~8 min at 4 — a modest cost for
-     flake-free, byte-reproducible committed artefacts. `--workers=N` still
-     overrides this for exploratory runs. */
-  workers: 1,
+  /* One worker only on the deterministic path (`isDeterministicRun()`: CI,
+     E2E_SWIFTSHADER_PIN=1, or E2E_SCREENSHOTS_COMMIT=1). SwiftShader is
+     contention-sensitive: concurrent workers starve the screenshot matrix's
+     `waitForAnimationsSettled` poller, which intermittently times out even
+     though no animation is actually stuck. That matters only for the
+     byte-reproducible committed render, so the pin is scoped to it. A plain
+     local run leaves `workers` undefined and uses Playwright's default
+     parallelism (fast). `--workers=N` still overrides either way. */
+  workers: isDeterministicRun() ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [["html", { open: "never" }]],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
