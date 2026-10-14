@@ -10,11 +10,16 @@
  *
  *   - `CI`                — the deterministic environment (functional and
  *                           matrix-identity jobs).
- *   - `E2E_SWIFTSHADER_PIN=1` — an explicit local opt-in for a run that needs
- *                           byte-reproducible output.
- *   - `E2E_SCREENSHOTS_COMMIT=1` — an intentional in-place re-baseline of the
- *                           committed matrix; it implies the whole deterministic
- *                           path so the user need not also set the pin flag.
+ *   - `E2E_SWIFTSHADER_PIN=1` — an explicit local opt-in that reproduces the
+ *                           deterministic pipeline's captured output.
+ *   - `E2E_SCREENSHOTS_COMMIT=1` — an explicit in-place write of the local
+ *                           capture set into the committed matrix; it implies
+ *                           the whole deterministic path so the user need not
+ *                           also set the pin flag. Committed baselines are
+ *                           normally sourced from the Screenshots workflow's
+ *                           captured artifacts (`npm run screenshots:fetch`)
+ *                           instead, and local captures are for relative /
+ *                           visual comparison.
  *
  * Used by `determinismSetup.js` / `determinismTeardown.js` (write/remove
  * `SwiftShader.ini`) and `playwright.config.js` (`workers`).

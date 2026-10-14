@@ -1,14 +1,14 @@
 // recordings/index.js — Recordings core feature for ogis.app
-import { reactive, ref, computed } from "vue";
+import { reactive, ref, computed, watch } from "vue";
 import { useGeoJSON } from "@/composables/useGeoJSON.js";
 import { useLocate } from "@/composables/useLocate.js";
+import { useUI } from "@/composables/useUI.js";
 import {
   haversine,
   totalDistance,
   formatDuration,
   formatDistance,
 } from "@/utils/geo.js";
-import RecordButton from "./RecordButton.vue";
 import RecordingsPanel from "./RecordingsPanel.vue";
 
 export { formatDuration, formatDistance };
@@ -52,7 +52,7 @@ const TRACK_ID = "recordings-active-track";
 // ---------------------------------------------------------------------------
 
 export const RecordingsFeature = {
-  install({ useStorage, useSettings, getMap, instanceId, provide, addButton }) {
+  install({ useStorage, useSettings, getMap, instanceId, provide, addPanel }) {
     const stored = useStorage("recordings", { saved: [], active: null });
     const { isMetric } = useSettings();
     const { requestPermission } = useLocate(instanceId);
@@ -256,6 +256,19 @@ export const RecordingsFeature = {
       updateLine();
     }
 
+    // Surface the recording state on the always-mounted menu chip (via useUI's
+    // generic badge signal) so it shows even while the panel is closed.
+    const { setMenuBadge } = useUI(instanceId);
+    watch(
+      () => {
+        if (state.isRecording) return "recording";
+        if (state.isPaused) return "paused";
+        return null;
+      },
+      (value) => setMenuBadge(value),
+      { immediate: true },
+    );
+
     provide("recordings", {
       state,
       elapsed,
@@ -271,15 +284,11 @@ export const RecordingsFeature = {
       showOnMap,
     });
 
-    addButton({
+    addPanel({
       id: "record",
       icon: "route",
-      position: "bottom-right",
-      component: RecordButton,
-      panel: {
-        title: "Recordings",
-        component: RecordingsPanel,
-      },
+      title: "Recordings",
+      component: RecordingsPanel,
     });
 
     return () => {

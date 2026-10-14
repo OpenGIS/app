@@ -11,6 +11,9 @@ function createState() {
     visiblePane: ref(null),
     isPanelExpanded: ref(false),
     activePanel: ref("record"),
+    // Generic status signal for the menu chip. Features set it to surface an
+    // at-a-glance indicator while the panel is closed (e.g. "recording").
+    menuBadge: ref(null),
   };
 }
 
@@ -18,10 +21,11 @@ function createState() {
  * Composable for UI state management.
  *
  * Manages responsive breakpoints and side panel visibility. State is shared
- * across all callers within the app.
+ * across all callers within the app. An explicit instance id may be supplied by
+ * non-component callers (e.g. a feature's install); otherwise it is injected.
  */
-export const useUI = () => {
-  const instanceId = inject("ogisAppId", "app");
+export const useUI = (explicitInstanceId) => {
+  const instanceId = explicitInstanceId ?? inject("ogisAppId", "app");
 
   if (!instances.has(instanceId)) {
     instances.set(instanceId, createState());
@@ -96,12 +100,17 @@ export const useUI = () => {
     emitter.emit("panel:change", id);
   };
 
+  const setMenuBadge = (value) => {
+    s.menuBadge.value = value;
+  };
+
   return {
     // State
     width: s.width,
     visiblePane: s.visiblePane,
     isPanelExpanded: s.isPanelExpanded,
     activePanel: s.activePanel,
+    menuBadge: s.menuBadge,
 
     // Computed
     isDesktop,
@@ -120,5 +129,6 @@ export const useUI = () => {
     togglePanelExpanded,
     setPanelExpanded,
     setActivePanel,
+    setMenuBadge,
   };
 };

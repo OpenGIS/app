@@ -33,7 +33,6 @@ const symbolIds = [...sprite.matchAll(/<symbol[^>]*\bid="([^"]+)"/g)].map(
  *  - layout-sidebar-inset — panel toggle in components/ui/controls.vue
  *  - info-circle — attribution chip in components/ui/controls/attribution.vue
  *  - check / globe / pencil — Info panel actions in components/panels/info.vue
- *  - pause-circle / circle — recording button states in RecordButton.vue
  *  - route / graph-down / file-arrow-down / person-circle / list / map —
  *    feature nav icons in src/features/{recordings,routes,offline,account,
  *    collections,maps}/index.js
@@ -47,8 +46,6 @@ const REQUIRED_ICON_IDS = [
   "check",
   "globe",
   "pencil",
-  "pause-circle",
-  "circle",
   "route",
   "graph-down",
   "file-arrow-down",

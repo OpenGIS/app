@@ -355,6 +355,28 @@ $font-size-base: 0.9375rem; // 15 px
   pointer-events: none;
 }
 
+// Menu-chip status dot — set via useUI's generic `menuBadge` signal. Kept
+// feature-agnostic here: the caller supplies the state, core owns the styling.
+.ogis-menu-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: none;
+
+  &[data-state="recording"] {
+    background-color: var(--bs-red);
+    opacity: 0.6;
+  }
+
+  &[data-state="paused"] {
+    background-color: var(--bs-orange);
+    opacity: 0.7;
+  }
+}
+
 // Chip variant — horizontal glass pill for the map-corner controls
 .icon-btn--chip {
   gap: 0.4rem;

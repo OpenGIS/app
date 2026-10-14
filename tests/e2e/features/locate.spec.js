@@ -1,5 +1,5 @@
 import { test, expect } from "../helpers/test.js";
-import { waitForMapReady } from "../helpers/panel";
+import { waitForMapReady, openMenuTab } from "../helpers/panel";
 import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
@@ -176,28 +176,27 @@ test.describe("Locate / Recordings integration", () => {
     await withNoLocateStorage(page);
     await page.goto("/");
     await waitForMapReady(page);
+    // The record control lives inside the Recordings panel now.
+    await openMenuTab(page, "Recordings");
   });
 
   test("starting a recording shows the confirmation modal when permission has not been granted", async ({
     page,
   }) => {
-    // Open Recordings panel and click Record
-    await page.locator("#recordings-button").click();
+    await page.locator("#recordings-start-button").click();
     await expect(page.getByText("Permission Required")).toBeVisible();
   });
 
   test("cancelling the confirmation from Recordings leaves the recording stopped", async ({
     page,
   }) => {
-    await page.locator("#recordings-button").click();
+    await page.locator("#recordings-start-button").click();
     await expect(page.getByText("Permission Required")).toBeVisible();
     await page.getByText("Cancel").click();
     await expect(page.getByText("Permission Required")).toBeHidden();
-    // Recording should not have started
-    await expect(page.locator("#recordings-button")).not.toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    // Still idle: the start control remains and no status badge is shown.
+    await expect(page.locator("#recordings-start-button")).toBeVisible();
+    await expect(page.locator(".ogis-menu-badge")).toBeHidden();
   });
 });
 

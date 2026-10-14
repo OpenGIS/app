@@ -10,6 +10,7 @@ const {
   state,
   elapsed,
   distance,
+  start,
   pause,
   resume,
   discard,
@@ -51,6 +52,17 @@ const isActive = computed(() => state.isRecording || state.isPaused);
           Discard
         </button>
       </div>
+    </template>
+
+    <!-- Idle — start a new recording -->
+    <template v-else>
+      <button
+        id="recordings-start-button"
+        class="btn btn-sm btn-primary w-100 mb-3"
+        @click="start"
+      >
+        Start recording
+      </button>
     </template>
 
     <!-- Saved recordings -->

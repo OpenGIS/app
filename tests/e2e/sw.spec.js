@@ -42,7 +42,8 @@ const waitForMapIdle = (page) =>
 const expectAppBooted = async (page) => {
   await expect(page.locator("#menu-button")).toBeVisible();
   await expect(page.locator("#locate-button")).toBeVisible();
-  await expect(page.locator("#recordings-button")).toBeVisible();
+  // No feature registers a bottom-right button, so that cluster is absent.
+  await expect(page.locator(".ogis-corner--br")).toHaveCount(0);
 };
 
 /** Count the service worker registrations for the page origin. */

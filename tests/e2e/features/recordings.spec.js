@@ -1,15 +1,16 @@
 import { test, expect } from "../helpers/test.js";
-import { waitForMapReady } from "../helpers/panel";
+import { waitForMapReady, openMenuTab } from "../helpers/panel";
 import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
  * E2E tests for src/features/recordings/
  *
- * Covers the record button states, permission flow, recording lifecycle
- * (start, pause, resume, save, discard), saved list management, and GPX export.
+ * Covers the start control inside the Recordings panel, the menu-chip status
+ * badge, the permission flow, the recording lifecycle (start, pause, resume,
+ * save, discard), saved list management, and GPX export.
  */
 
-// Reload and chip-click interactions settle slowly under SwiftShader/load —
+// Reload and panel interactions settle slowly under SwiftShader/load —
 // stability checks can take tens of seconds. The default 30 s test budget
 // intermittently fails these tests on slower machines — raise the file budget;
 // assertions are unchanged.
@@ -50,9 +51,9 @@ const grantGeolocation = (
     .grantPermissions(["geolocation"])
     .then(() => page.context().setGeolocation(coords));
 
-// ─── Recordings / Button ─────────────────────────────────────────────────────
+// ─── Recordings / Panel entry point ──────────────────────────────────────────
 
-test.describe("Recordings / Button", () => {
+test.describe("Recordings / Panel entry point", () => {
   test.beforeEach(async ({ page }) => {
     await withGrantedStorage(page);
     await grantGeolocation(page);
@@ -60,14 +61,17 @@ test.describe("Recordings / Button", () => {
     await waitForMapReady(page);
   });
 
-  test("record chip is visible in the map corner controls", async ({
+  test("start control is visible in the Recordings panel when idle", async ({
     page,
   }) => {
-    await expect(page.locator("#recordings-button")).toBeVisible();
+    await openMenuTab(page, "Recordings");
+    await expect(page.locator("#recordings-start-button")).toBeVisible();
   });
 
-  test("record button shows Record label when inactive", async ({ page }) => {
-    await expect(page.locator("#recordings-button")).toContainText("Record");
+  test("menu badge is hidden while no recording is active", async ({
+    page,
+  }) => {
+    await expect(page.locator(".ogis-menu-badge")).toBeHidden();
   });
 });
 
@@ -80,34 +84,40 @@ test.describe("Recordings / Permission modal", () => {
     await waitForMapReady(page);
   });
 
-  test("clicking Record shows the permission confirmation modal on first use", async ({
+  test("clicking Start shows the permission confirmation modal on first use", async ({
     page,
   }) => {
-    await page.locator("#recordings-button").click();
+    await openMenuTab(page, "Recordings");
+    await page.locator("#recordings-start-button").click();
     await expect(page.getByText("Permission Required")).toBeVisible();
   });
 
   test("cancelling the permission modal does not start recording", async ({
     page,
   }) => {
-    await page.locator("#recordings-button").click();
+    await openMenuTab(page, "Recordings");
+    await page.locator("#recordings-start-button").click();
     await expect(page.getByText("Permission Required")).toBeVisible();
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect(page.getByText("Permission Required")).toBeHidden();
-    await expect(page.locator("#recordings-button")).toContainText("Record");
+    await expect(page.locator("#recordings-start-button")).toBeVisible();
+    await expect(page.locator(".ogis-menu-badge")).toBeHidden();
   });
 
   test("confirming the modal starts recording", async ({ page }) => {
     await grantGeolocation(page);
-    await page.locator("#recordings-button").click();
+    await openMenuTab(page, "Recordings");
+    await page.locator("#recordings-start-button").click();
     await expect(page.getByText("Permission Required")).toBeVisible();
     await page.getByRole("button", { name: "I Understand" }).click();
     await expect(page.getByText("Permission Required")).toBeHidden();
-    await expect
-      .poll(() => page.locator("#recordings-button").textContent(), {
-        timeout: 5000,
-      })
-      .toMatch(/Recording/);
+    await expect(page.getByText("Current Recording")).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.locator(".ogis-menu-badge")).toHaveAttribute(
+      "data-state",
+      "recording",
+    );
   });
 
   test("permission modal is not shown when permission was already granted", async ({
@@ -117,7 +127,8 @@ test.describe("Recordings / Permission modal", () => {
     await grantGeolocation(page);
     await page.goto("/");
     await waitForMapReady(page);
-    await page.locator("#recordings-button").click();
+    await openMenuTab(page, "Recordings");
+    await page.locator("#recordings-start-button").click();
     await expect(page.getByText("Permission Required")).toBeHidden();
   });
 });
@@ -132,59 +143,63 @@ test.describe("Recordings / Start and Pause", () => {
     await waitForMapReady(page);
   });
 
-  test("clicking Record starts a recording and shows Recording label", async ({
+  test("clicking Start begins a recording and shows the active state", async ({
     page,
   }) => {
-    await page.locator("#recordings-button").click();
-    await expect
-      .poll(() => page.locator("#recordings-button").textContent(), {
-        timeout: 5000,
-      })
-      .toMatch(/Recording/);
+    await openMenuTab(page, "Recordings");
+    await page.locator("#recordings-start-button").click();
+    await expect(page.getByText("Current Recording")).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.locator(".ogis-menu-badge")).toHaveAttribute(
+      "data-state",
+      "recording",
+    );
   });
 
-  test("clicking Record opens the Recordings panel showing Duration and Distance", async ({
+  test("starting a recording shows Duration and Distance in the panel", async ({
     page,
   }) => {
-    await page.locator("#recordings-button").click();
-    await expect
-      .poll(() => page.locator("#recordings-button").textContent(), {
-        timeout: 5000,
-      })
-      .toMatch(/Recording/);
+    await openMenuTab(page, "Recordings");
+    await page.locator("#recordings-start-button").click();
+    await expect(page.getByText("Current Recording")).toBeVisible();
     await expect(page.getByText("Duration")).toBeVisible();
     await expect(page.getByText("Distance")).toBeVisible();
   });
 
-  test("Pause button pauses the recording and shows Paused label on button", async ({
+  test("Pause button pauses the recording and the badge shows paused", async ({
     page,
   }) => {
-    await page.locator("#recordings-button").click();
-    await expect
-      .poll(() => page.locator("#recordings-button").textContent(), {
-        timeout: 5000,
-      })
-      .toMatch(/Recording/);
+    await openMenuTab(page, "Recordings");
+    await page.locator("#recordings-start-button").click();
+    await expect(page.getByText("Current Recording")).toBeVisible();
 
     await page.getByRole("button", { name: "Pause" }).click();
-    await expect(page.locator("#recordings-button")).toContainText("Paused");
+    await expect(page.locator(".ogis-menu-badge")).toHaveAttribute(
+      "data-state",
+      "paused",
+    );
+    await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
   });
 
   test("Resume button resumes the recording after pausing", async ({
     page,
   }) => {
-    await page.locator("#recordings-button").click();
-    await expect
-      .poll(() => page.locator("#recordings-button").textContent(), {
-        timeout: 5000,
-      })
-      .toMatch(/Recording/);
+    await openMenuTab(page, "Recordings");
+    await page.locator("#recordings-start-button").click();
+    await expect(page.getByText("Current Recording")).toBeVisible();
 
     await page.getByRole("button", { name: "Pause" }).click();
-    await expect(page.locator("#recordings-button")).toContainText("Paused");
+    await expect(page.locator(".ogis-menu-badge")).toHaveAttribute(
+      "data-state",
+      "paused",
+    );
 
     await page.getByRole("button", { name: "Resume" }).click();
-    await expect(page.locator("#recordings-button")).toContainText("Recording");
+    await expect(page.locator(".ogis-menu-badge")).toHaveAttribute(
+      "data-state",
+      "recording",
+    );
   });
 });
 
@@ -198,48 +213,42 @@ test.describe("Recordings / Save and Discard", () => {
     await waitForMapReady(page);
   });
 
-  test("Discard button stops the recording and returns button to Record", async ({
+  test("Discard stops the recording and returns the panel to idle", async ({
     page,
   }) => {
-    await page.locator("#recordings-button").click();
-    await expect
-      .poll(() => page.locator("#recordings-button").textContent(), {
-        timeout: 5000,
-      })
-      .toMatch(/Recording/);
+    await openMenuTab(page, "Recordings");
+    await page.locator("#recordings-start-button").click();
+    await expect(page.getByText("Current Recording")).toBeVisible();
 
     await page.getByRole("button", { name: "Discard" }).click();
-    await expect(page.locator("#recordings-button")).toContainText("Record");
+    await expect(page.locator("#recordings-start-button")).toBeVisible();
     await expect(page.getByText("Duration")).toBeHidden();
+    await expect(page.locator(".ogis-menu-badge")).toBeHidden();
   });
 
-  test("Save button saves the recording and it appears in the saved list", async ({
+  test("Save saves the recording and it appears in the saved list", async ({
     page,
   }) => {
-    await page.locator("#recordings-button").click();
-    await expect
-      .poll(() => page.locator("#recordings-button").textContent(), {
-        timeout: 5000,
-      })
-      .toMatch(/Recording/);
+    await openMenuTab(page, "Recordings");
+    await page.locator("#recordings-start-button").click();
+    await expect(page.getByText("Current Recording")).toBeVisible();
 
     await page.getByRole("button", { name: "Pause" }).click();
     await page.getByRole("button", { name: "Save" }).click();
 
-    // Button returns to idle
-    await expect(page.locator("#recordings-button")).toContainText("Record");
+    // Panel returns to idle…
+    await expect(page.locator("#recordings-start-button")).toBeVisible();
+    // …and the menu badge clears.
+    await expect(page.locator(".ogis-menu-badge")).toBeHidden();
     // Saved list shows the recording
     await expect(page.getByText("Duration")).toBeHidden();
     await expect(page.locator(".border-top")).toBeVisible();
   });
 
   test("saved recording persists across page reload", async ({ page }) => {
-    await page.locator("#recordings-button").click();
-    await expect
-      .poll(() => page.locator("#recordings-button").textContent(), {
-        timeout: 5000,
-      })
-      .toMatch(/Recording/);
+    await openMenuTab(page, "Recordings");
+    await page.locator("#recordings-start-button").click();
+    await expect(page.getByText("Current Recording")).toBeVisible();
 
     await page.getByRole("button", { name: "Pause" }).click();
     await page.getByRole("button", { name: "Save" }).click();
@@ -253,7 +262,7 @@ test.describe("Recordings / Save and Discard", () => {
     // Reload and check it's still there
     await page.reload();
     await waitForMapReady(page);
-    await page.locator("#recordings-button").click();
+    await openMenuTab(page, "Recordings");
     await expect(page.locator(".border-top")).toBeVisible();
   });
 });

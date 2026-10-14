@@ -17,6 +17,7 @@ const {
   isPanelVisible,
   isMenuVisible,
   isDesktop,
+  menuBadge,
 } = useUI();
 const { t } = useLocale();
 
@@ -51,14 +52,21 @@ const handleCustomClick = (btn) => {
         :icon-height="20"
         :active="isMenuVisible"
         @click="togglePanel()"
-      />
+      >
+        <span
+          v-if="menuBadge"
+          class="ogis-menu-badge"
+          :data-state="menuBadge"
+          aria-hidden="true"
+        ></span>
+      </IconButton>
     </div>
 
     <div class="ogis-corner ogis-corner--tr">
       <LocateButton />
     </div>
 
-    <div class="ogis-corner ogis-corner--br">
+    <div v-if="bottomRightButtons.length" class="ogis-corner ogis-corner--br">
       <template v-for="btn in bottomRightButtons" :key="btn.id">
         <component
           v-if="btn.component"

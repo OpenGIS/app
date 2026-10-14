@@ -53,3 +53,19 @@ export const openMenuPanel = async (page) => {
   await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
   await waitForPanelSettled(page);
 };
+
+/**
+ * Open the menu pane and select a feature tab by its accessible name.
+ *
+ * Desktop boots on the Info pane, so the tab strip is not rendered until the
+ * hamburger switches the pane; on smaller viewports the strip may already be
+ * present.
+ */
+export const openMenuTab = async (page, name) => {
+  if (!(await page.locator(".panel-nav").isVisible())) {
+    await page.locator("#menu-button").click();
+    await page.locator(".panel-nav").waitFor();
+  }
+  await page.locator(".panel-nav").getByRole("button", { name }).click();
+  await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
+};

@@ -124,7 +124,7 @@ jobs:
 
           if [ "$failed" -ne 0 ]; then
             echo "---" | tee -a "$REPORT"
-            echo "FAIL: $count capture(s) checked; mismatches listed above. Re-baseline with E2E_SCREENSHOTS_COMMIT=1 on a macOS host and commit the updated screenshots/ matrix." | tee -a "$REPORT"
+            echo "FAIL: $count capture(s) checked; mismatches listed above. Refresh the committed matrix from the workflow's captured artifacts with 'npm run screenshots:fetch -- --run <run-id> --write'." | tee -a "$REPORT"
             exit 1
           fi
 
@@ -268,7 +268,7 @@ jobs:
           fi
 
           if [ "$missing" -ne 0 ] || [ "$differs" -ne 0 ] || [ "$extra" -ne 0 ]; then
-            echo "FAIL: committed matrix not reproduced. Re-baseline with E2E_SCREENSHOTS_COMMIT=1 on a macOS host and commit the updated screenshots/ matrix." | tee -a "$REPORT"
+            echo "FAIL: committed matrix not reproduced. Refresh the committed matrix from the workflow's captured artifacts with 'npm run screenshots:fetch -- --run <run-id> --write'." | tee -a "$REPORT"
             exit 1
           fi
 

@@ -28,10 +28,11 @@ import { basename } from "node:path";
  * landscape viewport.
  *
  * These PNGs are COMMITTED ARTEFACTS — the canonical visual evidence that
- * ships with the repository. Only the explicit re-baseline writes them
- * (`E2E_SCREENSHOTS_COMMIT=1`, i.e. `npm run test:matrix:update`); a plain local
- * run and CI capture into a gitignored temp dir instead. GitHub's `Screenshots`
- * workflow then verifies the committed matrix byte-for-byte (see
+ * ships with the repository. A plain local run and CI capture into a gitignored
+ * temp dir instead, for relative / visual comparison; the committed baselines
+ * themselves are sourced from the `Screenshots` workflow's captured artifacts
+ * via `npm run screenshots:fetch -- --run <run-id> [--write]`. GitHub's
+ * `Screenshots` workflow then verifies the committed matrix byte-for-byte (see
  * `docs/13.ci.md`). Live map tiles make pixel comparisons brittle, so this spec
  * deliberately snapshots rather than compares (an explicit project decision).
  *
@@ -49,9 +50,9 @@ import { basename } from "node:path";
 
 // SwiftShader software rendering starves the renderer: map-idle waits, drags
 // and screenshots can each take tens of seconds, and a single test loops all
-// seven states for one viewport. Under 4 concurrent workers a matrix test has
+// eight states for one viewport. Under 4 concurrent workers a matrix test has
 // been measured at >300 s, which truncated the final `record-active` state
-// (the committed matrix came back with 41–44 of 46 files). 15 minutes leaves
+// (the committed matrix came back short by a few captures). 15 minutes leaves
 // ample headroom for the full per-viewport loop at 4 workers.
 test.setTimeout(900000);
 
@@ -975,11 +976,11 @@ for (const vp of VIEWPORTS) {
       await capture(page, dir, "locate-active");
 
       // record-active — a paused in-progress ride is seeded and reloaded so the
-      // Record chip starts as "Paused". Pin Date.now() before resuming: the live
-      // elapsed timer keeps ticking via setInterval, but with the clock fixed
-      // the panel renders a stable elapsed time derived from the seeded
-      // startTime. The chip click takes the resume path (the app does not open
-      // the panel on resume), so open the panel deliberately.
+      // Recordings panel starts on its Resume control. Pin Date.now() before
+      // resuming: the live elapsed timer keeps ticking via setInterval, but with
+      // the clock fixed the panel renders a stable elapsed time derived from the
+      // seeded startTime. Open the panel deliberately, then resume from its
+      // control; the panel stays open for the capture.
       await seedPausedRecording(page);
       await page.reload();
       await stabilizeCaptureRendering(page);
@@ -993,15 +994,32 @@ for (const vp of VIEWPORTS) {
         latitude: sliceEnd.lat,
         longitude: sliceEnd.lng,
       });
-      await page.locator("#recordings-button").click();
-      await expect
-        .poll(() => page.locator("#recordings-button").textContent(), {
-          timeout: 20000,
-        })
-        .toMatch(/Recording/);
       await openPanelTab(page, { name: "Recordings", exact: true });
+      await page.getByRole("button", { name: "Resume" }).click();
+      // The Resume control flips to Pause once the ride is active; scoped to
+      // the panel (the heading alone shows for both paused and active rides).
+      await expect(
+        page.locator(".ogis-panel").getByRole("button", { name: "Pause" }),
+      ).toBeVisible();
+      // The panel heading shows for both paused and active rides, so the dot
+      // state is the signal that resume took: only "recording" captures the
+      // active state the old Record chip used to expose.
+      await expect(
+        page.locator("#menu-button .ogis-menu-badge"),
+      ).toHaveAttribute("data-state", "recording");
       await normaliseCaptureState(page, testInfo);
       await capture(page, dir, "record-active");
+
+      // record-active-closed — the same active recording with the panel closed,
+      // so the capture shows the menu-chip dot while the recording continues.
+      await closePanel(page);
+      await expect(
+        page.locator("#menu-button .ogis-menu-badge"),
+      ).toHaveAttribute("data-state", "recording");
+      await expect(page.locator("#menu-button .ogis-menu-badge")).toBeVisible();
+      await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
+      await normaliseCaptureState(page, testInfo);
+      await capture(page, dir, "record-active-closed");
     });
   });
 }

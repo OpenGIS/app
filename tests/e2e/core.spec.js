@@ -297,11 +297,18 @@ test.describe("Panel geometry / safe-area insets", () => {
     const navBox = await page.locator(".panel-nav").boundingBox();
     expect(navBox.y).toBeGreaterThanOrEqual(43);
 
-    // Bottom-right Record chip in `.ogis-corner--br`:
+    // Bottom-left Attribution chip in `.ogis-corner--bl`:
     // corner padding-bottom = 12px + 34px = 46px.
-    const recordBox = await page.locator("#recordings-button").boundingBox();
-    const bottomGap = 844 - (recordBox.y + recordBox.height);
+    const attributionBox = await page
+      .locator("#attribution-button")
+      .boundingBox();
+    const bottomGap = 844 - (attributionBox.y + attributionBox.height);
     expect(bottomGap).toBeGreaterThanOrEqual(45);
+
+    // No feature registers a bottom-right button, so the cluster is not
+    // rendered — an empty cluster would keep `pointer-events: auto` and
+    // intercept map clicks.
+    await expect(page.locator(".ogis-corner--br")).toHaveCount(0);
 
     // Restore the root variables so later assertions in this context are clean.
     await page.evaluate(() => {
