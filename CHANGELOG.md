@@ -1,3 +1,10 @@
+# [3.10.0](https://github.com/OpenGIS/app/compare/v3.9.0...v3.10.0) (2026-10-14)
+
+
+### Features
+
+* **recordings:** move record control into the panel ([07e1f94](https://github.com/OpenGIS/app/commit/07e1f942e87fd2aade32d5da4a7b7fdada86f130))
+
 # [3.9.0](https://github.com/OpenGIS/app/compare/v3.8.0...v3.9.0) (2026-10-08)
 
 
