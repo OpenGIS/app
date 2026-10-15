@@ -1,3 +1,10 @@
+## [3.10.1](https://github.com/OpenGIS/app/compare/v3.10.0...v3.10.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **ui:** let the attribution chip span the full width ([f628eca](https://github.com/OpenGIS/app/commit/f628ecafad63d700bc97230c62b53385341af94f))
+
 # [3.10.0](https://github.com/OpenGIS/app/compare/v3.9.0...v3.10.0) (2026-10-14)
 
 
