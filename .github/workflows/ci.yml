@@ -162,3 +162,47 @@ jobs:
           path: dist
       - uses: actions/deploy-pages@v4
         id: deployment
+
+  # Regenerates the README heroes (`DARK.jpg` / `LIGHT.jpg`) and commits them
+  # back to master, but only when a real release is cut: `release` reports
+  # `released == 'true'` only after semantic-release has bumped the version on
+  # master. It is the release-time companion to the screenshot matrix's
+  # automatic `refresh`, keeping the landing-page imagery current as the app
+  # evolves. The heroes are deliberately non-deterministic live captures, so
+  # the job simply commits whatever the run produced.
+  heroes:
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Regenerate README heroes
+        run: npx playwright test tests/e2e/screenshots/readme.spec.js
+      - name: Commit refreshed heroes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DARK.jpg LIGHT.jpg
+          if git diff --cached --quiet; then
+            echo "No hero changes to commit."
+            exit 0
+          fi
+          VERSION="$(node -p "require('./package.json').version" 2>/dev/null)" || VERSION=""
+          if [ -n "$VERSION" ]; then
+            git commit -m "chore(readme): refresh heroes for v${VERSION} [skip ci]"
+          else
+            git commit -m "chore(readme): refresh README heroes [skip ci]"
+          fi
+          git pull --rebase origin master
+          git push origin HEAD:master
