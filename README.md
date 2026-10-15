@@ -15,11 +15,23 @@ A _loveletter_ to the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem 
 
 ![ogis.app — light theme](LIGHT.jpg)
 
+Both heroes are live, intentionally non-deterministic captures — a random-country cold start with the Info panel open — refreshed in place by every full local test run.
+
+### Screenshot matrix
+
+The committed PNGs under [`screenshots/`](screenshots/) are visual evidence that ships with the repository: core chrome states across phone, tablet and desktop in both orientations, plus feature states at desktop landscape. Captures run in a dedicated, always-software-rendered Playwright project with a dark theme and a pinned locale, so they are reproducible run-to-run on a given machine.
+
+- **Local** — `npm run test:matrix` captures into a gitignored temp directory; local runs never touch the committed PNGs. `npm run screenshots:diff` reports what moved, whether comparing a local capture against the committed matrix or two local capture trees before and after a change.
+- **CI verification** — the `Screenshots` GitHub workflow captures the matrix on macOS shards and verifies the captures against the committed PNGs within a strict pixel tolerance: sub-level anti-aliasing drift is tolerated and reported, while real changes fail. An aggregate job checks the full matrix in both directions.
+- **Re-baselining** — the committed matrix is refreshed from the workflow's own captured artefacts via `npm run screenshots:fetch -- --run <run-id> [--write]`, never from local captures.
+
+See [docs/9.testing.md](docs/9.testing.md) for the testing strategy and [docs/13.ci.md](docs/13.ci.md) for the workflow details.
+
 ## Features
 
 - Detailed, free global map — no install, no account
 - Globe view on first load
-- Corner controls for menu, locate and record, plus a merged Info panel (share links, app info, privacy)
+- Corner controls for menu and locate, plus a merged Info panel (share links, app info, privacy)
 - GPS locate with compass heading
 - Record GPS tracks and export as GPX
 - Import GPX routes and navigate offline
@@ -107,7 +119,7 @@ npm run test:e2e
 npm run test:matrix   # screenshot matrix only (fast local; temp output)
 ```
 
-Screenshot captures run in a dedicated, always-SwiftShader Playwright project. A plain local run is unpinned and parallel, and writes the matrix to a gitignored temp directory, so it never touches the committed PNGs; re-baseline them explicitly with `npm run test:matrix:update`, and GitHub's `Screenshots` workflow reproduces the committed bytes in its macOS capture shards and verifies the full matrix in an aggregate check. The `DARK.jpg`/`LIGHT.jpg` heroes are the deliberate exception — intentionally non-deterministic live captures that a full-suite run refreshes in place every time. See [docs/9.testing.md](docs/9.testing.md) for the testing strategy.
+The full local E2E run (`npm run test:e2e`) is the final verification before declaring a task complete. Screenshot capture behaviour — the README heroes and the matrix — is described under [Screenshots](#screenshots).
 
 ## Contributing
 

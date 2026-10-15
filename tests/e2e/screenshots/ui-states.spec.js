@@ -32,8 +32,8 @@ import { basename } from "node:path";
  * temp dir instead, for relative / visual comparison; the committed baselines
  * themselves are sourced from the `Screenshots` workflow's captured artifacts
  * via `npm run screenshots:fetch -- --run <run-id> [--write]`. GitHub's
- * `Screenshots` workflow then verifies the committed matrix byte-for-byte (see
- * `docs/13.ci.md`). Live map tiles make pixel comparisons brittle, so this spec
+ * `Screenshots` workflow then verifies the committed matrix within a strict
+ * pixel tolerance (see `docs/13.ci.md`). Live map tiles make pixel comparisons brittle, so this spec
  * deliberately snapshots rather than compares (an explicit project decision).
  *
  * Dark is the project default (`colorScheme: "dark"` in playwright.config.js).
