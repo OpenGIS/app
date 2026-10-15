@@ -447,12 +447,26 @@ $font-size-base: 0.9375rem; // 15 px
 // #6h  Attribution chip, disclosures & scale offset
 // ─────────────────────────────────────────────────────────────
 // The bottom-left attribution chip expands on load, then collapses to
-// an icon-only pill on the first map drag. Its text wraps rather than
-// spanning the viewport, and its links are decoration only.
+// an icon-only pill on the first map drag. Its links are decoration
+// only, and it keeps clear of the bottom-right corner whenever that
+// corner holds controls.
 
 .ogis-attribution-chip {
-  max-width: min(70ch, calc(100vw - 8rem));
+  // Span the viewport minus the corner's own insets (0.75rem padding per
+  // side plus device safe-area insets), so no obsolete space is reserved.
+  max-width: min(
+    70ch,
+    calc(100vw - 1.5rem - var(--ogis-safe-left) - var(--ogis-safe-right))
+  );
   align-items: center;
+}
+
+// While the bottom-right corner holds controls, keep room for them.
+.ogis-controls.has-br .ogis-attribution-chip {
+  max-width: min(
+    70ch,
+    calc(100vw - 8rem - var(--ogis-safe-left) - var(--ogis-safe-right))
+  );
 }
 
 .ogis-attribution-chip .ogis-attribution-chip__text {

@@ -15,17 +15,18 @@ A _loveletter_ to the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem 
 
 ![ogis.app — light theme](LIGHT.jpg)
 
-Both heroes are live, intentionally non-deterministic captures — a random-country cold start with the Info panel open — refreshed in place by every full local test run.
+Both heroes are live, intentionally non-deterministic captures — a random-country cold start with the Info panel open — refreshed in place by every full local test run. The committed screenshot matrix is under [`screenshots/`](screenshots/); see [Screenshot matrix](#screenshot-matrix).
 
-### Screenshot matrix
+## Technical overview
 
-The committed PNGs under [`screenshots/`](screenshots/) are visual evidence that ships with the repository: core chrome states across phone, tablet and desktop in both orientations, plus feature states at desktop landscape. Captures run in a dedicated, always-software-rendered Playwright project with a dark theme and a pinned locale, so they are reproducible run-to-run on a given machine.
+ogis.app is a **Vue 3 + Vite** single-page application — the map is [MapLibre GL JS](https://maplibre.org/) with a Bootstrap SCSS theme, and a hand-rolled service worker ([`public/sw.js`](public/sw.js), no Workbox) provides the app shell and offline map support. The backend features (account, maps, collections) are disabled in the current SPA front-end only mode.
 
-- **Local** — `npm run test:matrix` captures into a gitignored temp directory; local runs never touch the committed PNGs. `npm run screenshots:diff` reports what moved, whether comparing a local capture against the committed matrix or two local capture trees before and after a change.
-- **CI verification** — the `Screenshots` GitHub workflow captures the matrix on macOS shards and verifies the captures against the committed PNGs within a strict pixel tolerance: sub-level anti-aliasing drift is tolerated and reported, while real changes fail. An aggregate job checks the full matrix in both directions.
-- **Re-baselining** — the committed matrix is refreshed from the workflow's own captured artefacts via `npm run screenshots:fetch -- --run <run-id> [--write]`, never from local captures.
+- **Entry point** — [`src/main.js`](src/main.js) reads the URL parameters, creates the Vue app, installs the core features and mounts to `#app`.
+- **Features** — self-contained bundles registered from `src/main.js`; each is a plain object with an `install(ctx)` method that registers a side-panel tab and/or a corner control chip. See [Features](docs/10.features.md).
+- **Composables** — per-instance state lives in `src/composables/`, cached in a module-level `Map` keyed by the instance id (the `?id=` URL parameter). See [Instances](docs/3.instances.md).
+- **Offline** — the service worker caches the app shell and map resources; the Offline feature pre-warms its cache by fetching every tile and glyph URL for a region. See [Offline](docs/12.offline.md).
 
-See [docs/9.testing.md](docs/9.testing.md) for the testing strategy and [docs/13.ci.md](docs/13.ci.md) for the workflow details.
+Full developer documentation lives in [docs/README.md](docs/README.md).
 
 ## Features
 
@@ -69,16 +70,49 @@ See [docs/9.testing.md](docs/9.testing.md) for the testing strategy and [docs/13
 
 ## Development
 
-### Install
+### Quick start
+
+Requires **Node 24** — the unit suite depends on `Intl.Locale.prototype.getTimeZones`.
 
 ```bash
 npm install
+npm run dev     # http://localhost:5174
+npm run build   # production build to dist/
 ```
 
-### Build
+E2E runs on a fresh machine also need the Chromium build: `npx playwright install chromium`.
+
+### Development workflow
+
+The canonical loop, from first checkout to merge. Deep dives are linked inline:
+
+1. **Set up** — see [Quick start](#quick-start).
+2. **Inner loop** — `npm run watch:e2e` reruns the functional E2E suite on change; run a single spec with `npm run test:e2e -- tests/e2e/{spec}.spec.js`; unit tests are `npm test`. Deep dive: [Testing — Local iteration loops](docs/9.testing.md#local-iteration-loops).
+3. **UI changes** — capture the screenshot matrix with `npm run test:matrix` (writes to a temp directory), then inspect what moved with `npm run screenshots:diff` (relative/visual report). See [Screenshot matrix](#screenshot-matrix).
+4. **Format** — `npm run format`. CI gates on `npm run format:check`.
+5. **Pre-push gate** — `npm run check` (Prettier check + unit tests) before pushing.
+6. **Commit and push** — Conventional Commits only (see [Contributing](#contributing)).
+7. **CI is the gate** — green on your pushed commits means done: `ci.yml` runs the unit suite, the commit-message check and the functional E2E suite, while the `Screenshots` workflow verifies the committed matrix within a strict pixel tolerance (its aggregate `Screenshots — verify committed matrix` job is the required branch-protection check) and re-baselines it automatically on `master` when a real visual change lands. The full local E2E run (`npm run test:e2e`) is an optional fallback — offline, or when the local GPU functional path is specifically wanted. See [CI](docs/13.ci.md).
+
+### Screenshot matrix
+
+The committed PNGs under [`screenshots/`](screenshots/) are visual evidence that ships with the repository: core chrome states across phone, tablet and desktop in both orientations, plus feature states at desktop landscape. Captures run in a dedicated, always-software-rendered Playwright project with a dark theme and a pinned locale, so they are reproducible run-to-run on a given machine.
+
+- **Local** — `npm run test:matrix` captures into a gitignored temp directory; local runs never touch the committed PNGs. `npm run screenshots:diff` reports what moved, whether comparing a local capture against the committed matrix or two local capture trees before and after a change.
+- **CI verification** — the `Screenshots` GitHub workflow captures the matrix on macOS shards and verifies the captures against the committed PNGs within a strict pixel tolerance: sub-level anti-aliasing drift is tolerated and reported, while real changes fail. An aggregate job checks the full matrix in both directions.
+- **Re-baselining** — when a `master` push genuinely moves the matrix (verification fails beyond tolerance), the workflow's `refresh` job rebuilds the committed baseline automatically from that run's own captured artefacts and re-verifies, so the developer just `git pull`. Pull requests stay strict (a red verification is a review signal) and sub-tolerance drift never triggers it. `npm run screenshots:fetch -- --run <run-id> [--write]` is the manual exception path for a PR or a failed/incomplete capture set — never from local captures.
+
+See [docs/9.testing.md](docs/9.testing.md) for the testing strategy and [docs/13.ci.md](docs/13.ci.md) for the workflow details.
+
+### Backend API base URL
+
+Set the backend API origin for cross-subdomain auth/API calls:
+
+> [!NOTE]
+> Only needed when the auth/backend features are re-enabled — the app currently runs in SPA front-end only mode.
 
 ```bash
-npm run build
+echo "VITE_API_BASE_URL=https://api.example.com" > .env.local
 ```
 
 ### Icons
@@ -91,57 +125,13 @@ npm run icons:build   # regenerate the bundle after adding or updating source ic
 
 See [docs/14.icons.md](docs/14.icons.md) for the pipeline.
 
-### Local
-
-Set the backend API origin for cross-subdomain auth/API calls:
-
-> [!NOTE]
-> Only needed when the auth/backend features are re-enabled — the app currently runs in SPA front-end only mode.
-
-```bash
-echo "VITE_API_BASE_URL=https://api.example.com" > .env.local
-```
-
-```bash
-npm run dev
-```
-
-### Testing
-
-```bash
-# Unit
-npm test    # unit tests (vitest; needs Node 24)
-
-# E2E
-npx playwright install chromium
-npm run test:e2e -- tests/e2e/{spec}.spec.js
-npm run test:e2e
-npm run test:matrix   # screenshot matrix only (fast local; temp output)
-```
-
-The full local E2E run (`npm run test:e2e`) is the final verification before declaring a task complete. Screenshot capture behaviour — the README heroes and the matrix — is described under [Screenshots](#screenshots).
-
 ## Contributing
 
-Please use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+Please use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) — format `<type>(optional scope): <description>`, e.g. `fix(offline): purge stale tile URLs`.
 
-CI's semantic-release job derives versions, changelogs and GitHub releases from commit messages, so a message that does not parse is invisible to the release process.
+The `release` job derives versions, changelogs and GitHub releases from commit messages, so a message that does not parse is invisible to the release process. Breaking changes use `!` after the type/scope (`feat(api)!: …`) or a `BREAKING CHANGE:` footer, and trigger a major release.
 
-Format: `<type>(optional scope): <description>`, e.g. `fix(offline): purge stale tile URLs`.
-
-| Type       | Use for                                              |
-| ---------- | ---------------------------------------------------- |
-| `feat`     | A new feature (minor release)                        |
-| `fix`      | A bug fix (patch release)                            |
-| `perf`     | A performance improvement (patch release)            |
-| `refactor` | A change that neither fixes a bug nor adds a feature |
-| `docs`     | Documentation only                                   |
-| `test`     | Tests only                                           |
-| `ci`       | CI configuration and scripts                         |
-| `chore`    | Maintenance that does not fit the above              |
-| `build`    | Build system or dependencies                         |
-
-Breaking changes use `!` after the type/scope (`feat(api)!: …`) or a `BREAKING CHANGE:` footer, and trigger a major release. See `docs/13.ci.md` for the full release flow.
+The full type table, the CI commit-message check and the release flow live in [docs/13.ci.md](docs/13.ci.md#conventional-commits-are-required).
 
 ## Docs
 

@@ -18,6 +18,13 @@ name: Screenshots
 # assigned captures is caught here, not by the per-shard step. Require just this
 # one check.
 #
+# When the aggregate fails on a `master` push the baseline has genuinely moved
+# (sub-tolerance drift passes, so it never reaches here): the `refresh` job
+# rebuilds the committed matrix from the same run's shard captures, commits it
+# and dispatches a fresh run to re-verify — so the developer's side is just
+# `git pull`. Pull requests never auto-refresh (a red verify stays a review
+# signal) and an incomplete capture set is never blessed. See the `refresh` job.
+#
 # Why macOS: Linux (ubuntu-latest) substitutes fonts (panel copy wraps) and
 # rasterises differently, so it cannot reproduce the macOS-captured matrix.
 # Only the capture shards need macOS; the aggregate verify job compares pixels
@@ -120,3 +127,70 @@ jobs:
           path: screenshot-verify-aggregate.txt
           if-no-files-found: ignore
           retention-days: 7
+
+  # Auto-refresh on master. Triggered only when a `master` push genuinely moves
+  # the matrix — i.e. the tolerant aggregate verification FAILED (sub-tolerance
+  # drift passes and never reaches here). It rebuilds the committed baseline
+  # from the SAME run's shard captures, commits it and dispatches a fresh run to
+  # re-verify, so the developer's side is just `git pull`. It never runs on pull
+  # requests or `workflow_dispatch`, so PRs stay strict. The capture set must be
+  # complete and valid: `screenshots:fetch` refuses a partial or empty set, so
+  # the job fails with no commit and the run stays red for a human — nothing is
+  # ever blessed from an incomplete capture set. Re-runs are harmless: a second
+  # pass finds nothing to commit and skips both the commit and the dispatch.
+  refresh:
+    name: Refresh committed matrix
+    needs: [screenshots, verify]
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.verify.result == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+      - name: Download the run's shard captures
+        uses: actions/download-artifact@v4
+        with:
+          pattern: screenshots-shard-*
+          path: captured
+      - name: Assemble and write the committed matrix
+        run: npm run screenshots:fetch -- --artifacts captured --write
+      - name: Commit the refreshed matrix
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add screenshots
+          if git diff --cached --quiet; then
+            echo "No matrix changes to commit."
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "test(e2e): refresh screenshot matrix from run ${{ github.run_id }}" \
+            -m "Refreshed automatically from https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}."
+          git pull --rebase origin master
+          git push origin HEAD:master
+          echo "committed=true" >> "$GITHUB_OUTPUT"
+      - name: Dispatch re-verification
+        if: steps.commit.outputs.committed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run screenshots.yml --ref master
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Screenshot matrix refresh"
+            if [ "${{ steps.commit.outputs.committed }}" = "true" ]; then
+              echo "Committed the refreshed matrix from run ${{ github.run_id }} and dispatched a re-verification run."
+            else
+              echo "No matrix change was committed (nothing to refresh, or the refresh did not complete); nothing dispatched."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

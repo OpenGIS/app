@@ -477,8 +477,15 @@ function run() {
   emit("");
   if (fail > 0) {
     emit(
-      "Refresh the committed matrix from the workflow's captured artifacts with",
+      "On a master push the Screenshots workflow refreshes the committed matrix",
     );
+    emit(
+      "from this run's captures automatically and re-verifies it; developers",
+    );
+    emit(
+      "just 'git pull'. For a pull request, or a failed or incomplete capture",
+    );
+    emit("set, refresh manually:");
     emit("'npm run screenshots:fetch -- --run <run-id> --write'.");
     emit("");
   }

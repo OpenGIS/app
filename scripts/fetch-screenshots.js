@@ -17,6 +17,12 @@ import { spawnSync } from "node:child_process";
 // `.opencode/tmp/screenshots/` subtrees back into one matrix keyed by
 // committed-relative path, e.g. `desktop/landscape/closed.png`.
 //
+// With `--artifacts <dir>` it skips the gh download and assembles from an
+// already-downloaded shard tree instead — the same layout
+// actions/download-artifact writes (`<dir>/screenshots-shard-<n>/…`). The
+// master-push `refresh` job in the Screenshots workflow uses this input to
+// rebuild the baseline from the run's own captures.
+//
 // Read-only by default: it downloads, assembles, validates and compares, then
 // reports. Pass `--write` to copy the assembled set into the committed
 // `screenshots/` tree; silent baseline deletions are never performed unless
@@ -42,6 +48,9 @@ Usage:
 Options:
   --run <id>         fetch a specific Screenshots workflow run id
   --branch <name>    fetch the latest completed Screenshots run for a branch
+  --artifacts <dir>  assemble from an already-downloaded shard tree instead of
+                     fetching with gh — <dir> holds screenshots-shard-<n>/
+                     subdirectories (the actions/download-artifact layout)
   --out <dir>        scratch/output root
                      (default: .opencode/tmp/ci-screenshots/<run-id>)
   --write            copy the assembled matrix into ${COMMITTED_ROOT}/
@@ -50,13 +59,14 @@ Options:
                      does not contain (default: refuse, listing them)
   --help             show this help
 
-With neither --run nor --branch the script lists the most recent Screenshots
-runs and exits without fetching.`;
+With none of --run, --branch or --artifacts the script lists the most recent
+Screenshots runs and exits without fetching.`;
 
 function parseArgs(argv) {
   const options = {
     run: null,
     branch: null,
+    artifacts: null,
     out: null,
     write: false,
     allowRemovals: false,
@@ -82,6 +92,11 @@ function parseArgs(argv) {
       if (!value) return { error: `${arg} needs a branch name` };
       options.branch = value;
       i = next;
+    } else if (arg === "--artifacts" || arg.startsWith("--artifacts=")) {
+      const { value, i: next } = valueOf(arg, i);
+      if (!value) return { error: `${arg} needs a directory` };
+      options.artifacts = value;
+      i = next;
     } else if (arg === "--out" || arg.startsWith("--out=")) {
       const { value, i: next } = valueOf(arg, i);
       if (!value) return { error: `${arg} needs a directory` };
@@ -98,6 +113,9 @@ function parseArgs(argv) {
 
   if (options.run && options.branch) {
     return { error: "Pass either --run or --branch, not both." };
+  }
+  if (options.artifacts && options.branch) {
+    return { error: "Pass either --artifacts or --branch, not both." };
   }
 
   return { options };
@@ -444,13 +462,17 @@ function run() {
     return;
   }
 
-  if (!options.run && !options.branch) printRecentRuns();
+  if (!options.run && !options.branch && !options.artifacts) printRecentRuns();
 
-  const runId = resolveRunId(options);
+  const runId = options.artifacts
+    ? options.run || "local-artifacts"
+    : resolveRunId(options);
   const outDir = options.out
     ? path.resolve(options.out)
     : path.join(OUT_ROOT, String(runId));
-  const rawDir = path.join(outDir, "raw");
+  const rawDir = options.artifacts
+    ? path.resolve(options.artifacts)
+    : path.join(outDir, "raw");
   const assembledDir = path.join(outDir, "assembled");
   const reportPath = path.join(outDir, REPORT_NAME);
 
@@ -461,8 +483,16 @@ function run() {
   console.log(`  write:     ${options.write ? "yes" : "no (read-only)"}`);
   console.log("");
 
-  console.log("Downloading shard artifacts …");
-  downloadRun(runId, rawDir);
+  if (options.artifacts) {
+    if (!isDirectory(rawDir)) {
+      console.error(`Artifacts directory not found: ${rawDir}`);
+      process.exit(1);
+    }
+    console.log(`Reading shard artifacts from ${rawDir} …`);
+  } else {
+    console.log("Downloading shard artifacts …");
+    downloadRun(runId, rawDir);
+  }
 
   console.log("Assembling matrix …");
   const assembly = assemble(rawDir, assembledDir);

@@ -25,6 +25,16 @@ const bottomRightButtons = computed(() =>
   buttonsRef.value.filter((b) => b.position === "bottom-right"),
 );
 
+// Which corners actually render controls. Feature-driven corners flip
+// their own flag so layout rules (e.g. the attribution chip's width cap)
+// can key off occupancy rather than assuming it.
+const cornerOccupancy = computed(() => ({
+  "has-tl": true, // menu button (core chrome)
+  "has-tr": true, // locate button (core chrome)
+  "has-bl": true, // attribution chip (core chrome)
+  "has-br": bottomRightButtons.value.length > 0, // feature buttons
+}));
+
 const handleCustomClick = (btn) => {
   if (btn.panel) {
     setActivePanel(btn.id);
@@ -40,7 +50,7 @@ const handleCustomClick = (btn) => {
 <template>
   <div
     class="ogis-controls"
-    :class="{ 'panel-open': isPanelVisible && isDesktop }"
+    :class="[{ 'panel-open': isPanelVisible && isDesktop }, cornerOccupancy]"
   >
     <div class="ogis-corner ogis-corner--tl">
       <IconButton

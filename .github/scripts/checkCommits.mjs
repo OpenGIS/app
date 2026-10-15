@@ -3,13 +3,13 @@
 // Used by the `commits` CI job to gate the release: a subject that does not
 // parse is invisible to semantic-release, so it must fail loudly here. Runs on
 // Node 24 (matching the workflow) and depends only on `git` plus the standard
-// library. See the type table in AGENTS.md for the allowed types.
+// library. See the type table in docs/13.ci.md for the allowed types.
 
 import { execFileSync } from "node:child_process";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-// Allowed types per AGENTS.md, plus `revert` from the Conventional Commits spec.
+// Allowed types (see docs/13.ci.md), plus `revert` from the Conventional Commits spec.
 export const ALLOWED_TYPES = [
   "build",
   "chore",
@@ -114,7 +114,7 @@ const main = () => {
         ...lines,
         "",
         "Subjects must follow Conventional Commits, e.g. `feat(ui): add offline panel`.",
-        `Allowed types (see AGENTS.md): ${ALLOWED_TYPES.join(", ")}.`,
+        `Allowed types (see docs/13.ci.md): ${ALLOWED_TYPES.join(", ")}.`,
       ].join("\n"),
     );
     process.exit(1);

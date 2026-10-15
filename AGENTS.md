@@ -13,10 +13,11 @@ npm run dev          # start Vite dev server (app at http://localhost:5174)
 npm run build        # build the app for distribution
 npm run test:unit    # run vitest unit tests
 npm run test:e2e -- tests/e2e/{spec}.spec.js   # run only the relevant E2E spec (development)
-npm run test:e2e                            # full E2E suite incl. screenshots — local final verification
+npm run test:e2e                            # full E2E suite incl. screenshots — optional local fallback
 npm run test:matrix                         # screenshot matrix only (fast local; writes to a temp dir)
 npm run test:matrix:update                  # re-baseline the committed screenshot matrix (headless, deterministic)
 npm test             # run unit tests only (rapid development)
+npm run check        # fast pre-push gate: format check + unit tests
 npm run format:check # Prettier format gate (the same check CI runs)
 npm run format       # rewrite files with Prettier
 ```
@@ -27,9 +28,9 @@ npm run format       # rewrite files with Prettier
 
 CI is a quick gate: unit tests, Prettier, and the **functional** E2E suite only. `ci.yml` excludes the screenshot matrix (`--grep-invert @screenshots`) and shards the functional suite three ways. The committed matrix is verified instead by a separate **`Screenshots`** workflow (macOS capture shards plus a Linux aggregate `verify` job, pixel-tolerant against the committed PNGs); the aggregate job is the required check on pull requests and `master` pushes. See `docs/13.ci.md`.
 
-**Final verification before declaring a task complete is the full local E2E run** (`npm run test:e2e`). It includes the `@screenshots` matrix plus the functional specs on the local GPU path. The matrix runs in a dedicated, always-SwiftShader `screenshots` Playwright project; a plain local run is unpinned and parallel, and writes captures to a gitignored `.opencode/tmp/screenshots/` — never the committed tree. GitHub is the deterministic authority: the `Screenshots` workflow reproduces the committed matrix within a strict pixel tolerance in its macOS capture shards, then an aggregate `verify` job checks the full matrix in both directions and is the required check.
+**A task is done when its pushed commits are green in CI** — `ci.yml` (unit, commit check, functional E2E) plus the `Screenshots` workflow. Local habits stay fast: the watch loops and targeted specs while developing, and `npm run check` (Prettier check plus unit tests) as the pre-push gate. The full local E2E run (`npm run test:e2e`) is an optional fallback — offline, or when the local GPU functional path is specifically wanted — not a required step before declaring done. It includes the `@screenshots` matrix plus the functional specs on the local GPU path. The matrix runs in a dedicated, always-SwiftShader `screenshots` Playwright project; a plain local run is unpinned and parallel, and writes captures to a gitignored `.opencode/tmp/screenshots/` — never the committed tree. GitHub is the deterministic authority: the `Screenshots` workflow reproduces the committed matrix within a strict pixel tolerance in its macOS capture shards, then an aggregate `verify` job checks the full matrix in both directions and is the required check; a `master` push that genuinely moves captures re-baselines them automatically through its `refresh` job.
 
-Formatting is gated by Prettier: CI's `unit` job runs `npm run format:check`. Run `npm run format` before completing a task. The `format`/`format:check` scripts pass [`.gitignore`](.gitignore), [`.prettierignore`](.prettierignore) and a global `~/.config/prettier/ignore` explicitly via `--ignore-path` — Prettier has no native global ignore, and `--ignore-path` overrides its defaults rather than adding to them, so every ignore file is named on the command line. [`.prettierignore`](.prettierignore) excludes generated and vendored output (build directories, `tests/fixtures/`, the lockfile, `CHANGELOG.md`); the global file excludes tooling scratch space.
+Formatting is gated by Prettier: CI's `unit` job runs `npm run format:check`; `npm run check` bundles that check with the unit suite for a fast pre-push gate. Run `npm run format` before completing a task. The `format`/`format:check` scripts pass [`.gitignore`](.gitignore), [`.prettierignore`](.prettierignore) and a global `~/.config/prettier/ignore` explicitly via `--ignore-path` — Prettier has no native global ignore, and `--ignore-path` overrides its defaults rather than adding to them, so every ignore file is named on the command line. [`.prettierignore`](.prettierignore) excludes generated and vendored output (build directories, `tests/fixtures/`, the lockfile, `CHANGELOG.md`); the global file excludes tooling scratch space.
 
 Locally, functional E2E specs run against the full Chromium build with GPU rendering (the default; `--use-angle=metal` on macOS); CI and `E2E_SWIFTSHADER=1` swap them to SwiftShader. The `screenshots` project is **always** SwiftShader-rendered. Local runs have two modes:
 
@@ -115,7 +116,7 @@ Features are plain objects with an `install(ctx)` method. A feature lives in `sr
 2. Create `src/features/{name}/{Name}Button.vue` and `{Name}Panel.vue` as needed
 3. Register in `src/main.js`: `MyFeature.install(featureCtx)`
 4. Create `tests/e2e/features/{name}.spec.js`
-5. Run `npm run test:e2e -- tests/e2e/features/{name}.spec.js` during development; run the full local E2E suite (`npm run test:e2e`) as final verification
+5. Run `npm run test:e2e -- tests/e2e/features/{name}.spec.js` during development; final verification is green CI on the pushed commits
 
 See `docs/10.features.md` for the full feature pattern.
 
