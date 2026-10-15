@@ -15,7 +15,7 @@ A _loveletter_ to the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem 
 
 ![ogis.app — light theme](LIGHT.jpg)
 
-Both heroes are live, intentionally non-deterministic captures — a random-country cold start with the Info panel open — refreshed in place by every full local test run. The committed screenshot matrix is under [`screenshots/`](screenshots/); see [Screenshot matrix](#screenshot-matrix).
+Both heroes are live, intentionally non-deterministic captures — a random-country cold start with the Info panel open — refreshed in place by every full local test run, and rebuilt and committed back automatically whenever a release is cut. The committed screenshot matrix is under [`screenshots/`](screenshots/); see [Screenshot matrix](#screenshot-matrix).
 
 ## Technical overview
 
@@ -75,6 +75,7 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 Requires **Node 24** — the unit suite depends on `Intl.Locale.prototype.getTimeZones`.
 
 ```bash
+git clone https://github.com/OpenGIS/app.git
 npm install
 npm run dev     # http://localhost:5174
 npm run build   # production build to dist/
@@ -127,11 +128,16 @@ See [docs/14.icons.md](docs/14.icons.md) for the pipeline.
 
 ## Contributing
 
-Please use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) — format `<type>(optional scope): <description>`, e.g. `fix(offline): purge stale tile URLs`.
+The end-to-end journey, checkout to release:
 
-The `release` job derives versions, changelogs and GitHub releases from commit messages, so a message that does not parse is invisible to the release process. Breaking changes use `!` after the type/scope (`feat(api)!: …`) or a `BREAKING CHANGE:` footer, and trigger a major release.
+1. **Set up** — see [Quick start](#quick-start).
+2. **Make the change** — follow the [Development workflow](#development-workflow).
+3. **Run the pre-push gate** — `npm run check` (Prettier check + unit tests).
+4. **Commit** — a [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/): `<type>(optional scope): <description>`, e.g. `fix(offline): purge stale tile URLs`. The [type table](docs/13.ci.md#conventional-commits-are-required) maps types to release impact; breaking changes use `!` or a `BREAKING CHANGE:` footer.
+5. **Push and open a PR** — `ci.yml` runs the unit suite, the commit check and the functional E2E suite; the `Screenshots` workflow verifies the committed matrix. A red matrix on a PR is a review signal for a real visual change — the aggregate `Screenshots — verify committed matrix` check is the required one.
+6. **After merge** — the `release` job cuts versions, changelogs and GitHub releases from the commit messages; a real visual change re-baselines the screenshot matrix on `master`; the README heroes refresh automatically on each release.
 
-The full type table, the CI commit-message check and the release flow live in [docs/13.ci.md](docs/13.ci.md#conventional-commits-are-required).
+[AGENTS.md](AGENTS.md) is the project's conventions file — the same journey, commands and gates in agent-facing form.
 
 ## Docs
 

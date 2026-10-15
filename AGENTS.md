@@ -6,6 +6,17 @@
 
 ---
 
+## Contributing workflow
+
+Mirrors the [README Contributing journey](README.md#contributing) — follow the identical steps:
+
+1. **Set up** — [Quick start](README.md#quick-start).
+2. **Make the change** — [Development workflow](README.md#development-workflow).
+3. **Pre-push gate** — `npm run check` (Prettier check + unit tests) must pass before pushing.
+4. **Commit** — Conventional Commits only; the `commits` job validates every non-merge subject (types in [`docs/13.ci.md`](docs/13.ci.md#conventional-commits-are-required)).
+5. **Push / open a PR** — PRs run the same checks as `master` pushes: `ci.yml` plus the `Screenshots` workflow; the aggregate matrix check is the required branch-protection check.
+6. **Done** — green CI on the pushed commits; merge triggers the release, the matrix re-baseline on `master` and the README hero refresh.
+
 ## Commands
 
 ```bash
