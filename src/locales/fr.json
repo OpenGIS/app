@@ -141,10 +141,10 @@
   "panel.info.readMore": "En savoir plus",
   "panel.info.readLess": "Réduire",
 
-  "panel.view.copyLink": "Copier ce lien",
+  "panel.view.share": "Partager",
   "panel.view.copied": "Copié !",
-  "panel.view.viewOnOsm": "Voir sur OSM",
-  "panel.view.editOnOsm": "Éditer sur OSM",
+  "panel.view.improve": "Améliorer",
+  "panel.view.random": "Aléatoire",
 
   "locate.button.locate": "Localiser",
   "locate.button.located": "Localisé",

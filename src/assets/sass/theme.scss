@@ -219,6 +219,12 @@ $font-size-base: 0.9375rem; // 15 px
   }
 }
 
+// Primary "Share" action: a slightly larger label than the default
+// small-button size.
+.ogis-share-link {
+  font-size: 0.875rem;
+}
+
 // #6g  Layout and structural styles
 // ─────────────────────────────────────────────────────────────
 // Required structural styles. Not tied to the palette — do not

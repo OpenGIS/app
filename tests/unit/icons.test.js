@@ -32,7 +32,8 @@ const symbolIds = [...sprite.matchAll(/<symbol[^>]*\bid="([^"]+)"/g)].map(
  *  - position-lock — following-mode control in components/ui/controls/locate.vue
  *  - layout-sidebar-inset — panel toggle in components/ui/controls.vue
  *  - info-circle — attribution chip in components/ui/controls/attribution.vue
- *  - check / globe / pencil — Info panel actions in components/panels/info.vue
+ *  - check / pencil / share / dice — Info panel actions in
+ *    components/panels/info.vue
  *  - route / graph-down / file-arrow-down / person-circle / list / map —
  *    feature nav icons in src/features/{recordings,routes,offline,account,
  *    collections,maps}/index.js
@@ -44,8 +45,9 @@ const REQUIRED_ICON_IDS = [
   "layout-sidebar-inset",
   "info-circle",
   "check",
-  "globe",
   "pencil",
+  "share",
+  "dice",
   "route",
   "graph-down",
   "file-arrow-down",
@@ -62,9 +64,9 @@ describe("vendored icon sprite", () => {
     );
   });
 
-  it("defines 52 symbols with unique ids", () => {
-    expect(symbolIds).toHaveLength(52);
-    expect(new Set(symbolIds).size).toBe(52);
+  it("defines 54 symbols with unique ids", () => {
+    expect(symbolIds).toHaveLength(54);
+    expect(new Set(symbolIds).size).toBe(54);
   });
 });
 
@@ -84,8 +86,8 @@ describe("generated icon output consistency", () => {
     expect(orphans).toEqual(["logo"]);
   });
 
-  it("has 53 generated codepoint entries", () => {
-    expect(Object.keys(generatedCodepoints)).toHaveLength(53);
+  it("has 55 generated codepoint entries", () => {
+    expect(Object.keys(generatedCodepoints)).toHaveLength(55);
   });
 
   it("matches the source codepoints file exactly", () => {
@@ -98,6 +100,8 @@ describe("codepoint stability", () => {
     ["file-arrow-down", 0xf133],
     ["map", 0xf134],
     ["waymark-logo", 0xf135],
+    ["share", 0xf136],
+    ["dice", 0xf137],
   ])("pins %s to U+%s in source and generated maps", (name, codepoint) => {
     expect(sourceCodepoints[name]).toBe(codepoint);
     expect(generatedCodepoints[name]).toBe(codepoint);

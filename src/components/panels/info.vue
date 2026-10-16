@@ -22,21 +22,20 @@ const shareUrl = computed(() => {
   return `${base}${formatUrlHash(zoom, lat, lng, pitch, bearing)}`;
 });
 
-const osmUrl = computed(() => {
+const osmNoteUrl = computed(() => {
   if (!mapView.value) return null;
   const { lat, lng } = mapView.value;
   const zoom = Math.round(mapView.value.zoom);
-  return `https://www.openstreetmap.org/#map=${zoom}/${lat.toFixed(6)}/${lng.toFixed(6)}`;
+  return `https://www.openstreetmap.org/note/new#map=${zoom}/${lat.toFixed(6)}/${lng.toFixed(6)}&layers=DN`;
 });
 
-const osmEditUrl = computed(() => {
-  if (!mapView.value) return null;
-  const { lat, lng } = mapView.value;
-  const zoom = Math.round(mapView.value.zoom);
-  return `https://www.openstreetmap.org/edit#map=${zoom}/${lat.toFixed(6)}/${lng.toFixed(6)}`;
+const randomUrl = computed(() => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("country", "random");
+  return `${url.pathname}${url.search}`;
 });
 
-const copyLink = async () => {
+const copyToClipboard = async () => {
   try {
     await navigator.clipboard.writeText(shareUrl.value);
     copied.value = true;
@@ -50,6 +49,21 @@ const copyLink = async () => {
       document.execCommand("copy");
     }
   }
+};
+
+const onShare = async (e) => {
+  // Let the browser handle modifier clicks (open in new tab, etc.).
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  if (navigator.share) {
+    try {
+      await navigator.share({ url: shareUrl.value });
+      return;
+    } catch (err) {
+      if (err.name === "AbortError") return;
+    }
+  }
+  await copyToClipboard();
 };
 </script>
 
@@ -66,41 +80,39 @@ const copyLink = async () => {
         @focus="$event.target.select()"
       ></textarea>
 
-      <button
-        type="button"
-        class="btn btn-sm w-100 d-flex align-items-center justify-content-center gap-1"
+      <a
+        class="btn btn-sm ogis-share-link w-100 d-flex align-items-center justify-content-center gap-1"
         :class="copied ? 'btn-success' : 'btn-outline-primary'"
-        @click="copyLink"
+        :href="shareUrl"
+        @click="onShare"
       >
+        {{ copied ? t("panel.view.copied") : t("panel.view.share") }}
         <Icon
-          width="16"
-          height="16"
+          width="18"
+          height="18"
           fill="currentColor"
-          :name="copied ? 'check' : 'globe'"
+          :name="copied ? 'check' : 'share'"
         />
-        {{ copied ? t("panel.view.copied") : t("panel.view.copyLink") }}
-      </button>
+      </a>
 
       <hr class="my-2 opacity-25" />
 
       <div class="d-flex gap-2">
         <a
           class="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-1"
-          :href="osmUrl ?? '#'"
+          :href="osmNoteUrl ?? '#'"
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Icon width="14" height="14" fill="currentColor" name="globe" />
-          {{ t("panel.view.viewOnOsm") }}
+          {{ t("panel.view.improve") }}
+          <Icon width="16" height="16" fill="currentColor" name="pencil" />
         </a>
         <a
           class="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-1"
-          :href="osmEditUrl ?? '#'"
-          target="_blank"
-          rel="noopener noreferrer"
+          :href="randomUrl"
         >
-          <Icon width="14" height="14" fill="currentColor" name="pencil" />
-          {{ t("panel.view.editOnOsm") }}
+          {{ t("panel.view.random") }}
+          <Icon width="18" height="18" fill="currentColor" name="dice" />
         </a>
       </div>
     </div>
