@@ -21,6 +21,12 @@ const {
 } = inject("recordings");
 
 const isActive = computed(() => state.isRecording || state.isPaused);
+
+const sortedRecordings = computed(() =>
+  [...state.saved].sort(
+    (a, b) => b.timestamp - a.timestamp || Number(b.id) - Number(a.id),
+  ),
+);
 </script>
 
 <template>
@@ -72,7 +78,7 @@ const isActive = computed(() => state.isRecording || state.isPaused);
       No recordings yet.
     </p>
 
-    <div v-for="rec in state.saved" :key="rec.id" class="border-top py-2">
+    <div v-for="rec in sortedRecordings" :key="rec.id" class="border-top py-2">
       <div class="small text-body-secondary">
         {{ new Date(rec.timestamp).toLocaleString() }}
       </div>

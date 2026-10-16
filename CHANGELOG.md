@@ -1,3 +1,10 @@
+## [3.10.2](https://github.com/OpenGIS/app/compare/v3.10.1...v3.10.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* **recordings:** list saved recordings newest first ([f05793a](https://github.com/OpenGIS/app/commit/f05793aec7bed3af15fe7613afccb72ccfa8bac1))
+
 ## [3.10.1](https://github.com/OpenGIS/app/compare/v3.10.0...v3.10.1) (2026-10-15)
 
 
