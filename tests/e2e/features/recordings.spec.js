@@ -346,6 +346,91 @@ test.describe("Recordings / Saved list management", () => {
   });
 });
 
+// ─── Recordings / Saved list order ───────────────────────────────────────────
+
+test.describe("Recordings / Saved list order", () => {
+  // Fixed, clearly distinct timestamps (epoch ms) — the older recording is
+  // inserted first, matching the order recordings are push()ed onto state.saved.
+  const OLDER_TIMESTAMP = Date.UTC(2025, 0, 15, 9, 30, 0);
+  const NEWER_TIMESTAMP = Date.UTC(2025, 6, 20, 14, 45, 0);
+
+  /** Seed two saved recordings, oldest first in storage. */
+  const withTwoSavedRecordings = (page) =>
+    page.addInitScript(
+      ({ center, points, older, newer }) => {
+        const seed = (id, timestamp, duration) => ({
+          id,
+          timestamp,
+          duration,
+          distance: 500,
+          points: points.map((point, index) => ({
+            lat: point.lat,
+            lng: point.lng,
+            t: timestamp - (points.length - 1 - index) * duration,
+          })),
+        });
+        localStorage.setItem(
+          "ogis_locate_app",
+          JSON.stringify({ permissionGranted: true }),
+        );
+        localStorage.setItem(
+          "ogis_view_app",
+          JSON.stringify({
+            mapView: { center, zoom: 14 },
+          }),
+        );
+        localStorage.setItem(
+          "ogis_recordings_app",
+          JSON.stringify({
+            saved: [
+              seed("test-rec-1", older, 60000),
+              seed("test-rec-2", newer, 120000),
+            ],
+            active: null,
+          }),
+        );
+      },
+      {
+        center: DEMO.center,
+        points: [DEMO.route[0], DEMO.route.at(-1)],
+        older: OLDER_TIMESTAMP,
+        newer: NEWER_TIMESTAMP,
+      },
+    );
+
+  test.beforeEach(async ({ page }) => {
+    await withTwoSavedRecordings(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+    // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
+    if (!(await page.locator(".panel-nav").isVisible())) {
+      await page.locator("#menu-button").click();
+      await page.locator(".panel-nav").waitFor();
+    }
+    await page
+      .locator(".panel-nav")
+      .getByRole("button", { name: "Recordings" })
+      .click();
+    await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
+  });
+
+  test("saved recordings are listed newest first", async ({ page }) => {
+    const items = page.locator(".border-top");
+    await expect(items).toHaveCount(2);
+
+    // Format the expected labels in the page's own locale, matching the
+    // component's `new Date(rec.timestamp).toLocaleString()` rendering.
+    const [newerLabel, olderLabel] = await page.evaluate(
+      ([newer, older]) =>
+        [newer, older].map((timestamp) => new Date(timestamp).toLocaleString()),
+      [NEWER_TIMESTAMP, OLDER_TIMESTAMP],
+    );
+
+    await expect(items.nth(0)).toContainText(newerLabel);
+    await expect(items.nth(1)).toContainText(olderLabel);
+  });
+});
+
 // ─── Recordings / GPX export ──────────────────────────────────────────────────
 
 test.describe("Recordings / GPX export", () => {
