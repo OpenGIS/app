@@ -76,6 +76,26 @@ function applyMapLanguage(map, tag) {
 }
 
 /**
+ * Fit the map to a country's bounds. An empty code (the default) fits a random
+ * country, matching the `?country=random` sentinel. Padding scales with the
+ * smaller viewport axis so framing stays consistent across phone and desktop
+ * instead of being tied to one dimension. `duration: 0` completes
+ * synchronously and fires `moveend`, so the existing listener persists the
+ * fitted view (hash + localStorage).
+ *
+ * Shared by the URL deep-link path and the Info panel's Random action.
+ *
+ * @param {import('maplibre-gl').Map} map
+ * @param {string} [countryCode] - ISO country code, or "" for a random country
+ */
+export const fitCountryBounds = (map, countryCode = "") => {
+  const bounds = countryCodeToBounds(countryCode);
+  const { clientWidth: width, clientHeight: height } = map.getContainer();
+  const padding = Math.round(Math.min(width, height) * 0.1);
+  map.fitBounds(bounds, { padding, duration: 0 });
+};
+
+/**
  * Composable for MapLibre map lifecycle management.
  *
  * Call with (containerRef, options) from a component setup context to initialise
@@ -259,23 +279,16 @@ export const useMap = (containerRef = null, options = {}) => {
         // Focus the map. A forced country (?country) wins outright; otherwise
         // a cold start resolves the country by cascade: timezone → raw browser
         // locale → random. Locale uses raw `navigatorLanguages` (not the app
-        // locale or ?locale=). Padding scales with the smaller viewport axis so
-        // the framing stays consistent across phone and desktop instead of
-        // being tied to one dimension. `duration: 0` completes synchronously
-        // and fires `moveend`, so the listener above persists the fitted view
-        // (hash + localStorage) — the desired end state, with no stale pre-fit
-        // hash left behind.
+        // locale or ?locale=). The fit itself — including padding and the
+        // synchronous `duration: 0` that fires `moveend` — lives in
+        // `fitCountryBounds`, shared with the Info panel's Random action.
         if (isForced || isColdStart) {
           const code = isForced
             ? forcedCode
             : (countryCodeFromTimeZone() ??
               countryCodeFromLocale(navigatorLanguages.value[0]) ??
               "");
-          const bounds = countryCodeToBounds(code);
-          const { clientWidth: width, clientHeight: height } =
-            map.getContainer();
-          const padding = Math.round(Math.min(width, height) * 0.1);
-          map.fitBounds(bounds, { padding, duration: 0 });
+          fitCountryBounds(map, code);
         }
 
         // Expose a lightweight app-ready signal. This is the same point at

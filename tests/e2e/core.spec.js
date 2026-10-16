@@ -151,11 +151,31 @@ test.describe("Info panel", () => {
     ).toBe(true);
     expect(improveHref.endsWith("&layers=DN")).toBe(true);
 
-    // Random re-enters the app through the same-tab ?country=random easter egg.
+    // Random re-enters the app through the same-tab ?country=random easter egg,
+    // but in-app: the click fits a random country directly, with no navigation
+    // (a full reload would wipe the sentinel below).
     const random = panel.getByRole("link", { name: "Random" });
     await expect(random).toBeVisible();
     await expect(random).toHaveAttribute("href", /country=random/);
     await expect(random).not.toHaveAttribute("target", "_blank");
+
+    const beforeRandom = readHashView(page.url());
+    await page.evaluate(() => {
+      window.__ogisRandomNoReload = true;
+    });
+    await random.click();
+
+    // A navigation would clear the sentinel; it must survive the click.
+    expect(await page.evaluate(() => window.__ogisRandomNoReload)).toBe(true);
+
+    // The in-app fit moved the camera: the hash is rewritten and no longer the
+    // pre-click stored view (zoom 10 at the demo centre).
+    await expect
+      .poll(() => readHashView(page.url()), {
+        timeout: 30000,
+        message: "the Random click did not move the camera in-app",
+      })
+      .not.toEqual(beforeRandom);
 
     // The superseded copy/view/edit actions must not render any more.
     await expect(panel.getByText("Copy this Link")).toHaveCount(0);

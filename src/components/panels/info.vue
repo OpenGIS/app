@@ -1,6 +1,6 @@
 <script setup>
-import { computed, ref } from "vue";
-import { useMap } from "@/composables/useMap";
+import { computed, inject, ref } from "vue";
+import { useMap, getMapInstance, fitCountryBounds } from "@/composables/useMap";
 import { useLocale } from "@/composables/useLocale";
 import { useAttribution } from "@/composables/useAttribution";
 import { formatUrlHash } from "@/composables/useUrlHash";
@@ -8,6 +8,7 @@ import Icon from "@/components/ui/icon.vue";
 
 const { mapView } = useMap();
 const { t } = useLocale();
+const instanceId = inject("ogisAppId", "app");
 
 // Attribution HTML comes from our trusted style (OpenGIS/outdoors style.json),
 // so rendering it with v-html is safe.
@@ -65,6 +66,16 @@ const onShare = async (e) => {
   }
   await copyToClipboard();
 };
+
+const onRandom = (e) => {
+  // Let the browser handle modifier clicks (open in new tab, etc.).
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const map = getMapInstance(instanceId);
+  // Defensive: before the map is ready, fall back to the href navigation.
+  if (!map) return;
+  e.preventDefault();
+  fitCountryBounds(map, "");
+};
 </script>
 
 <template>
@@ -110,6 +121,7 @@ const onShare = async (e) => {
         <a
           class="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-1"
           :href="randomUrl"
+          @click="onRandom"
         >
           {{ t("panel.view.random") }}
           <Icon width="18" height="18" fill="currentColor" name="dice" />

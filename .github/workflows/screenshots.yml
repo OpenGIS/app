@@ -179,6 +179,9 @@ jobs:
           path: |
             captured/
             .opencode/tmp/diff-bundle/
+          # Captures and the bundle live under dot-directories, which
+          # upload-artifact excludes by default.
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
       - name: Publish the diff bundle to the screenshots-diff branch

@@ -56,6 +56,10 @@ Local E2E runs trust an existing listener on the web-server port (`reuseExisting
 
 ## Key Conventions
 
+### PWA SPA
+
+ogis.app is an installable PWA SPA (one document, no router; `#map=` carries map state). In-app actions must never trigger a top-level navigation/full reload — e.g. the Info panel's Random button fits a country in-app rather than following its `?country=random` href. URL params are entry/deep links only, read once at boot.
+
 ### Instance isolation
 
 The `instanceId` is read from the `?id=` URL param (default `'app'`) and passed via `app.provide('ogisAppId', instanceId)`. Composables that persist state call `inject('ogisAppId', 'app')` to scope their localStorage keys; `useLocale` scopes a per-instance in-memory cache the same way, and `useSettings` is storage-free (OS-derived). This supports iframe isolation — each iframe gets its own `?id=` and its own storage namespace.
