@@ -16,13 +16,13 @@ name: Screenshots
 #     diff bundle (artefact + job summary, and — for same-repo PRs — a sticky
 #     comment with inline before/after/diff images). A moved matrix stays a red
 #     PR check.
-#   * schedule (nightly, off-peak) and workflow_dispatch — the self-heal path on
+#   * schedule (daily at 07:30 UTC) and workflow_dispatch — the self-heal path on
 #     master. A moved matrix is re-baselined from the run's own captures and the
 #     run concludes green once the heal lands; guards defer it while a CI run is
 #     in flight or after master has advanced.
 # There is deliberately no `push` trigger: this workflow once healed on a
 # `master` push, and its bot push raced ci.yml's semantic-release. Removing the
-# trigger removes the race; the nightly/dispatch heal replaces it.
+# trigger removes the race; the schedule/dispatch heal replaces it.
 #
 # The `screenshots` job is only a capture matrix. The aggregate `verify` job
 # runs after every shard even when one fails, merges all shard captures and
