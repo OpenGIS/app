@@ -97,7 +97,7 @@ The canonical loop, from first checkout to merge. Deep dives are linked inline:
 
 ### Screenshot matrix
 
-The committed PNGs under [`screenshots/`](screenshots/) are visual evidence that ships with the repository: core chrome states across phone, tablet and desktop in both orientations, plus feature states at desktop landscape. Captures run in a dedicated, always-software-rendered Playwright project with a dark theme and a pinned locale, so they are reproducible run-to-run on a given machine.
+The committed PNGs under [`screenshots/`](screenshots/) are visual evidence that ships with the repository: core chrome states and the locate permission modals across phone, tablet and desktop in both orientations, plus the fully-populated feature states and secondary UI states at desktop landscape. Captures run in a dedicated, always-software-rendered Playwright project with a dark theme and a pinned locale, so they are reproducible run-to-run on a given machine.
 
 - **Local** — `npm run test:matrix` captures into a gitignored temp directory; local runs never touch the committed PNGs. `npm run screenshots:diff` reports what moved, whether comparing a local capture against the committed matrix or two local capture trees before and after a change.
 - **CI verification** — the `Screenshots` GitHub workflow captures the matrix on macOS shards and verifies the captures against the committed PNGs within a strict pixel tolerance: sub-level anti-aliasing drift is tolerated and reported, while real changes fail. An aggregate job checks the full matrix in both directions.

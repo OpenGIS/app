@@ -24,8 +24,11 @@ import { basename } from "node:path";
  *
  * Generates the committed visual-evidence matrix: every core chrome state at
  * six viewport combinations (phone/tablet/desktop × portrait/landscape), all in
- * the project-default dark theme, plus four feature states at the desktop
- * landscape viewport.
+ * the project-default dark theme. The two locate permission modals are captured
+ * at all six viewport combinations, and the four feature states plus eight
+ * secondary UI states (idle/paused recording, empty/error routes, empty offline
+ * regions, expanded privacy disclosure, locate-following and the locate error
+ * chip) at the desktop landscape viewport.
  *
  * These PNGs are COMMITTED ARTEFACTS — the canonical visual evidence that
  * ships with the repository. A plain local run and CI capture into a gitignored
@@ -1024,6 +1027,60 @@ for (const vp of VIEWPORTS) {
   });
 }
 
+// ─── Locate permission modals — one test per viewport, real user journey ─────
+// The screenshots project launches Chromium with `--deny-permission-prompts`, so
+// a geolocation request with no granted permission auto-denies (code 1). That
+// makes one uninterrupted journey capture both modals: the confirmation modal on
+// the first click, then the error modal after confirming (the request is denied).
+
+for (const vp of VIEWPORTS) {
+  test.describe(`locate modals — ${vp.device} ${vp.orientation}`, () => {
+    test.use({
+      viewport: { width: vp.width, height: vp.height },
+      hasTouch: vp.hasTouch,
+    });
+
+    test(`captures ${vp.device} ${vp.orientation} locate modals @screenshots`, async ({
+      page,
+    }, testInfo) => {
+      const dir = `${OUT_ROOT}/${vp.device}/${vp.orientation}`;
+      mkdirSync(dir, { recursive: true });
+
+      trackConsoleErrors(page);
+      await seedDeterministicRandom(page);
+      // Fresh user: no locate storage and no granted geolocation, so the first
+      // click opens the confirmation modal. Do not seed either.
+      await page.goto(`/${BASE_HASH}`);
+      await stabilizeCaptureRendering(page);
+      await waitForMapIdle(page, testInfo);
+      await expect(page.locator("html")).toHaveAttribute(
+        "data-bs-theme",
+        "dark",
+      );
+
+      // Confirmation modal — desktop auto-opens the Info pane; close it so the
+      // map chrome behind the modal is the captured default state.
+      await closePanel(page);
+      await waitForLayoutSettled(page, testInfo);
+      await page.locator("#locate-button").click();
+      await expect(page.locator("#locate-confirm-title")).toBeVisible({
+        timeout: 30000,
+      });
+      await normaliseCaptureState(page, testInfo);
+      await capture(page, dir, "locate-confirm-modal");
+
+      // Error modal — confirming requests geolocation, which the deny switch
+      // rejects, so the error callback opens the second modal.
+      await page.locator("#locate-confirm-allow").click();
+      await expect(page.locator("#locate-error-title")).toBeVisible({
+        timeout: 30000,
+      });
+      await normaliseCaptureState(page, testInfo);
+      await capture(page, dir, "locate-error-modal");
+    });
+  });
+}
+
 // ─── Feature states — desktop landscape, dark ────────────────────────────────
 // Reach patterns mirror routes.spec.js, offline.spec.js and recordings.spec.js.
 
@@ -1195,5 +1252,183 @@ test.describe("Feature states — desktop landscape", () => {
       .click();
     await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "feature-recordings");
+  });
+});
+
+// ─── Secondary UI states — desktop landscape, dark ───────────────────────────
+// The empty, paused and error states that sit beside the core chrome states and
+// the fully-populated feature states. Reach patterns mirror recordings.spec.js,
+// routes.spec.js, offline.spec.js, core.spec.js and locate.spec.js.
+
+test.describe("Secondary UI states — desktop landscape", () => {
+  test.use({ viewport: { width: 1280, height: 720 } });
+
+  test.beforeAll(() => {
+    mkdirSync(FEATURE_DIR, { recursive: true });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    trackConsoleErrors(page);
+    await seedDeterministicRandom(page);
+  });
+
+  test.afterEach(async ({ page }) => {
+    expectNoConsoleErrors(page);
+  });
+
+  test("secondary record states @screenshots", async ({ page }, testInfo) => {
+    await withGrantedStorage(page);
+    await page.goto(`/${BASE_HASH}`);
+    await stabilizeCaptureRendering(page);
+    await waitForMapIdle(page, testInfo);
+
+    // Idle — no active ride and no saved recordings.
+    await openPanelTab(page, { name: "Recordings", exact: true });
+    await expect(
+      page.locator(".ogis-panel").getByText("No recordings yet."),
+    ).toBeVisible();
+    await normaliseCaptureState(page, testInfo);
+    await capture(page, FEATURE_DIR, "record-idle");
+
+    // Paused — a seeded in-progress ride reloads into its Resume control, with
+    // the pinned clock keeping the rendered elapsed time stable (the live timer
+    // keeps ticking via setInterval).
+    await seedPausedRecording(page);
+    await page.reload();
+    await stabilizeCaptureRendering(page);
+    await waitForMapIdle(page, testInfo);
+    await page.clock.setFixedTime(RECORDING_CLOCK);
+    await openPanelTab(page, { name: "Recordings", exact: true });
+    await expect(
+      page.locator(".ogis-panel").getByRole("button", { name: "Resume" }),
+    ).toBeVisible();
+    await normaliseCaptureState(page, testInfo);
+    await capture(page, FEATURE_DIR, "record-paused");
+  });
+
+  test("secondary route states @screenshots", async ({ page }, testInfo) => {
+    await withGrantedStorage(page);
+    await page.goto(`/${BASE_HASH}`);
+    await stabilizeCaptureRendering(page);
+    await waitForMapIdle(page, testInfo);
+
+    // Empty — no GPX imported yet.
+    await openPanelTab(page, { name: "Routes", exact: true });
+    await expect(
+      page
+        .locator(".ogis-panel")
+        .getByText("No routes yet. Import a GPX file to get started."),
+    ).toBeVisible();
+    await normaliseCaptureState(page, testInfo);
+    await capture(page, FEATURE_DIR, "routes-empty");
+
+    // Error — an inline malformed GPX file surfaces the import error.
+    await page.locator('.ogis-panel input[type="file"]').setInputFiles({
+      name: "bad.gpx",
+      mimeType: "application/gpx+xml",
+      buffer: Buffer.from("<gpx><trk><trkseg></gpx>"),
+    });
+    await expect(page.locator(".ogis-panel .text-danger")).toContainText(
+      "Invalid GPX file",
+    );
+    await normaliseCaptureState(page, testInfo);
+    await capture(page, FEATURE_DIR, "routes-error");
+  });
+
+  test("secondary offline empty state @screenshots", async ({
+    page,
+  }, testInfo) => {
+    await withGrantedStorage(page);
+    // Pin the live Storage API values the panel's summary reads, but seed no
+    // region: the panel renders the empty "Downloaded Regions" state.
+    await page.addInitScript(() => {
+      if (navigator.storage) {
+        Object.defineProperty(navigator.storage, "estimate", {
+          configurable: true,
+          value: async () => ({ usage: 1048576, quota: 1073741824 }),
+        });
+        Object.defineProperty(navigator.storage, "persisted", {
+          configurable: true,
+          value: async () => true,
+        });
+      }
+    });
+    await page.goto(`/${BASE_HASH}`);
+    await stabilizeCaptureRendering(page);
+    await waitForMapIdle(page, testInfo);
+
+    await openPanelTab(page, { name: /offline maps/i });
+    await expect(
+      page.locator(".ogis-panel").getByText("No regions downloaded yet."),
+    ).toBeVisible();
+    await normaliseCaptureState(page, testInfo);
+    await capture(page, FEATURE_DIR, "offline-empty");
+  });
+
+  test("secondary privacy disclosure @screenshots", async ({
+    page,
+  }, testInfo) => {
+    await withGrantedStorage(page);
+    await page.goto(`/${BASE_HASH}`);
+    await stabilizeCaptureRendering(page);
+    await waitForMapIdle(page, testInfo);
+
+    // Desktop boots on the Info pane; expand the Privacy disclosure so the
+    // capture shows the full disclosure body.
+    await expect(page.locator(".ogis-info-panel")).toBeVisible();
+    const privacy = page.locator(".ogis-privacy-section");
+    await expect(privacy).toBeVisible();
+    await privacy.locator("summary").click();
+    await expect(privacy.locator(".ogis-disclosure-less")).toBeVisible();
+    await normaliseCaptureState(page, testInfo);
+    await capture(page, FEATURE_DIR, "privacy-expanded");
+  });
+
+  test("secondary locate following @screenshots", async ({
+    page,
+  }, testInfo) => {
+    await withGrantedStorage(page);
+    await grantGeolocation(page);
+    await page.goto(`/${BASE_HASH}`);
+    await stabilizeCaptureRendering(page);
+    await waitForMapIdle(page, testInfo);
+    await closePanel(page);
+    await waitForLayoutSettled(page, testInfo);
+
+    // First activation → Located, second → Following. The granted position and
+    // the capture centre are the same, so neither activation moves the camera.
+    await page.locator("#locate-button").click();
+    await expect(page.locator("#locate-button")).toContainText("Located", {
+      timeout: 5000,
+    });
+    await page.locator("#locate-button").click();
+    await expect(page.locator("#locate-button")).toContainText("Following", {
+      timeout: 60000,
+    });
+    await normaliseCaptureState(page, testInfo);
+    await capture(page, FEATURE_DIR, "locate-following");
+  });
+
+  test("secondary locate error chip @screenshots", async ({
+    page,
+  }, testInfo) => {
+    await withGrantedStorage(page);
+    // Do not grant geolocation: the deny switch rejects the request and the
+    // error callback drives the chip to its Error state.
+    await page.goto(`/${BASE_HASH}`);
+    await stabilizeCaptureRendering(page);
+    await waitForMapIdle(page, testInfo);
+    await closePanel(page);
+    await waitForLayoutSettled(page, testInfo);
+
+    await page.locator("#locate-button").click();
+    await expect(page.locator("#locate-error-title")).toBeVisible({
+      timeout: 30000,
+    });
+    await page.locator("#locate-error-close").click();
+    await expect(page.locator("#locate-error-title")).toBeHidden();
+    await expect(page.locator("#locate-button")).toContainText("Error");
+    await normaliseCaptureState(page, testInfo);
+    await capture(page, FEATURE_DIR, "locate-error");
   });
 });
