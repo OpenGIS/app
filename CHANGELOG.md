@@ -1,3 +1,15 @@
+# [3.11.0](https://github.com/OpenGIS/app/compare/v3.10.2...v3.11.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ui:** stop buttons latching hover styling ([e234061](https://github.com/OpenGIS/app/commit/e234061c354bb8507a1d8634d2805365816963dc))
+
+
+### Features
+
+* **ui:** rework the info panel actions ([5997dfe](https://github.com/OpenGIS/app/commit/5997dfe65f7a54721f402ba69d969d8dfc75e57a))
+
 ## [3.10.2](https://github.com/OpenGIS/app/compare/v3.10.1...v3.10.2) (2026-10-16)
 
 
