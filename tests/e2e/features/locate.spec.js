@@ -113,6 +113,81 @@ test.describe("Locate / Button", () => {
   });
 });
 
+// ─── Locate / Hover capability ────────────────────────────────────────────────
+
+/**
+ * Hover styling is intentionally not used: the inactive chip keeps its resting
+ * colour whether or not a pointer is over it, so its colour reflects follow
+ * mode alone — consistently across pointer and touch devices. These tests pin
+ * that contract on a hover-capable pointer and on a touch device.
+ */
+
+const chipColour = (page) =>
+  page.locator("#locate-button").evaluate((el) => getComputedStyle(el).color);
+
+test.describe("Locate / Hover capability", () => {
+  test.beforeEach(async ({ page }) => {
+    await withNoLocateStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+  });
+
+  test("hovering the inactive chip does not change its colour (hover-capable)", async ({
+    page,
+  }) => {
+    const btn = page.locator("#locate-button");
+    // Precondition: the chip is inactive, so any tint could only come from :hover.
+    await expect(btn).toHaveAttribute("aria-pressed", "false");
+
+    const resting = await chipColour(page);
+    await btn.hover();
+    // The pointer really is over the chip, so any colour change can only come
+    // from a :hover rule (not from a missing hover state).
+    expect(await btn.evaluate((el) => el.matches(":hover"))).toBe(true);
+
+    // Let the 0.15 s colour transition settle before reading; a mid-transition
+    // value would otherwise mask a latched hover style.
+    await page.waitForTimeout(400);
+    expect(await chipColour(page)).toBe(resting);
+  });
+});
+
+test.describe("Locate / Hover capability / touch device", () => {
+  // A touch-only context reports no hover and a coarse pointer — the emulated
+  // media override (`Emulation.setEmulatedMedia` features) is not honoured by
+  // this Chromium build, and `hasTouch` drives the real media state.
+  test.use({ hasTouch: true });
+
+  test.beforeEach(async ({ page }) => {
+    await withNoLocateStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+  });
+
+  test("hovering the inactive chip does not change its colour (touch device)", async ({
+    page,
+  }) => {
+    const btn = page.locator("#locate-button");
+    await expect(btn).toHaveAttribute("aria-pressed", "false");
+
+    // The emulation must actually apply before the assertion means anything.
+    expect(await page.evaluate(() => matchMedia("(hover: none)").matches)).toBe(
+      true,
+    );
+
+    const resting = await chipColour(page);
+    await btn.hover();
+    // The pointer really is over the chip, so any colour change can only come
+    // from the :hover rule (not from a missing hover state).
+    expect(await btn.evaluate((el) => el.matches(":hover"))).toBe(true);
+
+    // Let the colour transition settle before reading; a mid-transition value
+    // would otherwise mask a latched hover style.
+    await page.waitForTimeout(400);
+    expect(await chipColour(page)).toBe(resting);
+  });
+});
+
 // ─── Locate / Confirmation modal ─────────────────────────────────────────────
 
 test.describe("Locate / Confirmation modal", () => {
@@ -170,6 +245,29 @@ test.describe("Locate / Confirmation modal", () => {
 
     await page.locator("#locate-button").click();
     await expect(page.getByText("Permission Required")).toBeHidden();
+  });
+
+  test("hovering the modal close control does not change its opacity", async ({
+    page,
+  }) => {
+    await page.locator("#locate-button").click();
+    const close = page.getByRole("dialog").locator(".btn-close");
+    await expect(close).toBeVisible();
+
+    // Precondition: the close control sits at its resting opacity, so any
+    // change could only come from a :hover rule.
+    const resting = await close.evaluate((el) => getComputedStyle(el).opacity);
+    await close.hover();
+    // The pointer really is over the control, so any change can only come from
+    // a :hover rule (not from a missing hover state).
+    expect(await close.evaluate((el) => el.matches(":hover"))).toBe(true);
+
+    // No transition is declared on .btn-close; allow a frame for any style
+    // change to apply before reading.
+    await page.waitForTimeout(200);
+    expect(await close.evaluate((el) => getComputedStyle(el).opacity)).toBe(
+      resting,
+    );
   });
 });
 

@@ -109,6 +109,27 @@ $font-size-base: 0.9375rem; // 15 px
 @import "bootstrap/scss/utilities/api";
 
 // #6  App component overrides ──────────────────────────────
+// Hover styling is intentionally not used: buttons reflect their true state
+// only, consistently across pointer and touch devices. Bootstrap's .btn:hover
+// rules are not capability-gated, so touch devices latch them after a tap (no
+// mouseout); resets below restore the resting look on every device. The
+// :not(:active) guard keeps Bootstrap's momentary press feedback — on desktop
+// a button is hovered and active simultaneously while pressed — while idle
+// hover renders as resting. Variant colours still apply because each variant
+// only sets the custom properties read back here. The modal close control
+// reads its own resting opacity the same way. Bootstrap gives .btn-close no
+// distinct :active rule, so its reset needs no :not(:active) guard, and its
+// :focus and :disabled states stay untouched.
+.btn:hover:not(:active) {
+  color: var(--bs-btn-color);
+  background-color: var(--bs-btn-bg);
+  border-color: var(--bs-btn-border-color);
+}
+
+.btn-close:hover {
+  opacity: var(--bs-btn-close-opacity);
+}
+
 // Root-level custom property so that App.vue can read the
 // panel width without needing to access the offcanvas element.
 
@@ -184,8 +205,7 @@ $font-size-base: 0.9375rem; // 15 px
   color: var(--bs-secondary-color);
   transition: color 0.15s ease;
 
-  &[aria-pressed="true"],
-  &:hover {
+  &[aria-pressed="true"] {
     color: var(--bs-primary);
   }
 }
@@ -193,8 +213,7 @@ $font-size-base: 0.9375rem; // 15 px
 [data-bs-theme="dark"] .icon-btn {
   color: rgba(255, 255, 255, 0.55);
 
-  &[aria-pressed="true"],
-  &:hover {
+  &[aria-pressed="true"] {
     color: var(--bs-primary);
   }
 }
@@ -414,8 +433,7 @@ $font-size-base: 0.9375rem; // 15 px
     border-radius: 999px;
   }
 
-  &[aria-pressed="true"],
-  &:hover {
+  &[aria-pressed="true"] {
     color: var(--bs-primary);
     background: rgba(255, 255, 255, 0.92);
   }
@@ -426,8 +444,7 @@ $font-size-base: 0.9375rem; // 15 px
   background: rgba(10, 18, 10, 0.82);
   color: rgba(255, 255, 255, 0.7);
 
-  &[aria-pressed="true"],
-  &:hover {
+  &[aria-pressed="true"] {
     color: var(--bs-primary);
     background: rgba(10, 18, 10, 0.92);
   }
