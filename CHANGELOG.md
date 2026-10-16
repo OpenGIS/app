@@ -1,3 +1,10 @@
+## [3.12.1](https://github.com/OpenGIS/app/compare/v3.12.0...v3.12.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **map:** cap zoom-out at the full-globe view ([069d62f](https://github.com/OpenGIS/app/commit/069d62f10b470be194cd38e4c86f04501e585217))
+
 # [3.12.0](https://github.com/OpenGIS/app/compare/v3.11.0...v3.12.0) (2026-10-16)
 
 
