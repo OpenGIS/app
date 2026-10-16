@@ -2,8 +2,8 @@ $ogis-icons-font: "ogis-icons";
 
 @font-face {
     font-family: $ogis-icons-font;
-    src: url("./ogis-icons.woff2?80d6f4025e072a73503c7a495ad033c9") format("woff2"),
-url("./ogis-icons.woff?80d6f4025e072a73503c7a495ad033c9") format("woff");
+    src: url("./ogis-icons.woff2?4a919fdfe58c66b198762ea2f51218d6") format("woff2"),
+url("./ogis-icons.woff?4a919fdfe58c66b198762ea2f51218d6") format("woff");
 }
 
 i[class^="oi-"]:before, i[class*=" oi-"]:before {
@@ -71,6 +71,8 @@ $ogis-icons-map: (
     "file-arrow-down": "\f133",
     "map": "\f134",
     "waymark-logo": "\f135",
+    "share": "\f136",
+    "dice": "\f137",
 );
 
 .oi-x:before {
@@ -231,4 +233,10 @@ $ogis-icons-map: (
 }
 .oi-waymark-logo:before {
     content: map-get($ogis-icons-map, "waymark-logo");
+}
+.oi-share:before {
+    content: map-get($ogis-icons-map, "share");
+}
+.oi-dice:before {
+    content: map-get($ogis-icons-map, "dice");
 }

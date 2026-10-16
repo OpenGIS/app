@@ -122,12 +122,45 @@ test.describe("Info panel", () => {
     await withViewStorage(page);
     await page.goto("/");
     await waitForMapReady(page);
+    await expect(page).toHaveURL(/#map=10\//);
 
     // Desktop auto-opens the Info pane, so no chip click is needed.
     const panel = page.locator(".ogis-info-panel");
     await expect(panel).toBeVisible();
 
-    await expect(panel.locator(".ogis-share-textarea")).toBeVisible();
+    // The readonly textarea holds the canonical share URL.
+    const shareTextarea = panel.locator(".ogis-share-textarea");
+    await expect(shareTextarea).toBeVisible();
+    await expect(shareTextarea).toHaveValue(page.url());
+
+    // Share is an anchor to the canonical share URL and the panel's only
+    // primary-toned action.
+    const share = panel.getByRole("link", { name: "Share" });
+    await expect(share).toBeVisible();
+    await expect(share).toHaveAttribute("href", page.url());
+    await expect(share).toHaveClass(/btn-outline-primary/);
+
+    // Improve opens the OSM note editor at the rounded view.
+    const improve = panel.getByRole("link", { name: "Improve" });
+    await expect(improve).toBeVisible();
+    await expect(improve).toHaveAttribute("target", "_blank");
+    await expect(improve).not.toHaveAttribute("href", "#");
+    const improveHref = await improve.getAttribute("href");
+    expect(
+      improveHref.startsWith("https://www.openstreetmap.org/note/new#map="),
+    ).toBe(true);
+    expect(improveHref.endsWith("&layers=DN")).toBe(true);
+
+    // Random re-enters the app through the same-tab ?country=random easter egg.
+    const random = panel.getByRole("link", { name: "Random" });
+    await expect(random).toBeVisible();
+    await expect(random).toHaveAttribute("href", /country=random/);
+    await expect(random).not.toHaveAttribute("target", "_blank");
+
+    // The superseded copy/view/edit actions must not render any more.
+    await expect(panel.getByText("Copy this Link")).toHaveCount(0);
+    await expect(panel.getByText("View on OSM")).toHaveCount(0);
+    await expect(panel.getByText("Edit on OSM")).toHaveCount(0);
 
     const about = panel.locator(".ogis-about-section");
     await expect(about).toContainText("Free, private");
@@ -149,6 +182,88 @@ test.describe("Info panel", () => {
     await expect(panel.locator(".ogis-attribution-section")).toContainText(
       /OpenStreetMap/,
     );
+  });
+
+  test("Share click copies the URL when Web Share is unavailable", async ({
+    page,
+    context,
+  }) => {
+    // Force the clipboard fallback deterministically: no Web Share API, and
+    // clipboard permissions granted so the write resolves.
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "share", {
+        value: undefined,
+        configurable: true,
+      });
+    });
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+
+    await withViewStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+    await expect(page).toHaveURL(/#map=10\//);
+
+    const panel = page.locator(".ogis-info-panel");
+    // While copied, the label swaps to "Copied!" (and the icon to a check), so
+    // a name-based locator would stop matching mid-test. `w-100` is unique to
+    // the Share anchor among the panel's button-styled links.
+    const share = panel.locator("a.btn.w-100");
+    await expect(share).toBeVisible();
+    await expect(share).toContainText("Share");
+
+    const href = await share.getAttribute("href");
+    const urlBefore = page.url();
+
+    // A window marker detects a real navigation (e.g. a same-URL reload);
+    // it stays in place when the click default is prevented.
+    await page.evaluate(() => {
+      window.__ogisE2eNoReload = true;
+    });
+
+    await share.click();
+
+    // The label flips to "Copied!" for the 2 s copied state.
+    await expect(share).toContainText("Copied!");
+
+    // The handler prevented navigation, and the clipboard holds the share URL.
+    expect(page.url()).toBe(urlBefore);
+    expect(await page.evaluate(() => window.__ogisE2eNoReload)).toBe(true);
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe(href);
+  });
+
+  test("Share click uses the Web Share API when available", async ({
+    page,
+  }) => {
+    // Stub the Web Share API so the primary path is observable without a real
+    // OS share sheet.
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "share", {
+        value: (data) => {
+          window.__ogisShared = data;
+          return Promise.resolve();
+        },
+        configurable: true,
+      });
+    });
+
+    await withViewStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+    await expect(page).toHaveURL(/#map=10\//);
+
+    const share = page.locator(".ogis-info-panel a.btn.w-100");
+    const href = await share.getAttribute("href");
+
+    await share.click();
+
+    // The share payload carries the canonical URL...
+    await expect
+      .poll(() => page.evaluate(() => window.__ogisShared?.url ?? null))
+      .toBe(href);
+    // ...and no clipboard fallback runs, so the label stays "Share".
+    await expect(share).toContainText("Share");
   });
 
   test("Attribution chip opens the Info panel", async ({ page }) => {

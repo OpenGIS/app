@@ -52,6 +52,8 @@ On a fresh machine, `npx playwright install chromium` installs the full build re
 
 When running E2E tests with a shell tool, use `mode="sync"` with `initial_wait` set to at least **180** for a single spec and **1800** for the full suite — the `screenshots` matrix renders under SwiftShader, which is slow, so allow ample time. You will be automatically notified when the command completes — **do not poll repeatedly with short waits**. Wait for the completion notification, then read the output once.
 
+Local E2E runs trust an existing listener on the web-server port (`reuseExistingServer`): if a stale dev server — from an older checkout, say — holds 5184, the suite silently runs against the wrong app. Confirm the port is free (`lsof -i :5184`) before relying on a local run; CI always starts its own.
+
 ## Key Conventions
 
 ### Instance isolation
@@ -136,3 +138,5 @@ See `docs/10.features.md` for the full feature pattern.
 ## MCP
 
 A Playwright MCP server is configured in `.github/mcp.json`. Agents with MCP support can use it to navigate the app and inspect the DOM directly.
+
+A freshly started dev server re-optimises its dependencies on first use: a page that loads during that window can boot from a mixed module graph and fail to mount. Allow a moment (or reload once) before trusting what renders.
