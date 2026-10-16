@@ -1,3 +1,10 @@
+## [3.12.2](https://github.com/OpenGIS/app/compare/v3.12.1...v3.12.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ui:** fit a random country in-app from the info panel ([71d231c](https://github.com/OpenGIS/app/commit/71d231c8ea744f022fb00755519c43d12a38f55f))
+
 ## [3.12.1](https://github.com/OpenGIS/app/compare/v3.12.0...v3.12.1) (2026-10-16)
 
 
