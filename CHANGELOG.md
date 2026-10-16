@@ -1,3 +1,10 @@
+# [3.12.0](https://github.com/OpenGIS/app/compare/v3.11.0...v3.12.0) (2026-10-16)
+
+
+### Features
+
+* **i18n:** enforce complete locale coverage ([bee7a6a](https://github.com/OpenGIS/app/commit/bee7a6a9697415933c54cd06fdb7d142305dd790))
+
 # [3.11.0](https://github.com/OpenGIS/app/compare/v3.10.2...v3.11.0) (2026-10-16)
 
 
