@@ -20,8 +20,9 @@ import { spawnSync } from "node:child_process";
 // With `--artifacts <dir>` it skips the gh download and assembles from an
 // already-downloaded shard tree instead — the same layout
 // actions/download-artifact writes (`<dir>/screenshots-shard-<n>/…`). The
-// master-push `refresh` job in the Screenshots workflow uses this input to
-// rebuild the baseline from the run's own captures.
+// `refresh` job in the Screenshots workflow (a scheduled or manually dispatched
+// heal on `master`) uses this input to rebuild the baseline from the run's own
+// captures.
 //
 // Read-only by default: it downloads, assembles, validates and compares, then
 // reports. Pass `--write` to copy the assembled set into the committed

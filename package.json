@@ -20,6 +20,8 @@
     "watch:e2e": "node scripts/watch-e2e.js",
     "watch:matrix": "node scripts/watch-e2e.js --project=screenshots",
     "screenshots:diff": "node scripts/screenshot-diff.js",
+    "screenshots:bundle": "node scripts/screenshot-diff-bundle.js",
+    "screenshots:comment": "node scripts/screenshots-pr-comment.js",
     "screenshots:fetch": "node scripts/fetch-screenshots.js",
     "screenshots:verify": "node scripts/verify-matrix.js",
     "fixtures:refresh": "node tests/fixtures/map/refresh.mjs",
