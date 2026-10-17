@@ -1,4 +1,5 @@
 import { test, expect } from "../helpers/test.js";
+import { projectionType } from "../helpers/mapProjection.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
@@ -184,6 +185,13 @@ test.describe("Offline / Estimate", () => {
     page,
   }) => {
     await page.getByRole("button", { name: "Select region" }).click();
+
+    // Entering region selection first orients the camera to flat 2D mercator,
+    // ready for the drag-draw.
+    await expect
+      .poll(() => projectionType(page), { timeout: 15000 })
+      .toBe("mercator");
+
     await drawRegion(page);
 
     // Selected region bounds are shown
@@ -193,6 +201,43 @@ test.describe("Offline / Estimate", () => {
 
     await expect(page.getByText("Tiles", { exact: true })).toBeVisible();
     await expect(page.getByText("Est. size")).toBeVisible();
+  });
+});
+
+// ─── Offline / Region selection orientation ──────────────────────────────────
+
+test.describe("Offline / Region selection orientation", () => {
+  test.beforeEach(async ({ page }) => {
+    await withViewStorage(page);
+    await page.goto("/");
+    await page.waitForSelector(".ogis-map canvas");
+    await openOfflinePanel(page);
+  });
+
+  test("Select region orients the camera to mercator without moving it", async ({
+    page,
+  }) => {
+    // Precondition: the map boots in the globe projection.
+    await expect
+      .poll(() => projectionType(page), { timeout: 15000 })
+      .toBe("globe");
+
+    // The seeded view settles into the URL hash; the hash encodes zoom, centre,
+    // pitch and bearing — everything the camera-target orient must leave alone.
+    const seededHash = `#map=14/${DEMO.center.lat.toFixed(6)}/${DEMO.center.lng.toFixed(6)}/0/0`;
+    await expect
+      .poll(() => page.url(), { timeout: 15000 })
+      .toContain(seededHash);
+    const hashBefore = new URL(page.url()).hash;
+
+    await page.getByRole("button", { name: "Select region" }).click();
+
+    await expect
+      .poll(() => projectionType(page), { timeout: 15000 })
+      .toBe("mercator");
+
+    // Centre, zoom, pitch and bearing are all untouched.
+    expect(new URL(page.url()).hash).toBe(hashBefore);
   });
 });
 

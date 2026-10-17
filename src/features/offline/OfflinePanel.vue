@@ -2,8 +2,10 @@
 <script setup>
 import { ref, computed, inject, onUnmounted, onMounted } from "vue";
 import { useUI } from "@/composables/useUI";
+import { useOrientView } from "@/composables/useOrientView";
 
 const { closePanel, openPanel, isDesktop } = useUI();
+const { orientView } = useOrientView();
 
 const {
   regions,
@@ -74,6 +76,10 @@ const startDraw = () => {
   overlayStyle.value = { display: "none" };
   drawing.value = true;
   if (!isDesktop.value) closePanel();
+
+  // Orient to a flat, 2D north-up view (projection + rotation only — centre
+  // and zoom are untouched) so the drag-drawn selection box matches the map.
+  orientView();
 
   // Stop MapLibre panning/box-zoom while we capture the drag ourselves
   if (m.dragPan) m.dragPan.disable();

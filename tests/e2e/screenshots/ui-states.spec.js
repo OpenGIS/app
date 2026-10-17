@@ -773,9 +773,11 @@ const withGrantedStorage = (page) =>
 /**
  * Grant geolocation permission and fix the position at the demo centre.
  *
- * The locate click flies to this position at zoom 16 — the same centre and
- * zoom as the capture view — so the camera never moves during locate-active
- * and no re-placement race can leave a labels-less frame.
+ * The locate click triggers the one-shot orientation flight: the camera
+ * recentres on this position and settles at the viewport-fitted horizon-disc
+ * zoom (~z12 on desktop) with bearing and pitch reset to 0 — so locate-active
+ * and locate-following captures record that fitted view, not the z16 capture
+ * view. `waitForOrientHash` waits the flight out before either is captured.
  */
 const grantGeolocation = (page) => {
   const { lat, lng } = DEMO.center;
@@ -785,6 +787,50 @@ const grantGeolocation = (page) => {
     .then(() =>
       page.context().setGeolocation({ latitude: lat, longitude: lng }),
     );
+};
+
+/**
+ * Hash the orientation flight must settle to: the fitted horizon-disc zoom
+ * (rounded, as the hash rounds), the demo-centre fix to 6 dp and the north-up
+ * reset (`/0/0`). Derived live from the map canvas with the production helpers
+ * through the dev server's module graph, so it tracks every matrix viewport
+ * and the real formula.
+ */
+const fittedOrientHash = (page) =>
+  page.evaluate(
+    async ({ latitude, longitude }) => {
+      const { fitZoomForDisc, horizonDistanceMetres } =
+        await import("/src/utils/orient.js");
+      const { orientCameraDefaults } =
+        await import("/src/defaults/maplibre.js");
+      const { getMapInstance } = await import("/src/composables/useMap.js");
+      const canvas = getMapInstance("app").getCanvas();
+      const { clientWidth: widthPx, clientHeight: heightPx } = canvas;
+      const zoom = fitZoomForDisc({
+        widthPx,
+        heightPx,
+        latitude,
+        radiusMetres: horizonDistanceMetres(
+          orientCameraDefaults.eyeHeightMetres,
+        ),
+        paddingPx: Math.round(
+          Math.min(widthPx, heightPx) * orientCameraDefaults.fitPaddingFraction,
+        ),
+      });
+      return `#map=${Math.round(zoom)}/${latitude.toFixed(6)}/${longitude.toFixed(6)}/0/0`;
+    },
+    { latitude: DEMO.center.lat, longitude: DEMO.center.lng },
+  );
+
+/** Wait for the URL hash to show the settled orientation-flight view. */
+const waitForOrientHash = async (page) => {
+  const expected = await fittedOrientHash(page);
+  await expect
+    .poll(() => new URL(page.url()).hash, {
+      timeout: 60000,
+      message: `camera did not settle to ${expected}`,
+    })
+    .toContain(expected);
 };
 
 /**
@@ -971,10 +1017,14 @@ for (const vp of VIEWPORTS) {
       await capture(page, dir, "scale-collapsed");
 
       // locate-active — Locate chip becomes Located (permission pre-seeded).
+      // The "Located" label flips on click, before the first fix arrives, so
+      // wait for the orientation flight's settled hash before the capture —
+      // otherwise it could record a mid-flight frame.
       await page.locator("#locate-button").click();
       await expect(page.locator("#locate-button")).toContainText("Located", {
         timeout: 5000,
       });
+      await waitForOrientHash(page);
       await normaliseCaptureState(page, testInfo);
       await capture(page, dir, "locate-active");
 
@@ -985,6 +1035,14 @@ for (const vp of VIEWPORTS) {
       // seeded startTime. Open the panel deliberately, then resume from its
       // control; the panel stays open for the capture.
       await seedPausedRecording(page);
+      // The locate-active orientation flight persisted its fitted view to the
+      // URL hash; restore the z16 capture view before the reload so the record
+      // states render against the same camera as the rest of the matrix (the
+      // hash outranks the fitted view now stored in localStorage).
+      await page.evaluate(
+        (hash) => history.replaceState(null, "", hash),
+        BASE_HASH,
+      );
       await page.reload();
       await stabilizeCaptureRendering(page);
       await waitForMapIdle(page, testInfo);
@@ -1395,12 +1453,15 @@ test.describe("Secondary UI states — desktop landscape", () => {
     await closePanel(page);
     await waitForLayoutSettled(page, testInfo);
 
-    // First activation → Located, second → Following. The granted position and
-    // the capture centre are the same, so neither activation moves the camera.
+    // First activation → Located, second → Following. The first fix starts the
+    // one-shot orientation flight to the fitted horizon-disc zoom; wait for it
+    // to settle before the second click, otherwise that click's easeTo would
+    // interrupt the flight and freeze a timing-dependent intermediate zoom.
     await page.locator("#locate-button").click();
     await expect(page.locator("#locate-button")).toContainText("Located", {
       timeout: 5000,
     });
+    await waitForOrientHash(page);
     await page.locator("#locate-button").click();
     await expect(page.locator("#locate-button")).toContainText("Following", {
       timeout: 60000,

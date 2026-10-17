@@ -22,8 +22,20 @@ export const mapDefaults = {
  */
 export const globeProjection = { type: "globe" };
 
-/** Zoom level applied on the first GPS fix in the Locate feature. */
-export const locateZoom = 16;
+/**
+ * Tuning for the Locate orientation flight: the one-shot reset to a north-up,
+ * viewport-fitted line-of-sight disc on the first fix.
+ */
+export const orientCameraDefaults = {
+  eyeHeightMetres: 1.83, // six-foot observer — the line-of-sight disc
+  fitPaddingFraction: 0.08, // padding each side, of the smaller viewport axis
+  durationMinMs: 600,
+  durationMaxMs: 4000,
+  durationPivotMs: 700,
+  durationMsPerDecade: 800,
+  durationPivotMetres: 1000,
+  maxRotationDegPerSecond: 70,
+};
 
 /** Max pixel width of the MapLibre ScaleControl. */
 export const scaleMaxWidth = 120;
