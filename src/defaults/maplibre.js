@@ -37,5 +37,30 @@ export const orientCameraDefaults = {
   maxRotationDegPerSecond: 70,
 };
 
+/**
+ * Tuning for the follow camera: a driver that owns the camera each frame and
+ * damps it towards a moving target. Time constants are in seconds (the time
+ * for a value to close ~63% of the gap to its target); the values are starting
+ * points for later tuning.
+ */
+export const followCameraDefaults = {
+  // Exponential-damping time constants, in seconds, per camera component.
+  centreTimeConstantS: 0.35,
+  bearingTimeConstantS: 0.3,
+  pitchTimeConstantS: 0.4,
+  zoomTimeConstantS: 0.4,
+  // Lower-third composition: the map centre is displaced ahead of the user
+  // along the bearing so the user sits below the screen midpoint once tilted.
+  // The offset scales from 0 at pitch 0 to `maxOffsetFraction` at
+  // `offsetRampPitchDeg`, and is clamped to the look-ahead limits below.
+  maxOffsetFraction: 0.2,
+  offsetRampPitchDeg: 60,
+  lookAheadMinMetres: 0,
+  lookAheadMaxMetres: 5000,
+  // Placeholder glide duration for a later slice (speed-driven framing); not
+  // yet consumed by the driver.
+  glideDurationMs: 1000,
+};
+
 /** Max pixel width of the MapLibre ScaleControl. */
 export const scaleMaxWidth = 120;

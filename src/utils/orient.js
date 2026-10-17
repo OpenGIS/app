@@ -29,6 +29,24 @@ export function horizonDistanceMetres(eyeHeightMetres) {
 }
 
 /**
+ * Ground resolution (metres per CSS pixel) at a zoom and latitude.
+ *
+ * Derived from MapLibre's 512-px-tile scale convention:
+ * `C · cos(lat) / (512 · 2^zoom)`.
+ *
+ * @param {Object} params
+ * @param {number} params.zoom - MapLibre zoom level.
+ * @param {number} params.latitude - Latitude in degrees.
+ * @returns {number} Metres per pixel.
+ */
+export function metresPerPixel({ zoom, latitude }) {
+  const metresPerPixelAtZoomZero =
+    (EQUATORIAL_CIRCUMFERENCE_METRES / TILE_SIZE_PX) *
+    Math.cos((latitude * Math.PI) / 180);
+  return metresPerPixelAtZoomZero / 2 ** zoom;
+}
+
+/**
  * Zoom at which a ground disc of `radiusMetres` fills the viewport.
  *
  * Latitude-aware and derived from MapLibre's real scale (512-px tiles), so the
@@ -50,13 +68,44 @@ export function fitZoomForDisc({
   paddingPx = 0,
 }) {
   const minDim = Math.min(widthPx, heightPx) - 2 * paddingPx;
-  const metresPerPixelAtZoomZero =
-    (EQUATORIAL_CIRCUMFERENCE_METRES / TILE_SIZE_PX) *
-    Math.cos((latitude * Math.PI) / 180);
+  const metresPerPixelAtZoomZero = metresPerPixel({ zoom: 0, latitude });
   const zoom = Math.log2(
     (minDim * metresPerPixelAtZoomZero) / (2 * radiusMetres),
   );
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
+}
+
+/**
+ * Zoom at which the line-of-sight horizon disc fits the viewport.
+ *
+ * Shared by the locate orientation flight and the follow camera's rest pose so
+ * the two cannot drift. Padding is a fraction of the smaller viewport axis,
+ * applied per side.
+ *
+ * @param {Object} params
+ * @param {number} params.widthPx - Viewport width in pixels.
+ * @param {number} params.heightPx - Viewport height in pixels.
+ * @param {number} params.latitude - Latitude in degrees.
+ * @param {number} [params.eyeHeightMetres] - Observer eye height in metres.
+ * @param {number} [params.paddingFraction] - Padding per side, as a fraction
+ *   of the smaller viewport axis.
+ * @returns {number} Fitted zoom, clamped to [0, 22].
+ */
+export function horizonFitZoom({
+  widthPx,
+  heightPx,
+  latitude,
+  eyeHeightMetres = orientCameraDefaults.eyeHeightMetres,
+  paddingFraction = orientCameraDefaults.fitPaddingFraction,
+}) {
+  const minDim = Math.min(widthPx, heightPx);
+  return fitZoomForDisc({
+    widthPx,
+    heightPx,
+    latitude,
+    radiusMetres: horizonDistanceMetres(eyeHeightMetres),
+    paddingPx: Math.round(minDim * paddingFraction),
+  });
 }
 
 /**

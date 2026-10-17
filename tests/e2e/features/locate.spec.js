@@ -5,6 +5,14 @@ import {
 } from "../helpers/console.js";
 import { waitForMapReady, openMenuTab } from "../helpers/panel";
 import { projectionType } from "../helpers/mapProjection.js";
+import {
+  LOCATE_FIX as FIX,
+  expectedHashRegExp,
+  orientHash,
+  waitForCameraSettle,
+  withGrantedLocateStorage as withGrantedStorage,
+  withNoLocateStorage,
+} from "../helpers/locate.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
@@ -21,10 +29,6 @@ import { DEMO } from "../../fixtures/demo.mjs";
 // waitForMapReady), and the move guards below wait at the moveend / URL-hash
 // level (see waitForCameraSettle).
 
-// Per-wait ceiling for the light camera-settle waits. The camera should arrive
-// in seconds; this is a generous backstop, not an expected duration.
-const CAMERA_SETTLE_TIMEOUT = 30000;
-
 // Ceiling for element/state/URL assertions. They are driven by synchronous app
 // state and the moveend hash write (no tile render), so they resolve in seconds.
 const LOCATE_TIMEOUT = 60000;
@@ -38,102 +42,11 @@ test.setTimeout(420000);
 test.beforeEach(({ page }) => trackConsoleErrors(page));
 test.afterEach(({ page }) => expectNoConsoleErrors(page));
 
-const withNoLocateStorage = (page) =>
-  page.addInitScript(() => {
-    localStorage.removeItem("ogis_locate_app");
-    localStorage.removeItem("ogis_view_app");
-  });
-
-const withGrantedStorage = (page) =>
-  page.addInitScript(() => {
-    localStorage.setItem(
-      "ogis_locate_app",
-      JSON.stringify({ permissionGranted: true }),
-    );
-  });
-
-/** Mocked geolocation fix shared by the camera tests: the demo-area centre. */
-const FIX = { latitude: DEMO.center.lat, longitude: DEMO.center.lng };
-
 const grantGeolocation = (page, coords = FIX) =>
   page
     .context()
     .grantPermissions(["geolocation"])
     .then(() => page.context().setGeolocation(coords));
-
-/** Escape a literal string so it can be matched exactly inside a RegExp. */
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-/** Pattern matching one exact settled hash string (no accidental wildcards). */
-const expectedHashRegExp = (hash) => new RegExp(escapeRegExp(hash));
-
-/**
- * Hash the one-shot orientation flight must settle to, derived live.
- *
- * The fitted zoom is computed at call time from the real map canvas (the same
- * `clientWidth`/`clientHeight` source the flight uses) and the mocked fix
- * latitude, calling the production helpers through the dev server's own module
- * graph — so the expectation follows the actual viewport and formula instead of
- * hardcoding a zoom. The trailing `/0/0` is the north-up reset the flight
- * applies. Note the helpers cannot be imported from Node here: `src/utils/
- * orient.js` resolves its defaults through the Vite `@` alias, which Playwright
- * does not map.
- *
- * @param {import('@playwright/test').Page} page
- * @param {{ latitude: number, longitude: number }} [fix]
- * @returns {Promise<string>} e.g. `#map=12/48.953134/-55.643057/0/0`
- */
-const orientHash = (page, fix = FIX) =>
-  page.evaluate(async ({ latitude, longitude }) => {
-    const { fitZoomForDisc, horizonDistanceMetres } =
-      await import("/src/utils/orient.js");
-    const { orientCameraDefaults } = await import("/src/defaults/maplibre.js");
-    const { getMapInstance } = await import("/src/composables/useMap.js");
-    const canvas = getMapInstance("app").getCanvas();
-    const { clientWidth: widthPx, clientHeight: heightPx } = canvas;
-    const zoom = fitZoomForDisc({
-      widthPx,
-      heightPx,
-      latitude,
-      radiusMetres: horizonDistanceMetres(orientCameraDefaults.eyeHeightMetres),
-      paddingPx: Math.round(
-        Math.min(widthPx, heightPx) * orientCameraDefaults.fitPaddingFraction,
-      ),
-    });
-    return `#map=${Math.round(zoom)}/${latitude.toFixed(6)}/${longitude.toFixed(6)}/0/0`;
-  }, fix);
-
-/**
- * Light wait: the camera has ARRIVED, without waiting for every tile to render.
- *
- * `useMap.js` writes the URL hash on MapLibre `moveend`, so matching the
- * EXPECTED hash proves the camera has settled. Anchoring on the expected value
- * (rather than generic hash stability) is what makes this race-safe: while a
- * fly/pan is pending the pre-move hash differs from `expectedHash`, so the wait
- * cannot resolve early even when it is called immediately after the click that
- * triggers the move; if the hash already matches, the move has already
- * completed and resolving at once is correct.
- *
- * `expect.poll` is used rather than `page.waitForURL` because the app updates
- * the hash with `history.replaceState` (a same-document update).
- *
- * @param {import('@playwright/test').Page} page
- * @param {RegExp} expectedHash - hash pattern the camera must reach, e.g. the
- *   fitted orientation-flight hash from orientHash (via expectedHashRegExp)
- * @param {number} [timeout]
- */
-const waitForCameraSettle = async (
-  page,
-  expectedHash,
-  timeout = CAMERA_SETTLE_TIMEOUT,
-) => {
-  await expect
-    .poll(() => page.url(), {
-      timeout,
-      message: `camera did not settle to ${expectedHash}`,
-    })
-    .toMatch(expectedHash);
-};
 
 // ─── Locate / Button ──────────────────────────────────────────────────────────
 

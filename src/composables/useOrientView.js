@@ -1,11 +1,6 @@
 import { inject } from "vue";
 import { getMapInstance } from "@/composables/useMap";
-import { orientCameraDefaults } from "@/defaults/maplibre";
-import {
-  fitZoomForDisc,
-  horizonDistanceMetres,
-  orientFlightDurationMs,
-} from "@/utils/orient";
+import { horizonFitZoom, orientFlightDurationMs } from "@/utils/orient";
 import { haversine } from "@/utils/geo";
 
 // Angles within this epsilon of zero are treated as already north-up/flat, so
@@ -91,12 +86,10 @@ export const useOrientView = () => {
     const minDim = Math.min(canvas.clientWidth, canvas.clientHeight);
     if (!minDim) return false;
 
-    const zoom = fitZoomForDisc({
+    const zoom = horizonFitZoom({
       widthPx: canvas.clientWidth,
       heightPx: canvas.clientHeight,
       latitude: lat,
-      radiusMetres: horizonDistanceMetres(orientCameraDefaults.eyeHeightMetres),
-      paddingPx: Math.round(minDim * orientCameraDefaults.fitPaddingFraction),
     });
     const centre = map.getCenter();
     const duration = orientFlightDurationMs({

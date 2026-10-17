@@ -120,6 +120,12 @@ export const useMap = (containerRef = null, options = {}) => {
       mapInstance: null,
       scaleControl: null,
       mapView: ref(null),
+      // Suppresses controller-driven persistence while a composable owns the
+      // camera (e.g. the follow camera). User-originated moves are unaffected.
+      suppressPersist: false,
+      // The closure that writes the current camera once, stored in the
+      // `style.load` handler so `persistMapView` can call it from outside.
+      persistView: null,
     });
   }
 
@@ -262,6 +268,9 @@ export const useMap = (containerRef = null, options = {}) => {
         // Gesture-driven moves are throttled to avoid a write per frame.
         const throttledPersistView = throttle(persistView, 1000);
 
+        // Expose the one-shot persist path to `persistMapView` (see below).
+        cached.persistView = persistView;
+
         map.on("moveend", (event) => {
           // A programmatic camera move (flyTo/easeTo/jumpTo) carries no
           // originalEvent. Its hash write must never be dropped by the
@@ -269,7 +278,10 @@ export const useMap = (containerRef = null, options = {}) => {
           // flight) can be swallowed, leaving a stale hash.
           if (event?.originalEvent) {
             throttledPersistView();
-          } else {
+          } else if (!cached.suppressPersist) {
+            // While a controller owns the camera, programmatic moves must not
+            // write the hash/localStorage/view:change — the follow camera
+            // persists its final pose once on stop instead.
             persistView();
           }
         });
@@ -381,6 +393,8 @@ export const useMap = (containerRef = null, options = {}) => {
       emitter.emit("destroy");
       cached.cancelIdleRetry?.();
       cached.cancelIdleRetry = null;
+      // Release any persistence suppression before the map goes away.
+      cached.suppressPersist = false;
       cached.mapInstance?.remove();
       cached.mapInstance = null;
       mapCache.delete(instanceId);
@@ -403,4 +417,34 @@ export const useMap = (containerRef = null, options = {}) => {
 export const getMapInstance = (instanceId = "app") => {
   const cached = mapCache.get(instanceId);
   return cached ? cached.mapInstance : null;
+};
+
+/**
+ * Enable or disable controller-driven view-persistence suppression.
+ *
+ * While suppressed, programmatic camera moves do not write the URL hash,
+ * `localStorage` or `view:change`; user-originated moves still persist as
+ * usual. The follow camera uses this so its per-frame `jumpTo` never leaks a
+ * hash write, then persists the final pose once on stop. Suppression has no
+ * effect while inactive.
+ *
+ * @param {string} [instanceId] - The app instance ID. Defaults to 'app'.
+ * @param {boolean} [suppressed=true] - Whether to suppress persistence.
+ */
+export const setMapViewSuppressed = (instanceId = "app", suppressed = true) => {
+  const cached = mapCache.get(instanceId);
+  if (cached) cached.suppressPersist = suppressed;
+};
+
+/**
+ * Persist the current camera once through the existing view-persistence path
+ * — URL hash, `ogis_view_{instanceId}` and `view:change` — regardless of any
+ * active suppression. A no-op before the map has loaded.
+ *
+ * @param {string} [instanceId] - The app instance ID. Defaults to 'app'.
+ */
+export const persistMapView = (instanceId = "app") => {
+  const cached = mapCache.get(instanceId);
+  if (!cached?.persistView) return;
+  cached.persistView();
 };

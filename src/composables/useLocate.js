@@ -4,6 +4,8 @@ import { magvar } from "magvar";
 import { useStorage } from "@/composables/useStorage";
 import { getMapInstance } from "@/composables/useMap";
 import { useOrientView } from "@/composables/useOrientView";
+import { useFollowCamera } from "@/composables/useFollowCamera";
+import { deriveCourse, deriveSpeed } from "@/utils/follow";
 import { emitter } from "@/emitter.js";
 import { Position } from "@/classes/Position";
 
@@ -13,6 +15,11 @@ const locateCache = new Map();
 // Smoothing factor for compass heading (0 = no update, 1 = no smoothing).
 // 0.15 is a gentle low-pass that removes jitter while still tracking rotation.
 const HEADING_SMOOTH = 0.15;
+
+// Ground speed above which the fix counts as moving, in metres per second
+// (~1.8 km/h). Below it the reported heading is untrustworthy and the derived
+// course (or the last held course) is used instead.
+const MOVING_SPEED_MPS = 0.5;
 
 /** Interpolate between two angles (degrees) handling the 0°/360° wrap. */
 function smoothAngle(current, next, factor) {
@@ -42,6 +49,9 @@ export const useLocate = (explicitInstanceId) => {
       headingLost: ref(false), // true when orientation events have stopped arriving
       smoothedHeading: null, // internal: raw float used for smoothing
       magneticDeclination: 0, // degrees East; corrects webkitCompassHeading to true north
+      lastFix: null, // { lat, lng, atMs } of the previous accepted fix
+      lastCourseDeg: null, // last valid course over ground, held across nulls
+      lastSpeedMps: 0, // last ground speed, in metres per second
       needsInitialOrient: false, // true until the first fix after activation
       generation: 0, // incremented on start/stop; discards stale callbacks
       mapReadyListener: null, // pending map:ready retry for the orient flight
@@ -59,6 +69,42 @@ export const useLocate = (explicitInstanceId) => {
   const c = locateCache.get(instanceId);
 
   const { orientView } = useOrientView();
+  const followCamera = useFollowCamera(instanceId);
+
+  // ─── Following ───────────────────────────────────────────────────────────
+
+  /** The current unrounded compass heading, or null when unavailable/lost. */
+  const currentCompassHeading = () =>
+    !c.headingLost.value && c.smoothedHeading !== null
+      ? c.smoothedHeading
+      : null;
+
+  /** Clear the per-fix derivation state (baseline fix, course and speed). */
+  const resetDerivation = () => {
+    c.lastFix = null;
+    c.lastCourseDeg = null;
+    c.lastSpeedMps = 0;
+  };
+
+  /**
+   * Feed the follow camera a position with its motion.
+   *
+   * @param {number} lat
+   * @param {number} lng
+   * @param {number} speedMps - Reported or derived ground speed, m/s.
+   * @param {number|null} courseDeg - Current course over ground, or null.
+   * @param {number} timestampMs - Fix time, from `performance.now()`.
+   */
+  const feedFollowCamera = (lat, lng, speedMps, courseDeg, timestampMs) => {
+    followCamera.setTarget({
+      lat,
+      lng,
+      compassHeading: currentCompassHeading(),
+      courseDeg,
+      speedKmh: speedMps * 3.6,
+      timestampMs,
+    });
+  };
 
   // ─── Map markers ─────────────────────────────────────────────────────────
 
@@ -305,12 +351,43 @@ export const useLocate = (explicitInstanceId) => {
     applyOrientFlight();
     syncMarkers();
 
+    // Derive motion from the previous fix so the camera can chase between ~1 Hz
+    // updates. The reported speed/heading are preferred while moving; the
+    // derived values fill in otherwise, with the last valid course held across
+    // a null derivation (GPS jitter at rest).
+    const now = performance.now();
+    const fix = { lat: latitude, lng: longitude };
+    const previous = c.lastFix;
+    const dtSec = previous ? (now - previous.atMs) / 1000 : 0;
+    const derivedCourse = previous ? deriveCourse(previous, fix) : null;
+    const derivedSpeedMps = previous ? deriveSpeed(previous, fix, dtSec) : null;
+    c.lastFix = { lat: latitude, lng: longitude, atMs: now };
+
+    const reportedSpeed =
+      typeof speed === "number" && Number.isFinite(speed) ? speed : null;
+    const reportedHeading =
+      typeof heading === "number" && Number.isFinite(heading) ? heading : null;
+
+    const speedMps =
+      reportedSpeed !== null
+        ? reportedSpeed
+        : derivedSpeedMps !== null
+          ? derivedSpeedMps
+          : 0;
+    c.lastSpeedMps = speedMps;
+
+    const moving = speedMps > MOVING_SPEED_MPS;
+    let courseDeg = null;
+    if (moving && reportedHeading !== null) {
+      courseDeg = reportedHeading;
+    } else if (derivedCourse !== null) {
+      courseDeg = derivedCourse;
+    }
+    courseDeg = courseDeg ?? c.lastCourseDeg;
+    c.lastCourseDeg = courseDeg;
+
     if (c.mode.value === "following") {
-      const map = getMapInstance(instanceId);
-      if (map)
-        map.easeTo({
-          center: [c.position.value.lng, c.position.value.lat],
-        });
+      feedFollowCamera(latitude, longitude, speedMps, courseDeg, now);
     }
   };
 
@@ -324,6 +401,8 @@ export const useLocate = (explicitInstanceId) => {
     c.generation++; // bump so any other in-flight callback is discarded
     clearOrientRetry();
     c.needsInitialOrient = false;
+    followCamera.stop();
+    resetDerivation();
     stopWatcher();
     stopOrientationWatching();
     removeMarkers();
@@ -343,6 +422,7 @@ export const useLocate = (explicitInstanceId) => {
     const gen = ++c.generation;
     c.mode.value = "active";
     c.needsInitialOrient = true;
+    resetDerivation();
     armOrientRetry();
 
     // Request orientation permission (no-op on non-iOS) then start listening.
@@ -388,12 +468,20 @@ export const useLocate = (explicitInstanceId) => {
       requestPermission(startWatching);
     } else if (c.mode.value === "active") {
       c.mode.value = "following";
-      if (c.position.value) {
-        const map = getMapInstance(instanceId);
-        if (map)
-          map.easeTo({
-            center: [c.position.value.lng, c.position.value.lat],
-          });
+      // Following owns the camera from the click: drop the one-shot
+      // orientation flight so a late fix cannot restart it mid-follow.
+      c.needsInitialOrient = false;
+      clearOrientRetry();
+      followCamera.start();
+      const position = c.position.value;
+      if (position) {
+        feedFollowCamera(
+          position.lat,
+          position.lng,
+          c.lastSpeedMps,
+          c.lastCourseDeg,
+          performance.now(),
+        );
       }
     } else if (c.mode.value === "following") {
       stop();
@@ -431,6 +519,8 @@ export const useLocate = (explicitInstanceId) => {
     c.generation++;
     clearOrientRetry();
     c.needsInitialOrient = false;
+    followCamera.stop();
+    resetDerivation();
     stopWatcher();
     stopOrientationWatching();
     removeMarkers();
