@@ -1,11 +1,12 @@
 import CollectionsPanel from "./CollectionsPanel.vue";
 
 export const CollectionsFeature = {
-  install({ addPanel }) {
+  install({ addPanel, useLocale }) {
+    const { t } = useLocale();
     addPanel({
       id: "collections",
       icon: "list",
-      titleKey: "menu.collections",
+      title: () => t("menu.collections"),
       component: CollectionsPanel,
     });
   },

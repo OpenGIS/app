@@ -14,8 +14,8 @@ Mirrors the [README Contributing journey](README.md#contributing) — follow the
 2. **Make the change** — [Development workflow](README.md#development-workflow).
 3. **Pre-push gate** — `npm run check` (Prettier check + unit tests) must pass before pushing.
 4. **Commit** — Conventional Commits only; the `commits` job validates every non-merge subject (types in [`docs/13.ci.md`](docs/13.ci.md#conventional-commits-are-required)).
-5. **Push / open a PR** — PRs run the same checks as `master` pushes: `ci.yml` plus the `Screenshots` workflow; the aggregate matrix check is the required branch-protection check.
-6. **Done** — green CI on the pushed commits; merge triggers the release, the matrix re-baseline on `master` and the README hero refresh.
+5. **Push / open a PR** — a `master` push runs `ci.yml` alone (release follows); a PR additionally runs the `Screenshots` workflow, whose aggregate matrix check is an advisory review signal — no branch protection is configured.
+6. **Done** — green `ci.yml` on the pushed commits; merge triggers the release and the README hero refresh. The screenshot matrix heals on its own schedule (or via manual dispatch) — it never holds up a push.
 
 ## Commands
 
@@ -37,9 +37,9 @@ npm run format       # rewrite files with Prettier
 
 `npm test` runs the unit suite (Vitest) only. Use it, plus targeted single-spec E2E runs, during rapid development. **Unit tests need Node 24** (CI uses Node 24); on older Node the `tests/unit/countries.test.js` cases that depend on `Intl.Locale.prototype.getTimeZones` fail, because `countryCodeFromTimeZone` deliberately returns null when it is unavailable.
 
-CI is a quick gate: unit tests, Prettier, and the **functional** E2E suite only. `ci.yml` excludes the screenshot matrix (`--grep-invert @screenshots`) and shards the functional suite three ways. The committed matrix is verified instead by a separate **`Screenshots`** workflow (macOS capture shards plus a Linux aggregate `verify` job, pixel-tolerant against the committed PNGs); the aggregate job is the required check on pull requests and `master` pushes. See `docs/13.ci.md`.
+CI is a quick gate: unit tests, Prettier, and the **functional** E2E suite only. `ci.yml` excludes the screenshot matrix (`--grep-invert @screenshots`) and shards the functional suite three ways. The committed matrix is verified instead by a separate **`Screenshots`** workflow (macOS capture shards, a Linux aggregate `verify`, pixel-tolerant against the committed PNGs) that runs on pull requests, a daily schedule and manual dispatch — never on pushes — and heals a moved `master` baseline itself. See `docs/13.ci.md`.
 
-**A task is done when its pushed commits are green in CI** — `ci.yml` (unit, commit check, functional E2E) plus the `Screenshots` workflow. Local habits stay fast: the watch loops and targeted specs while developing, and `npm run check` (Prettier check plus unit tests) as the pre-push gate. The full local E2E run (`npm run test:e2e`) is an optional fallback — offline, or when the local GPU functional path is specifically wanted — not a required step before declaring done. It includes the `@screenshots` matrix plus the functional specs on the local GPU path. The matrix runs in a dedicated, always-SwiftShader `screenshots` Playwright project; a plain local run is unpinned and parallel, and writes captures to a gitignored `.opencode/tmp/screenshots/` — never the committed tree. GitHub is the deterministic authority: the `Screenshots` workflow reproduces the committed matrix within a strict pixel tolerance in its macOS capture shards, then an aggregate `verify` job checks the full matrix in both directions and is the required check; a `master` push that genuinely moves captures re-baselines them automatically through its `refresh` job.
+**A task is done when its pushed commits are green in `ci.yml`** — unit, commit check and functional E2E. Local habits stay fast: the watch loops and targeted specs while developing, and `npm run check` (Prettier check plus unit tests) as the pre-push gate. The full local E2E run (`npm run test:e2e`) is an optional fallback — offline, or when the local GPU functional path is specifically wanted — not a required step before declaring done. It includes the `@screenshots` matrix plus the functional specs on the local GPU path. The matrix runs in a dedicated, always-SwiftShader `screenshots` Playwright project; a plain local run is unpinned and parallel, and writes captures to a gitignored `.opencode/tmp/screenshots/` — never the committed tree. GitHub remains the authority for the committed matrix, verifying it within a strict pixel tolerance; a scheduled or manually dispatched `master` run re-baselines a genuinely moved matrix through its `refresh` job, guarded so it never races a `ci.yml` run or blesses a stale baseline. See `docs/13.ci.md`.
 
 Formatting is gated by Prettier: CI's `unit` job runs `npm run format:check`; `npm run check` bundles that check with the unit suite for a fast pre-push gate. Run `npm run format` before completing a task. The `format`/`format:check` scripts pass [`.gitignore`](.gitignore), [`.prettierignore`](.prettierignore) and a global `~/.config/prettier/ignore` explicitly via `--ignore-path` — Prettier has no native global ignore, and `--ignore-path` overrides its defaults rather than adding to them, so every ignore file is named on the command line. [`.prettierignore`](.prettierignore) excludes generated and vendored output (build directories, `tests/fixtures/`, the lockfile, `CHANGELOG.md`); the global file excludes tooling scratch space.
 
@@ -55,6 +55,10 @@ When running E2E tests with a shell tool, use `mode="sync"` with `initial_wait` 
 Local E2E runs trust an existing listener on the web-server port (`reuseExistingServer`): if a stale dev server — from an older checkout, say — holds 5184, the suite silently runs against the wrong app. Confirm the port is free (`lsof -i :5184`) before relying on a local run; CI always starts its own.
 
 ## Key Conventions
+
+### PWA SPA
+
+ogis.app is an installable PWA SPA (one document, no router; `#map=` carries map state). In-app actions must never trigger a top-level navigation/full reload — e.g. the Info panel's Random button fits a country in-app rather than following its `?country=random` href. URL params are entry/deep links only, read once at boot.
 
 ### Instance isolation
 

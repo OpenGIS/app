@@ -1,7 +1,6 @@
 <script setup>
 import { computed, inject, ref, shallowRef, watch, nextTick } from "vue";
 import { useUI } from "@/composables/useUI";
-import { useLocale } from "@/composables/useLocale";
 import { getMapInstance } from "@/composables/useMap";
 import IconButton from "@/components/ui/icon-button.vue";
 import InfoPanel from "@/components/panels/info.vue";
@@ -18,7 +17,10 @@ const {
   closePanel,
   isDesktop,
 } = useUI();
-const { t } = useLocale();
+
+// Registry items provide a ready label — a string, or a thunk returning a
+// string (used for translations so the label re-evaluates per locale).
+const resolveLabel = (label) => (typeof label === "function" ? label() : label);
 
 // Built-in tabs are empty — the menu is feature-only. Kept as an extension point.
 const builtInTabs = [];
@@ -30,7 +32,6 @@ const buttonTabs = computed(() =>
     .map((b) => ({
       id: b.id,
       icon: b.icon,
-      labelKey: b.panel.titleKey || b.labelKey || null,
       label: b.panel.title || b.label,
     })),
 );
@@ -40,7 +41,6 @@ const panelTabs = computed(() =>
   panelsRef.value.map((p) => ({
     id: p.id,
     icon: p.icon,
-    labelKey: p.titleKey || null,
     label: p.title,
   })),
 );
@@ -131,19 +131,9 @@ watch(
       <div v-if="!isInfoVisible" class="panel-nav border-bottom bg-body">
         <template v-for="tab in tabs" :key="tab.id">
           <IconButton
-            v-if="tab.labelKey"
             :id="tab.btnId"
             :icon="tab.icon"
-            :label="t(tab.labelKey)"
-            :icon-width="32"
-            :icon-height="32"
-            :active="effectivePanel === tab.id"
-            @click="setActivePanel(tab.id)"
-          />
-          <IconButton
-            v-else
-            :icon="tab.icon"
-            :label="tab.label"
+            :label="resolveLabel(tab.label)"
             :icon-width="32"
             :icon-height="32"
             :active="effectivePanel === tab.id"

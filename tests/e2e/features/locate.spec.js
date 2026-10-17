@@ -1,4 +1,8 @@
 import { test, expect } from "../helpers/test.js";
+import {
+  trackConsoleErrors,
+  expectNoConsoleErrors,
+} from "../helpers/console.js";
 import { waitForMapReady, openMenuTab } from "../helpers/panel";
 import { DEMO } from "../../fixtures/demo.mjs";
 
@@ -688,5 +692,82 @@ test.describe("Locate / Error modal retry", () => {
     await expect(page.locator("#locate-button")).not.toContainText("Error", {
       timeout: LOCATE_TIMEOUT,
     });
+  });
+});
+
+// ─── Locate / French locale ──────────────────────────────────────────────────
+
+test.describe("Locate / French locale", () => {
+  // Same approach as the language tests in settings.spec.js: the browser
+  // context advertises fr-FR, so the app resolves its locale to French.
+  test.use({ locale: "fr-FR" });
+
+  test("confirmation modal renders French text for a French browser locale", async ({
+    page,
+  }) => {
+    trackConsoleErrors(page);
+    await withNoLocateStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await page.locator("#locate-button").click();
+
+    // Scope the X button to this modal's own .btn-close. The error modal also
+    // renders a visible "Fermer" footer button, so an unscoped role-name
+    // lookup could match more than the X.
+    const modal = page.locator(
+      '.ogis-modal[aria-labelledby="locate-confirm-title"]',
+    );
+
+    await expect(page.locator("#locate-confirm-title")).toHaveText(
+      "Autorisation requise",
+    );
+    await expect(modal.locator(".modal-body")).toContainText(
+      "Pour afficher votre position actuelle et le cap de la boussole, cette application a besoin de votre autorisation. Lorsque vous y êtes invité, veuillez autoriser l'accès à la localisation et à la boussole.",
+    );
+    await expect(modal.getByRole("button", { name: "Annuler" })).toHaveText(
+      "Annuler",
+    );
+    await expect(page.locator("#locate-confirm-allow")).toHaveText(
+      "Je comprends",
+    );
+    await expect(modal.locator(".btn-close")).toHaveAttribute(
+      "aria-label",
+      "Fermer",
+    );
+
+    expectNoConsoleErrors(page);
+  });
+
+  test("error modal renders French text when geolocation permission is denied", async ({
+    page,
+  }) => {
+    trackConsoleErrors(page);
+    await withGrantedStorage(page);
+    // Do NOT grant geolocation — denial triggers the error callback
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await page.locator("#locate-button").click();
+
+    const modal = page.locator(
+      '.ogis-modal[aria-labelledby="locate-error-title"]',
+    );
+
+    await expect(page.locator("#locate-error-title")).toHaveText(
+      "Autorisation de localisation refusée",
+      { timeout: LOCATE_TIMEOUT },
+    );
+    await expect(modal.locator(".modal-body")).toContainText(
+      "Impossible d'obtenir votre localisation, peut-être en raison d'un refus d'autorisation préalable. Pour le réactiver, essayez :",
+    );
+    await expect(page.locator("#locate-error-retry")).toHaveText("Réessayer");
+    await expect(page.locator("#locate-error-close")).toHaveText("Fermer");
+    await expect(modal.locator(".btn-close")).toHaveAttribute(
+      "aria-label",
+      "Fermer",
+    );
+
+    expectNoConsoleErrors(page);
   });
 });

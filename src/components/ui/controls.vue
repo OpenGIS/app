@@ -35,6 +35,8 @@ const cornerOccupancy = computed(() => ({
   "has-br": bottomRightButtons.value.length > 0, // feature buttons
 }));
 
+const resolveLabel = (label) => (typeof label === "function" ? label() : label);
+
 const handleCustomClick = (btn) => {
   if (btn.panel) {
     setActivePanel(btn.id);
@@ -86,7 +88,7 @@ const handleCustomClick = (btn) => {
           v-else
           chip
           :icon="btn.icon"
-          :label="btn.labelKey ? t(btn.labelKey) : btn.label"
+          :label="resolveLabel(btn.label)"
           :data-custom-button="btn.id"
           @click="handleCustomClick(btn)"
         />

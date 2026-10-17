@@ -9,21 +9,27 @@ name: Screenshots
 # colour channel — so verification is pixel-tolerant, not byte-exact, while
 # still failing on any real change.
 #
-# The `screenshots` job is only a capture matrix. The intended branch-protection
-# required check is the aggregate `Screenshots — verify committed matrix` job:
-# it runs after every shard even when one fails, merges all shard captures and
+# Trigger model — pull requests get visual diffs, master self-heals on a
+# schedule:
+#   * pull_request — the review signal. The aggregate `verify` job compares the
+#     PR's captures with the committed matrix and, when it moves, publishes a
+#     diff bundle (artefact + job summary, and — for same-repo PRs — a sticky
+#     comment with inline before/after/diff images). A moved matrix stays a red
+#     PR check.
+#   * schedule (daily at 07:30 UTC) and workflow_dispatch — the self-heal path on
+#     master. A moved matrix is re-baselined from the run's own captures and the
+#     run concludes green once the heal lands; guards defer it while a CI run is
+#     in flight or after master has advanced.
+# There is deliberately no `push` trigger: this workflow once healed on a
+# `master` push, and its bot push raced ci.yml's semantic-release. Removing the
+# trigger removes the race; the schedule/dispatch heal replaces it.
+#
+# The `screenshots` job is only a capture matrix. The aggregate `verify` job
+# runs after every shard even when one fails, merges all shard captures and
 # verifies the FULL committed matrix in both directions — every committed PNG
 # must have been captured within tolerance, and every captured matrix PNG must
 # exist in the committed set. A shard that emits some but not all of its
-# assigned captures is caught here, not by the per-shard step. Require just this
-# one check.
-#
-# When the aggregate fails on a `master` push the baseline has genuinely moved
-# (sub-tolerance drift passes, so it never reaches here): the `refresh` job
-# rebuilds the committed matrix from the same run's shard captures, commits it
-# and dispatches a fresh run to re-verify — so the developer's side is just
-# `git pull`. Pull requests never auto-refresh (a red verify stays a review
-# signal) and an incomplete capture set is never blessed. See the `refresh` job.
+# assigned captures is caught here, not by the per-shard step.
 #
 # Why macOS: Linux (ubuntu-latest) substitutes fonts (panel copy wraps) and
 # rasterises differently, so it cannot reproduce the macOS-captured matrix.
@@ -39,9 +45,9 @@ name: Screenshots
 
 on:
   pull_request:
-  push:
-    branches:
-      - master
+  schedule:
+    # 07:30 UTC — off-peak
+    - cron: "30 7 * * *"
   workflow_dispatch:
 
 permissions:
@@ -74,6 +80,11 @@ jobs:
         env:
           CI: "1"
       - name: Verify captures against the committed matrix
+        # A per-shard verify is a cheap early report; the aggregate `verify` job
+        # stays authoritative. On master a shard's own move must not fail the
+        # run — the aggregate drives the heal — so the step is soft there and
+        # strict red on pull requests.
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
         run: |
           node scripts/verify-matrix.js \
             --committed screenshots \
@@ -90,17 +101,28 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # Aggregate verification — the intended required check. Each shard can only
+  # Aggregate verification — the authoritative matrix check. Each shard can only
   # see the files it produced, so a shard that emits some but not all of its
   # assigned captures passes its own step. This job merges every shard's
   # captures and verifies the FULL committed matrix in both directions. It runs
   # with `if: always()` so a mismatch is still reported when a shard fails.
+  #
+  # On a pull request a move fails the job (review signal) and the bundle steps
+  # publish the visual diff. On master the move leaves the job green — the
+  # `refresh` job heals it and `matrix-status` tells the story — so the verify
+  # step is `continue-on-error` there and its `outcome` is surfaced as the
+  # `matrixMoved` job output that gates the heal.
   verify:
     name: Screenshots — verify committed matrix
     needs: screenshots
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      matrixMoved: ${{ steps.verify.outcome == 'failure' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -113,43 +135,112 @@ jobs:
           path: captured
           merge-multiple: true
       - name: Verify the full committed matrix
+        id: verify
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
         run: |
           node scripts/verify-matrix.js \
             --committed screenshots \
             --captured captured/.opencode/tmp/screenshots \
             --mode full \
-            --report screenshot-verify-aggregate.txt
+            --report screenshot-verify-aggregate.txt \
+            --json screenshot-verify.json
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-verify-aggregate
-          path: screenshot-verify-aggregate.txt
+          path: |
+            screenshot-verify-aggregate.txt
+            screenshot-verify.json
           if-no-files-found: ignore
           retention-days: 7
+      - name: Build the diff bundle
+        id: bundle
+        # Runs on any event where the matrix moved. On a pull request the bundle
+        # is the review deliverable, so a failure is fatal; on master it is
+        # supporting detail, so a failure is soft and the heal still proceeds.
+        if: always() && steps.verify.outcome == 'failure'
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
+        run: |
+          npm run screenshots:bundle -- \
+            --committed screenshots \
+            --captured captured/.opencode/tmp/screenshots \
+            --out .opencode/tmp/diff-bundle \
+            --run-id "${{ github.run_id }}" \
+            --pr "${{ github.event.pull_request.number }}"
+      - name: Append the bundle summary
+        if: always() && steps.bundle.outcome == 'success' && hashFiles('.opencode/tmp/diff-bundle/summary.md') != ''
+        run: cat .opencode/tmp/diff-bundle/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the diff bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-diff-bundle
+          path: |
+            captured/
+            .opencode/tmp/diff-bundle/
+          # Captures and the bundle live under dot-directories, which
+          # upload-artifact excludes by default.
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Publish the diff bundle to the screenshots-diff branch
+        # Same-repo pull requests only: fork tokens are read-only, so the branch
+        # push and the comment are skipped there (the artefact still ships).
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.bundle.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          scripts/publish-diff-branch.sh \
+            --bundle .opencode/tmp/diff-bundle \
+            --pr "${{ github.event.pull_request.number }}" \
+            --run-id "${{ github.run_id }}" \
+            --repo "${{ github.repository }}"
+      - name: Post or update the sticky diff comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.bundle.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          npm run screenshots:comment -- \
+            --pr "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --bundle .opencode/tmp/diff-bundle \
+            --run-id "${{ github.run_id }}" \
+            --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-  # Auto-refresh on master. Triggered only when a `master` push genuinely moves
-  # the matrix — i.e. the tolerant aggregate verification FAILED (sub-tolerance
-  # drift passes and never reaches here). It rebuilds the committed baseline
-  # from the SAME run's shard captures, commits it and dispatches a fresh run to
-  # re-verify, so the developer's side is just `git pull`. It never runs on pull
-  # requests or `workflow_dispatch`, so PRs stay strict. The capture set must be
-  # complete and valid: `screenshots:fetch` refuses a partial or empty set, so
-  # the job fails with no commit and the run stays red for a human — nothing is
-  # ever blessed from an incomplete capture set. Re-runs are harmless: a second
-  # pass finds nothing to commit and skips both the commit and the dispatch.
+  # Self-heal the committed baseline on master. Triggered only on the scheduled
+  # or manually dispatched runs, and only when the tolerant aggregate verify
+  # reported a move (sub-tolerance drift passes and never reaches here). It
+  # rebuilds the committed matrix from the SAME run's shard captures. Two guards
+  # run late, just before the commit, and defer cleanly rather than fail:
+  #   * an in-flight ci.yml run on master — a bot push must not race it;
+  #   * master having advanced past this run's SHA — captures of an older tree
+  #     must never bless a stale baseline.
+  # The capture set must be complete and valid: `screenshots:fetch` refuses a
+  # partial or empty set, so an incomplete capture set fails the job and the run
+  # stays red for a human — nothing is ever blessed from it. Pull requests never
+  # refresh. The final `matrix-status` job reports which outcome occurred.
   refresh:
     name: Refresh committed matrix
     needs: [screenshots, verify]
-    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.verify.result == 'failure' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master' && needs.verify.outputs.matrixMoved == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: write
-      actions: write
+      actions: read
+    outputs:
+      outcome: ${{ steps.finalise.outputs.outcome }}
+      reason: ${{ steps.finalise.outputs.reason }}
+      commit: ${{ steps.commit.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
+          # Pin to the tested tree so the committed baseline is built from the
+          # same SHA the captures came from.
+          ref: ${{ github.sha }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -162,8 +253,33 @@ jobs:
           path: captured
       - name: Assemble and write the committed matrix
         run: npm run screenshots:fetch -- --artifacts captured --write
+      - name: In-flight CI guard
+        id: inflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          INFLIGHT=$(gh run list --workflow=ci.yml --branch=master \
+            --limit=20 --json status --jq '[.[] | select(.status != "completed")] | length')
+          if [ "$INFLIGHT" != "0" ]; then
+            echo "deferred=true" >> "$GITHUB_OUTPUT"
+            echo "reason=a CI run is in flight on master" >> "$GITHUB_OUTPUT"
+          else
+            echo "deferred=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Tip guard
+        id: tip
+        if: steps.inflight.outputs.deferred != 'true'
+        run: |
+          LIVE=$(git ls-remote origin refs/heads/master | cut -f1)
+          if [ "$LIVE" != "${{ github.sha }}" ]; then
+            echo "deferred=true" >> "$GITHUB_OUTPUT"
+            echo "reason=master advanced since this run captured" >> "$GITHUB_OUTPUT"
+          else
+            echo "deferred=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Commit the refreshed matrix
         id: commit
+        if: steps.inflight.outputs.deferred != 'true' && steps.tip.outputs.deferred != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -178,19 +294,83 @@ jobs:
           git pull --rebase origin master
           git push origin HEAD:master
           echo "committed=true" >> "$GITHUB_OUTPUT"
-      - name: Dispatch re-verification
-        if: steps.commit.outputs.committed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run screenshots.yml --ref master
-      - name: Summarise
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Summarise the refresh
+        id: finalise
         if: always()
         run: |
           {
             echo "### Screenshot matrix refresh"
-            if [ "${{ steps.commit.outputs.committed }}" = "true" ]; then
-              echo "Committed the refreshed matrix from run ${{ github.run_id }} and dispatched a re-verification run."
-            else
-              echo "No matrix change was committed (nothing to refresh, or the refresh did not complete); nothing dispatched."
-            fi
+            echo ""
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.commit.outputs.committed }}" = "true" ]; then
+            echo "outcome=healed" >> "$GITHUB_OUTPUT"
+            echo "reason=" >> "$GITHUB_OUTPUT"
+            echo "Re-baselined the committed matrix from run ${{ github.run_id }} (commit ${{ steps.commit.outputs.sha }})." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.inflight.outputs.deferred }}" = "true" ]; then
+            echo "outcome=deferred" >> "$GITHUB_OUTPUT"
+            echo "reason=${{ steps.inflight.outputs.reason }}" >> "$GITHUB_OUTPUT"
+            echo "refresh deferred — ${{ steps.inflight.outputs.reason }}; next scheduled run will heal." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.tip.outputs.deferred }}" = "true" ]; then
+            echo "outcome=deferred" >> "$GITHUB_OUTPUT"
+            echo "reason=${{ steps.tip.outputs.reason }}" >> "$GITHUB_OUTPUT"
+            echo "refresh deferred — ${{ steps.tip.outputs.reason }}; next scheduled run will heal." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.commit.outputs.committed }}" = "false" ]; then
+            echo "outcome=no-change" >> "$GITHUB_OUTPUT"
+            echo "reason=" >> "$GITHUB_OUTPUT"
+            echo "The committed matrix already matches this run's captures; nothing to commit." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "outcome=failed" >> "$GITHUB_OUTPUT"
+            echo "reason=the refresh did not complete" >> "$GITHUB_OUTPUT"
+            echo "The refresh did not complete — see the earlier steps." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # The run's story in one place. Green whenever the run is healthy — matrix
+  # verified, matrix moved and re-baselined, or heal deferred to the next
+  # scheduled run — and red only on the defensive anomaly of a moved matrix on
+  # master that never reached the refresh job. A refresh that failed has already
+  # failed the run; this job does not duplicate that.
+  matrix-status:
+    name: Screenshots — status
+    needs: [screenshots, verify, refresh]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarise the run
+        run: |
+          MOVED="${{ needs.verify.outputs.matrixMoved }}"
+          OUTCOME="${{ needs.refresh.outputs.outcome }}"
+          REASON="${{ needs.refresh.outputs.reason }}"
+          COMMIT="${{ needs.refresh.outputs.commit }}"
+          EVENT="${{ github.event_name }}"
+          REF="${{ github.ref }}"
+
+          ANOMALY="false"
+          if [ "$MOVED" = "true" ] && [ "$EVENT" != "pull_request" ] && [ "$REF" = "refs/heads/master" ] && [ -z "$OUTCOME" ]; then
+            ANOMALY="true"
+            SUMMARY="❌ matrix moved but the refresh job did not run"
+          elif [ "$MOVED" != "true" ]; then
+            SUMMARY="✅ matrix verified"
+          elif [ "$OUTCOME" = "healed" ]; then
+            SUMMARY="♻️ matrix moved + re-baselined"
+            if [ -n "$COMMIT" ]; then SUMMARY="$SUMMARY (commit $COMMIT)"; fi
+          elif [ "$OUTCOME" = "deferred" ]; then
+            SUMMARY="↩️ matrix moved but the refresh was deferred — $REASON; the next scheduled run will heal"
+          elif [ "$OUTCOME" = "no-change" ]; then
+            SUMMARY="✅ matrix verified (the committed matrix already matched this run's captures)"
+          elif [ "$EVENT" != "pull_request" ] && [ "$REF" = "refs/heads/master" ]; then
+            SUMMARY="❌ heal failed — see the refresh job log"
+          else
+            SUMMARY="❌ matrix moved — see the diff bundle artefact"
+          fi
+
+          {
+            echo "### Screenshot matrix"
+            echo ""
+            echo "$SUMMARY"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$ANOMALY" = "true" ]; then
+            echo "::error::$SUMMARY"
+            exit 1
+          fi

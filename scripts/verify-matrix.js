@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import { pathToFileURL } from "node:url";
 
 // Verify a freshly captured screenshot tree against the committed matrix using
 // a strict pixel tolerance rather than a byte-exact hash. The deterministic
@@ -9,8 +10,15 @@ import zlib from "node:zlib";
 // byte-exactness across runs is not achievable. A file passes when every
 // differing channel is within `--max-delta` (default 1) AND the whole file
 // differs in at most `--max-pixels` pixels (default 64). A real change — many
-// pixels, or a larger per-channel delta — still fails. Dependency-free: the
-// PNG decoder is a little zlib-inflate-plus-unfilter, Node builtins only.
+// pixels, or a larger per-channel delta — still fails.
+//
+// A pixel move is expected whenever the UI changes. On `master` the Screenshots
+// workflow treats a verified move as normal and heals the committed baseline
+// from a clean capture run; on a pull request the move is surfaced as a diff
+// bundle for review. This module is also a library: `screenshot-diff-bundle.js`
+// imports the decoder, encoder, comparison and walk helpers below. Dependency-
+// free: the PNG codec is a little zlib-inflate/deflate plus unfilter/filter,
+// Node builtins only.
 
 const DEFAULTS = {
   maxDelta: 1,
@@ -39,6 +47,8 @@ Options:
                        full: additionally require a captured counterpart for
                        every committed PNG and reject extra captures
   --report <file>      write the plain-text report to this path
+  --json <file>        write machine-readable results to this path
+                       ([{ rel, status, diffPixels, maxDelta, detail }])
   --help               show this help
 
 Exit codes:
@@ -54,6 +64,7 @@ function parseArgs(argv) {
     maxPixels: DEFAULTS.maxPixels,
     mode: DEFAULTS.mode,
     report: null,
+    json: null,
     help: false,
   };
 
@@ -110,6 +121,11 @@ function parseArgs(argv) {
       if (!value) return { error: `${arg} needs a file path` };
       options.report = value;
       i = next;
+    } else if (arg === "--json" || arg.startsWith("--json=")) {
+      const { value, i: next } = valueOf(arg, i);
+      if (!value) return { error: `${arg} needs a file path` };
+      options.json = value;
+      i = next;
     } else {
       return { error: `Unknown option: ${arg}` };
     }
@@ -129,7 +145,7 @@ function isDirectory(target) {
 // Recursive walk returning a Map of forward-slash relative path -> absolute
 // path. Any `diag/` subtree is skipped: it holds per-capture diagnostics
 // written beside the images, never part of the visual comparison.
-function walkPngs(root) {
+export function walkPngs(root) {
   const files = new Map();
   const visit = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -153,6 +169,10 @@ const PNG_SIGNATURE = Buffer.from([
 // Colour type -> channel count. Palette (3) is deliberately unsupported: the
 // captures are truecolour (type 2) and a palette image would need PLTE lookup.
 const CHANNELS_BY_COLOUR_TYPE = { 0: 1, 2: 3, 4: 2, 6: 4 };
+
+// Channel count -> colour type, the inverse of the map above. Used by the
+// encoder so it round-trips exactly what the decoder accepts.
+const COLOUR_TYPE_BY_CHANNELS = { 1: 0, 2: 4, 3: 2, 4: 6 };
 
 function paeth(a, b, c) {
   const p = a + b - c;
@@ -197,7 +217,7 @@ function unfilterRow(type, src, out, prev, bpp) {
 // Decode an 8-bit, non-interlaced PNG into unfiltered sample bytes. Supports
 // grayscale (0), RGB (2), grayscale+alpha (4) and RGBA (6); everything else is
 // rejected with a clear message rather than a wrong comparison.
-function decodePng(buffer) {
+export function decodePng(buffer) {
   if (buffer.length < 8 || !buffer.subarray(0, 8).equals(PNG_SIGNATURE)) {
     throw new Error("not a PNG (bad signature)");
   }
@@ -285,7 +305,64 @@ function decodePng(buffer) {
   return { width, height, channels, pixels };
 }
 
-function compareImages(committed, captured) {
+// Serialise one PNG chunk: 4-byte length, 4-byte type, data, 4-byte CRC32 over
+// type+data. `zlib.crc32` is a Node builtin.
+function pngChunk(type, data) {
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length, 0);
+  const typeBuffer = Buffer.from(type, "ascii");
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(zlib.crc32(Buffer.concat([typeBuffer, data])) >>> 0, 0);
+  return Buffer.concat([length, typeBuffer, data, crc]);
+}
+
+// Encode unfiltered sample bytes into an 8-bit, non-interlaced PNG, mirroring
+// what `decodePng` supports: grayscale (1 channel), gray+alpha (2), RGB (3) and
+// RGBA (4). Every scanline uses filter type 0 (None); deflate then compresses
+// the lot. Dependency-free — `zlib.deflateSync` plus `zlib.crc32`.
+export function encodePng(width, height, channels, pixels) {
+  const colourType = COLOUR_TYPE_BY_CHANNELS[channels];
+  if (colourType === undefined) {
+    throw new Error(
+      `unsupported channel count ${channels} ` +
+        "(supported: 1 grayscale, 2 gray+alpha, 3 RGB, 4 RGBA)",
+    );
+  }
+  const rowBytes = width * channels;
+  const expected = rowBytes * height;
+  if (pixels.length < expected) {
+    throw new Error(
+      `pixel data too short (${pixels.length} bytes, expected ${expected})`,
+    );
+  }
+
+  const raw = Buffer.alloc((rowBytes + 1) * height);
+  for (let y = 0; y < height; y++) {
+    const base = y * (rowBytes + 1);
+    raw[base] = 0;
+    for (let i = 0; i < rowBytes; i++) {
+      raw[base + 1 + i] = pixels[y * rowBytes + i] & 0xff;
+    }
+  }
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = colourType;
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  return Buffer.concat([
+    PNG_SIGNATURE,
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", zlib.deflateSync(raw)),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+export function compareImages(committed, captured) {
   const channels = committed.channels;
   const a = committed.pixels;
   const b = captured.pixels;
@@ -314,7 +391,7 @@ function failure(rel, detail) {
   return { rel, status: "fail", detail };
 }
 
-function compareFile(rel, committedAbs, capturedAbs, options) {
+export function compareFile(rel, committedAbs, capturedAbs, options) {
   let committedBytes;
   let capturedBytes;
   try {
@@ -371,7 +448,7 @@ function compareFile(rel, committedAbs, capturedAbs, options) {
   return { rel, status: "fail", diffPixels, maxDelta };
 }
 
-function buildResults(options) {
+export function buildResults(options) {
   const committedFiles = walkPngs(options.committed);
   const capturedFiles = walkPngs(options.captured);
 
@@ -476,16 +553,12 @@ function run() {
 
   emit("");
   if (fail > 0) {
+    emit("A pixel move is expected whenever the UI changes. On master the");
+    emit("Screenshots workflow treats a verified move as normal and heals the");
     emit(
-      "On a master push the Screenshots workflow refreshes the committed matrix",
+      "committed baseline from a clean capture run; on a pull request the move",
     );
-    emit(
-      "from this run's captures automatically and re-verifies it; developers",
-    );
-    emit(
-      "just 'git pull'. For a pull request, or a failed or incomplete capture",
-    );
-    emit("set, refresh manually:");
+    emit("is surfaced as a diff bundle for review. To re-baseline manually:");
     emit("'npm run screenshots:fetch -- --run <run-id> --write'.");
     emit("");
   }
@@ -496,7 +569,22 @@ function run() {
     fs.writeFileSync(options.report, `${lines.join("\n")}\n`);
   }
 
+  if (options.json) {
+    const payload = results.map((result) => ({
+      rel: result.rel,
+      status: result.status,
+      diffPixels: result.diffPixels ?? null,
+      maxDelta: result.maxDelta ?? null,
+      detail: result.detail ?? null,
+    }));
+    fs.mkdirSync(path.dirname(options.json), { recursive: true });
+    fs.writeFileSync(options.json, `${JSON.stringify(payload, null, 2)}\n`);
+  }
+
   if (fail > 0) process.exit(1);
 }
 
-run();
+const isMain =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMain) run();

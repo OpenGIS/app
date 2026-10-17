@@ -13,6 +13,7 @@ export const mapDefaults = {
   attributionControl: false,
   center: [0, 0],
   zoom: 1,
+  minZoom: 1,
 };
 
 /**

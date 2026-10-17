@@ -1,3 +1,36 @@
+## [3.12.2](https://github.com/OpenGIS/app/compare/v3.12.1...v3.12.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ui:** fit a random country in-app from the info panel ([71d231c](https://github.com/OpenGIS/app/commit/71d231c8ea744f022fb00755519c43d12a38f55f))
+
+## [3.12.1](https://github.com/OpenGIS/app/compare/v3.12.0...v3.12.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **map:** cap zoom-out at the full-globe view ([069d62f](https://github.com/OpenGIS/app/commit/069d62f10b470be194cd38e4c86f04501e585217))
+
+# [3.12.0](https://github.com/OpenGIS/app/compare/v3.11.0...v3.12.0) (2026-10-16)
+
+
+### Features
+
+* **i18n:** enforce complete locale coverage ([bee7a6a](https://github.com/OpenGIS/app/commit/bee7a6a9697415933c54cd06fdb7d142305dd790))
+
+# [3.11.0](https://github.com/OpenGIS/app/compare/v3.10.2...v3.11.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ui:** stop buttons latching hover styling ([e234061](https://github.com/OpenGIS/app/commit/e234061c354bb8507a1d8634d2805365816963dc))
+
+
+### Features
+
+* **ui:** rework the info panel actions ([5997dfe](https://github.com/OpenGIS/app/commit/5997dfe65f7a54721f402ba69d969d8dfc75e57a))
+
 ## [3.10.2](https://github.com/OpenGIS/app/compare/v3.10.1...v3.10.2) (2026-10-16)
 
 

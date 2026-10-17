@@ -15,11 +15,11 @@ A _loveletter_ to the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem 
 
 ![ogis.app — light theme](LIGHT.jpg)
 
-Both heroes are live, intentionally non-deterministic captures — a random-country cold start with the Info panel open — refreshed in place by every full local test run, and rebuilt and committed back automatically whenever a release is cut. The committed screenshot matrix is under [`screenshots/`](screenshots/); see [Screenshot matrix](#screenshot-matrix).
+Both heroes are live, intentionally non-deterministic captures — a random-country cold start with the Info panel open — refreshed in place by every full local E2E run, and rebuilt and committed back automatically whenever a release is cut. The committed screenshot matrix is under [`screenshots/`](screenshots/); see [Screenshot matrix](#screenshot-matrix).
 
 ## Technical overview
 
-ogis.app is a **Vue 3 + Vite** single-page application — the map is [MapLibre GL JS](https://maplibre.org/) with a Bootstrap SCSS theme, and a hand-rolled service worker ([`public/sw.js`](public/sw.js), no Workbox) provides the app shell and offline map support. The backend features (account, maps, collections) are disabled in the current SPA front-end only mode.
+ogis.app is a **Vue 3 + Vite** single-page application and an **installable PWA** ([`public/manifest.json`](public/manifest.json), `display: standalone`) — the map is [MapLibre GL JS](https://maplibre.org/) with a Bootstrap SCSS theme, and a hand-rolled service worker ([`public/sw.js`](public/sw.js), no Workbox) provides the app shell and offline map support. The backend features (account, maps, collections) are disabled in the current SPA front-end only mode.
 
 - **Entry point** — [`src/main.js`](src/main.js) reads the URL parameters, creates the Vue app, installs the core features and mounts to `#app`.
 - **Features** — self-contained bundles registered from `src/main.js`; each is a plain object with an `install(ctx)` method that registers a side-panel tab and/or a corner control chip. See [Features](docs/10.features.md).
@@ -93,15 +93,15 @@ The canonical loop, from first checkout to merge. Deep dives are linked inline:
 4. **Format** — `npm run format`. CI gates on `npm run format:check`.
 5. **Pre-push gate** — `npm run check` (Prettier check + unit tests) before pushing.
 6. **Commit and push** — Conventional Commits only (see [Contributing](#contributing)).
-7. **CI is the gate** — green on your pushed commits means done: `ci.yml` runs the unit suite, the commit-message check and the functional E2E suite, while the `Screenshots` workflow verifies the committed matrix within a strict pixel tolerance (its aggregate `Screenshots — verify committed matrix` job is the required branch-protection check) and re-baselines it automatically on `master` when a real visual change lands. The full local E2E run (`npm run test:e2e`) is an optional fallback — offline, or when the local GPU functional path is specifically wanted. See [CI](docs/13.ci.md).
+7. **CI is the gate** — green `ci.yml` on your pushed commits means done: the unit suite, the commit-message check and the functional E2E suite. The screenshot matrix is deliberately outside the push path — verified on pull requests and healed on `master` on its own schedule; see [Screenshot matrix](#screenshot-matrix). The full local E2E run (`npm run test:e2e`) is an optional fallback — offline, or when the local GPU functional path is specifically wanted. See [CI](docs/13.ci.md).
 
 ### Screenshot matrix
 
 The committed PNGs under [`screenshots/`](screenshots/) are visual evidence that ships with the repository: core chrome states and the locate permission modals across phone, tablet and desktop in both orientations, plus the fully-populated feature states and secondary UI states at desktop landscape. Captures run in a dedicated, always-software-rendered Playwright project with a dark theme and a pinned locale, so they are reproducible run-to-run on a given machine.
 
-- **Local** — `npm run test:matrix` captures into a gitignored temp directory; local runs never touch the committed PNGs. `npm run screenshots:diff` reports what moved, whether comparing a local capture against the committed matrix or two local capture trees before and after a change.
-- **CI verification** — the `Screenshots` GitHub workflow captures the matrix on macOS shards and verifies the captures against the committed PNGs within a strict pixel tolerance: sub-level anti-aliasing drift is tolerated and reported, while real changes fail. An aggregate job checks the full matrix in both directions.
-- **Re-baselining** — when a `master` push genuinely moves the matrix (verification fails beyond tolerance), the workflow's `refresh` job rebuilds the committed baseline automatically from that run's own captured artefacts and re-verifies, so the developer just `git pull`. Pull requests stay strict (a red verification is a review signal) and sub-tolerance drift never triggers it. `npm run screenshots:fetch -- --run <run-id> [--write]` is the manual exception path for a PR or a failed/incomplete capture set — never from local captures.
+- **Local** — `npm run test:matrix` captures into a gitignored temp directory; local runs never touch the committed PNGs. `npm run screenshots:diff` reports what moved, whether comparing a local capture against the committed matrix or two local capture trees before and after a change; `npm run screenshots:bundle` builds the same reviewable diff bundle the workflow attaches — before/after/pixel-diff PNGs plus a self-contained HTML index.
+- **CI verification** — the `Screenshots` GitHub workflow captures the matrix on macOS shards and verifies the captures against the committed PNGs within a strict pixel tolerance: sub-level anti-aliasing drift is tolerated and reported, while real changes fail. An aggregate job checks the full matrix in both directions; on a pull request a move opens a diff bundle (and, for same-repository PRs, a sticky comment with inline diffs).
+- **Re-baselining** — when a scheduled or manually dispatched run on `master` genuinely moves the matrix (verification fails beyond tolerance), the workflow's `refresh` job rebuilds the committed baseline automatically from that run's own captured artefacts, so the developer just `git pull`. Pushes never run the matrix, the heal defers — green — while a `ci.yml` run is in flight or after `master` has advanced, and there is no dispatched re-verification: the next run verifies. Pull requests stay strict (a red verification is a review signal) and sub-tolerance drift never triggers it. `npm run screenshots:fetch -- --run <run-id> [--write]` is the manual exception path for a PR or a failed/incomplete capture set — never from local captures.
 
 See [docs/9.testing.md](docs/9.testing.md) for the testing strategy and [docs/13.ci.md](docs/13.ci.md) for the workflow details.
 
@@ -134,8 +134,8 @@ The end-to-end journey, checkout to release:
 2. **Make the change** — follow the [Development workflow](#development-workflow).
 3. **Run the pre-push gate** — `npm run check` (Prettier check + unit tests).
 4. **Commit** — a [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/): `<type>(optional scope): <description>`, e.g. `fix(offline): purge stale tile URLs`. The [type table](docs/13.ci.md#conventional-commits-are-required) maps types to release impact; breaking changes use `!` or a `BREAKING CHANGE:` footer.
-5. **Push and open a PR** — `ci.yml` runs the unit suite, the commit check and the functional E2E suite; the `Screenshots` workflow verifies the committed matrix. A red matrix on a PR is a review signal for a real visual change — the aggregate `Screenshots — verify committed matrix` check is the required one.
-6. **After merge** — the `release` job cuts versions, changelogs and GitHub releases from the commit messages; a real visual change re-baselines the screenshot matrix on `master`; the README heroes refresh automatically on each release.
+5. **Push and open a PR** — a `master` push runs `ci.yml` alone (unit suite, commit check, functional E2E; release and deploy follow); a PR additionally runs the `Screenshots` workflow, which verifies the committed matrix and opens a diff bundle (plus a sticky comment on same-repository PRs) when it moves. A red matrix on a PR is a review signal for a real visual change — advisory only, as no branch protection is configured.
+6. **After merge** — the `release` job cuts versions, changelogs and GitHub releases from the commit messages; the README heroes refresh automatically on each release; a genuinely moved screenshot matrix is re-baselined by the next scheduled (or manually dispatched) `Screenshots` run on `master`.
 
 [AGENTS.md](AGENTS.md) is the project's conventions file — the same journey, commands and gates in agent-facing form.
 

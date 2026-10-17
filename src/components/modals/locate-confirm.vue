@@ -17,7 +17,7 @@ const { t } = useLocale();
         <button
           type="button"
           class="btn-close"
-          aria-label="Close"
+          :aria-label="t('common.close')"
           @click="close"
         ></button>
       </div>
