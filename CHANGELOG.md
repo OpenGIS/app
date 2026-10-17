@@ -1,3 +1,12 @@
+# [3.14.0](https://github.com/OpenGIS/app/compare/v3.13.0...v3.14.0) (2026-10-17)
+
+
+### Features
+
+* add flat 2D north-up view orientation ([c55f5f4](https://github.com/OpenGIS/app/commit/c55f5f4d5b9e69c4e6763335b1db4b1a95814f6a))
+* **i18n:** localise feature panels, core strings and formatting ([71d11ac](https://github.com/OpenGIS/app/commit/71d11acf17667ad65f59739cf665728e145083e7))
+* **map:** keep the globe except while drawing an offline region ([165e7bb](https://github.com/OpenGIS/app/commit/165e7bb260d5c209957c32b8d4a2914ca110d969))
+
 # [3.13.0](https://github.com/OpenGIS/app/compare/v3.12.2...v3.13.0) (2026-10-17)
 
 
