@@ -45,6 +45,33 @@ const nowMs = () =>
     ? performance.now()
     : Date.now();
 
+/**
+ * Map movement events that prove the user drove the camera when they carry an
+ * `originalEvent`. The controller's own `jumpTo` calls pass no event data, so
+ * their events have no `originalEvent` and are ignored — the same discriminator
+ * `useMap` uses for view persistence. The start events catch the beginning of a
+ * gesture; `move` and `moveend` are included so a continuous exploration keeps
+ * deferring the idle resume until the gesture actually ends. `boxzoomstart`
+ * covers box zoom, whose own camera animation does not carry the originating
+ * event.
+ */
+const USER_GESTURE_EVENTS = Object.freeze([
+  "movestart",
+  "dragstart",
+  "zoomstart",
+  "rotatestart",
+  "pitchstart",
+  "boxzoomstart",
+  "move",
+  "moveend",
+]);
+
+/** Clamp a value to [0, 1]. */
+const clamp01 = (value) => Math.min(1, Math.max(0, value));
+
+/** Quadratic ease-out, matching MapLibre's own camera easing. */
+const easeOut = (t) => t * (2 - t);
+
 /** Whether any pose component moved beyond its settle threshold. */
 const exceedsEpsilon = (pose, applied) =>
   Math.abs(pose.lng - applied.lng) > SETTLE_EPSILON.degrees ||
@@ -89,6 +116,11 @@ export const useFollowCamera = (explicitInstanceId) => {
       map: null, // map the loop is driving
       mapRemoveHandler: null, // MapLibre 'remove' cleanup
       appDestroyHandler: null, // app-level 'destroy' cleanup
+      gestureHandler: null, // user-gesture suspension listener
+      resizeHandler: null, // follow-fit recompute listener
+      suspended: false, // true while the user owns the camera
+      idleTimerId: null, // idle-resume timeout handle
+      resume: null, // active resume glide { from, startedAt, finished }
     });
   }
 
@@ -99,7 +131,22 @@ export const useFollowCamera = (explicitInstanceId) => {
     c.rafId = null;
   };
 
+  const clearIdleTimer = () => {
+    if (c.idleTimerId !== null) clearTimeout(c.idleTimerId);
+    c.idleTimerId = null;
+  };
+
   const disarmCleanup = () => {
+    if (c.gestureHandler) {
+      for (const type of USER_GESTURE_EVENTS) {
+        c.map?.off?.(type, c.gestureHandler);
+      }
+      c.gestureHandler = null;
+    }
+    if (c.resizeHandler) {
+      c.map?.off?.("resize", c.resizeHandler);
+      c.resizeHandler = null;
+    }
     if (c.mapRemoveHandler) {
       c.map?.off?.("remove", c.mapRemoveHandler);
       c.mapRemoveHandler = null;
@@ -129,18 +176,21 @@ export const useFollowCamera = (explicitInstanceId) => {
    */
   const cleanupOnDestroy = () => {
     cancelLoop();
+    clearIdleTimer();
     disarmCleanup();
     c.map = null;
     c.pose = null;
     c.applied = null;
     c.target = null;
     c.raw = null;
+    c.suspended = false;
+    c.resume = null;
     c.isActive.value = false;
     setMapViewSuppressed(instanceId, false);
   };
 
   const scheduleFrame = () => {
-    if (c.isActive.value && c.rafId === null) {
+    if (c.isActive.value && !c.suspended && c.rafId === null) {
       c.rafId = requestAnimationFrame(step);
     }
   };
@@ -228,6 +278,64 @@ export const useFollowCamera = (explicitInstanceId) => {
     };
   };
 
+  // ─── Interaction suspension and idle resume ────────────────────────────────
+
+  /**
+   * Suspend the driver: leave the camera exactly where the user put it, keep
+   * following active, and (re)start the idle timer. Repeated camera-changing
+   * interactions simply reset the timer; a bare tap that moves nothing never
+   * reaches this because it fires no movement event.
+   */
+  const suspend = () => {
+    if (!c.isActive.value) return;
+    if (!c.suspended) {
+      c.suspended = true;
+      c.resume = null;
+      cancelLoop();
+    }
+    resetIdleTimer();
+  };
+
+  /** Arm (or re-arm) the idle timer that starts the resume glide. */
+  const resetIdleTimer = () => {
+    clearIdleTimer();
+    c.idleTimerId = setTimeout(
+      beginResume,
+      followCameraDefaults.idleResumeDelayMs,
+    );
+  };
+
+  /**
+   * Idle delay elapsed: hand the camera back to the driver. A timed glide
+   * blends from the frozen pose to the live follow pose over
+   * `resumeGlideMs`; under reduced motion there is no glide and the next frame
+   * snaps straight to the pose.
+   */
+  const beginResume = () => {
+    c.idleTimerId = null;
+    if (!c.isActive.value || !c.suspended) return;
+
+    c.suspended = false;
+    c.lastFrame = 0;
+    c.resume =
+      prefersReducedMotion() || !c.pose
+        ? null
+        : { from: { ...c.pose }, startedAt: null, finished: false };
+    scheduleFrame();
+  };
+
+  /** Mark a user-driven camera change from a MapLibre movement event. */
+  const onUserGesture = (event) => {
+    if (!event?.originalEvent) return; // controller-driven: no originating event
+    suspend();
+  };
+
+  /** Viewport resized: recompute the fit baseline so the resume framing holds. */
+  const onResize = () => {
+    if (c.raw) c.target = resolveTarget(c.raw);
+    scheduleFrame();
+  };
+
   /**
    * Take ownership of a resolved map: cancel any in-flight camera animation,
    * capture the current pose as the damping origin, suppress view persistence
@@ -251,12 +359,21 @@ export const useFollowCamera = (explicitInstanceId) => {
     armMapRemoveCleanup(map);
     setMapViewSuppressed(instanceId, true);
 
+    if (!c.gestureHandler) {
+      c.gestureHandler = onUserGesture;
+      for (const type of USER_GESTURE_EVENTS) map.on(type, c.gestureHandler);
+    }
+    if (!c.resizeHandler) {
+      c.resizeHandler = onResize;
+      map.on("resize", c.resizeHandler);
+    }
+
     if (c.raw) c.target = resolveTarget(c.raw);
   };
 
   const step = (now) => {
     c.rafId = null;
-    if (!c.isActive.value) return;
+    if (!c.isActive.value || c.suspended) return;
 
     let map = c.map;
     if (!map) {
@@ -292,14 +409,33 @@ export const useFollowCamera = (explicitInstanceId) => {
     const pose = c.pose;
     const alpha = (tau) => (reduced ? 1 : dampingFactor(dt, tau));
 
-    // Rotation and zoom first, so the look-ahead below uses the damped values.
-    pose.bearing = dampAngle(
-      pose.bearing,
-      target.bearing,
-      alpha(bearingTimeConstantS),
-    );
-    pose.pitch = damp(pose.pitch, target.pitch, alpha(pitchTimeConstantS));
-    pose.zoom = damp(pose.zoom, target.zoom, alpha(zoomTimeConstantS));
+    // A resume glide runs a deterministic timed blend from the pose the user
+    // left to the live follow pose; otherwise the normal damping applies. The
+    // glide's progress is carried into the centre blend below so the whole pose
+    // moves as one eased step.
+    let resumeFrom = null;
+    let resumeK = 0;
+    if (c.resume) {
+      if (c.resume.startedAt === null) c.resume.startedAt = now;
+      const duration = followCameraDefaults.resumeGlideMs;
+      const t =
+        duration > 0 ? clamp01((now - c.resume.startedAt) / duration) : 1;
+      resumeFrom = c.resume.from;
+      resumeK = easeOut(t);
+      pose.bearing = dampAngle(resumeFrom.bearing, target.bearing, resumeK);
+      pose.pitch = damp(resumeFrom.pitch, target.pitch, resumeK);
+      pose.zoom = damp(resumeFrom.zoom, target.zoom, resumeK);
+      if (t >= 1) c.resume.finished = true;
+    } else {
+      // Rotation and zoom first, so the look-ahead below uses the damped values.
+      pose.bearing = dampAngle(
+        pose.bearing,
+        target.bearing,
+        alpha(bearingTimeConstantS),
+      );
+      pose.pitch = damp(pose.pitch, target.pitch, alpha(pitchTimeConstantS));
+      pose.zoom = damp(pose.zoom, target.zoom, alpha(zoomTimeConstantS));
+    }
 
     // Dead-reckon the fix forward along its own bearing for the time since it
     // arrived (capped), so the camera keeps pace between fixes. At rest this is
@@ -319,8 +455,15 @@ export const useFollowCamera = (explicitInstanceId) => {
       Math.max(lookAheadMinMetres, target.lookAheadMetres ?? 0),
     );
     const goal = deadReckon(fixGoal, pose.bearing, lookAhead);
-    pose.lng = damp(pose.lng, goal.lng, alpha(centreTimeConstantS));
-    pose.lat = damp(pose.lat, goal.lat, alpha(centreTimeConstantS));
+
+    if (resumeFrom) {
+      pose.lng = resumeFrom.lng + (goal.lng - resumeFrom.lng) * resumeK;
+      pose.lat = resumeFrom.lat + (goal.lat - resumeFrom.lat) * resumeK;
+      if (c.resume?.finished) c.resume = null;
+    } else {
+      pose.lng = damp(pose.lng, goal.lng, alpha(centreTimeConstantS));
+      pose.lat = damp(pose.lat, goal.lat, alpha(centreTimeConstantS));
+    }
 
     // Settle guard: once the pose stops moving, skip `jumpTo` so a settled
     // driver emits no further move events.
@@ -355,6 +498,8 @@ export const useFollowCamera = (explicitInstanceId) => {
     if (c.isActive.value) return;
 
     c.isActive.value = true;
+    c.suspended = false;
+    c.resume = null;
     c.lastFrame = 0;
     armAppDestroyCleanup();
 
@@ -420,11 +565,15 @@ export const useFollowCamera = (explicitInstanceId) => {
 
   /**
    * Stop the loop, release suppression and persist the final camera exactly
-   * once. Idempotent.
+   * once. Cancels any suspended idle timer or resume glide first, so a pending
+   * timer can never move the camera after stop. Idempotent.
    */
   const stop = () => {
     if (!c.isActive.value) return;
     cancelLoop();
+    clearIdleTimer();
+    c.resume = null;
+    c.suspended = false;
     disarmCleanup();
     setMapViewSuppressed(instanceId, false);
     persistMapView(instanceId);

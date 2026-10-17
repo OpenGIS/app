@@ -57,9 +57,13 @@ export const followCameraDefaults = {
   offsetRampPitchDeg: 60,
   lookAheadMinMetres: 0,
   lookAheadMaxMetres: 5000,
-  // Placeholder glide duration for a later slice (speed-driven framing); not
-  // yet consumed by the driver.
-  glideDurationMs: 1000,
+  // Interaction suspension: a user gesture (pan/zoom/rotate/pitch) suspends the
+  // driver, leaving the camera where it was put, and the driver glides back to
+  // the follow pose after this idle delay. Time is in milliseconds.
+  idleResumeDelayMs: 5000,
+  // Length of that resume glide, in milliseconds. Reduced-motion users snap
+  // instead of gliding.
+  resumeGlideMs: 1200,
 };
 
 /** Max pixel width of the MapLibre ScaleControl. */

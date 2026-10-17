@@ -42,6 +42,33 @@ const angleDelta = (a, b) => {
   return Math.min(d, 360 - d);
 };
 
+/** Ground-plane separation between two centres, in degrees. */
+const centreDelta = (a, b) => Math.hypot(a.lat - b.lat, a.lng - b.lng);
+
+/** Drag the map canvas to explore the camera away from the follow pose. */
+const dragMap = async (page, { dx = 140, dy = 80 } = {}) => {
+  const canvas = page.locator(".ogis-map canvas");
+  await canvas.waitFor({ state: "visible" });
+  const box = await canvas.boundingBox();
+  const x0 = box.x + box.width / 2;
+  const y0 = box.y + box.height / 2;
+  await page.mouse.move(x0, y0);
+  await page.mouse.down();
+  await page.mouse.move(x0 + dx, y0 + dy, { steps: 12 });
+  await page.mouse.up();
+  // Wait for pan inertia to finish before reading the settled pose.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const { getMapInstance } = await import("/src/composables/useMap.js");
+          return getMapInstance("app").isMoving();
+        }),
+      { timeout: 30000 },
+    )
+    .toBe(false);
+};
+
 /** Read the live camera through the page's own module graph. */
 const readCamera = (page) =>
   page.evaluate(async () => {
