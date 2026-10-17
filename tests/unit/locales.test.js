@@ -37,6 +37,13 @@ const UNTRANSLATED_ALLOWLIST = {
   "panel.collections.title": ["fr"],
   "panel.collections.fieldSlug": ["fr"],
   "panel.collections.fieldDescription": ["fr"],
+  "panel.recordings.distance": ["fr"],
+  "panel.recordings.pause": ["fr"],
+  "panel.recordings.gpx": ["fr"],
+  "panel.offline.compassS": ["fr"],
+  "panel.offline.compassE": ["fr"],
+  "panel.offline.compassN": ["fr"],
+  "panel.offline.zoomRange": ["fr"],
 };
 
 /**

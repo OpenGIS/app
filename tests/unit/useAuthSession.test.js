@@ -69,7 +69,7 @@ describe("useAuthSession", () => {
     getMock.mockRejectedValue(error);
 
     await expect(auth.fetchSession()).rejects.toBe(error);
-    expect(auth.error.value).toBe("Unable to load your account session.");
+    expect(auth.error.value).toBe("session-load-failed");
   });
 
   it("logs out with CSRF protection and clears local session state", async () => {

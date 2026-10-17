@@ -248,6 +248,126 @@ describe("useLocale", () => {
     });
   });
 
+  describe("t() interpolation", () => {
+    it("replaces a single token", async () => {
+      const { useLocale } = await loadLocale(["en-US"]);
+      const { result } = createLocaleInstance(useLocale, {
+        customMessages: { en: { "greeting.hello": "Hello {name}" } },
+      });
+      expect(result.t("greeting.hello", { name: "Ada" })).toBe("Hello Ada");
+    });
+
+    it("replaces multiple tokens in one message", async () => {
+      const { useLocale } = await loadLocale(["en-US"]);
+      const { result } = createLocaleInstance(useLocale, {
+        customMessages: { en: { "route.summary": "{from} to {to}" } },
+      });
+      expect(result.t("route.summary", { from: "A", to: "B" })).toBe("A to B");
+    });
+
+    it("leaves tokens without a matching parameter untouched", async () => {
+      const { useLocale } = await loadLocale(["en-US"]);
+      const { result } = createLocaleInstance(useLocale, {
+        customMessages: { en: { "greeting.hello": "Hello {name}" } },
+      });
+      expect(result.t("greeting.hello", { other: "Ada" })).toBe("Hello {name}");
+    });
+
+    it("coerces non-string parameters with String()", async () => {
+      const { useLocale } = await loadLocale(["en-US"]);
+      const { result } = createLocaleInstance(useLocale, {
+        customMessages: { en: { "stats.total": "Total: {total}" } },
+      });
+      expect(result.t("stats.total", { total: 3 })).toBe("Total: 3");
+      expect(result.t("stats.total", { total: 0 })).toBe("Total: 0");
+      expect(result.t("stats.total", { total: true })).toBe("Total: true");
+    });
+
+    it("behaves exactly as before when called without params", async () => {
+      const { useLocale } = await loadLocale(["en-US"]);
+      const { result } = createLocaleInstance(useLocale);
+      expect(result.t("nav.menu")).toBe("Menu");
+      expect(result.t("nonexistent.key.xyz")).toBe("nonexistent.key.xyz");
+    });
+  });
+
+  describe("t() plurals", () => {
+    const pluralMessages = (one, other) => ({
+      en: { "item.count_one": one, "item.count_other": other },
+      fr: { "item.count_one": one, "item.count_other": other },
+    });
+
+    it("selects the one form for English count 1", async () => {
+      const { useLocale } = await loadLocale(["en-US"]);
+      const { result } = createLocaleInstance(useLocale, {
+        customMessages: pluralMessages("One item", "{count} items"),
+      });
+      expect(result.t("item.count", { count: 1 })).toBe("One item");
+    });
+
+    it("selects the other form for English count 0 and 2", async () => {
+      const { useLocale } = await loadLocale(["en-US"]);
+      const { result } = createLocaleInstance(useLocale, {
+        customMessages: pluralMessages("One item", "{count} items"),
+      });
+      expect(result.t("item.count", { count: 0 })).toBe("0 items");
+      expect(result.t("item.count", { count: 2 })).toBe("2 items");
+    });
+
+    it("selects the one form for French count 0 and 1", async () => {
+      const { useLocale } = await loadLocale(["fr-FR"]);
+      const { result } = createLocaleInstance(useLocale, {
+        customMessages: pluralMessages("Un article", "{count} articles"),
+      });
+      expect(result.t("item.count", { count: 0 })).toBe("Un article");
+      expect(result.t("item.count", { count: 1 })).toBe("Un article");
+    });
+
+    it("selects the other form for French count 2", async () => {
+      const { useLocale } = await loadLocale(["fr-FR"]);
+      const { result } = createLocaleInstance(useLocale, {
+        customMessages: pluralMessages("Un article", "{count} articles"),
+      });
+      expect(result.t("item.count", { count: 2 })).toBe("2 articles");
+    });
+
+    it("falls back from a missing category form to the other form", async () => {
+      const { useLocale } = await loadLocale(["en-US"]);
+      const { result } = createLocaleInstance(useLocale, {
+        customMessages: { en: { "item.count_other": "{count} items" } },
+      });
+      expect(result.t("item.count", { count: 1 })).toBe("1 items");
+    });
+
+    it("falls back from missing plural forms to the base key", async () => {
+      const { useLocale } = await loadLocale(["en-US"]);
+      const { result } = createLocaleInstance(useLocale, {
+        customMessages: { en: { "item.count": "Total items: {count}" } },
+      });
+      expect(result.t("item.count", { count: 2 })).toBe("Total items: 2");
+    });
+
+    it("returns the key itself when no plural form or base exists", async () => {
+      const { useLocale } = await loadLocale(["en-US"]);
+      const { result } = createLocaleInstance(useLocale);
+      expect(result.t("missing.key", { count: 1 })).toBe("missing.key");
+    });
+
+    it("prefers custom plural forms over the base translation", async () => {
+      const { useLocale } = await loadLocale(["en-US"]);
+      const { result } = createLocaleInstance(useLocale, {
+        customMessages: {
+          en: {
+            "nav.menu_one": "Custom menu",
+            "nav.menu_other": "Custom menus",
+          },
+        },
+      });
+      expect(result.t("nav.menu", { count: 1 })).toBe("Custom menu");
+      expect(result.t("nav.menu", { count: 2 })).toBe("Custom menus");
+    });
+  });
+
   describe("mapLanguageTag", () => {
     it("returns the locale code for standard locales", async () => {
       const { useLocale } = await loadLocale(["en-US"]);

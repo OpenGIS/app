@@ -2,8 +2,10 @@
 <script setup>
 import { ref, computed, inject, onUnmounted, onMounted } from "vue";
 import { useUI } from "@/composables/useUI";
+import { useLocale } from "@/composables/useLocale";
 
 const { closePanel, openPanel, isDesktop } = useUI();
+const { t, locale } = useLocale();
 
 const {
   regions,
@@ -173,13 +175,13 @@ const estimateNow = async () => {
   estimateError.value = "";
   mayNotFit.value = false;
   if (!bounds.value) {
-    estimateError.value = "Select a region first.";
+    estimateError.value = t("panel.offline.selectFirst");
     return;
   }
   const lo = clampZoom(minZoom.value);
   const hi = clampZoom(maxZoom.value);
   if (lo > hi) {
-    estimateError.value = "Min zoom must not exceed max zoom.";
+    estimateError.value = t("panel.offline.zoomOrder");
     return;
   }
   const est = await estimate(bounds.value, lo, hi);
@@ -193,10 +195,21 @@ const estimateNow = async () => {
   }
 };
 
+const formatNumber = (value, digits) =>
+  new Intl.NumberFormat(locale.value, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+    useGrouping: false,
+  }).format(value);
+
 const formatBytes = (bytes) => {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${bytes} B`;
+  if (bytes >= 1024 * 1024) {
+    return `${formatNumber(bytes / (1024 * 1024), 1)} ${t("panel.offline.unitMegabyte")}`;
+  }
+  if (bytes >= 1024) {
+    return `${formatNumber(bytes / 1024, 0)} ${t("panel.offline.unitKilobyte")}`;
+  }
+  return `${formatNumber(bytes, 0)} ${t("panel.offline.unitByte")}`;
 };
 
 const isLarge = computed(() =>
@@ -218,8 +231,9 @@ const runDownload = async () => {
   }
   if (isLarge.value) {
     const ok = window.confirm(
-      `This region is large (${formatBytes(estimateState.value.estimatedBytes)}). ` +
-        "Downloading may take a while. Continue?",
+      t("panel.offline.confirmLarge", {
+        size: formatBytes(estimateState.value.estimatedBytes),
+      }),
     );
     if (!ok) return;
   }
@@ -247,7 +261,7 @@ const runDownload = async () => {
       },
     });
     addRegion({
-      name: `Region ${regions.length + 1}`,
+      name: t("panel.offline.regionName", { n: regions.length + 1 }),
       bounds: { ...bounds.value },
       minZoom: lo,
       maxZoom: hi,
@@ -258,9 +272,11 @@ const runDownload = async () => {
     refreshStorage();
   } catch (err) {
     if (err.name === "AbortError") {
-      downloadError.value = "Download cancelled.";
+      downloadError.value = t("panel.offline.cancelled");
+    } else if (err.code === "map-not-ready") {
+      downloadError.value = t("panel.offline.errorMapNotReady");
     } else {
-      downloadError.value = err.message || "Download failed.";
+      downloadError.value = err.message || t("panel.offline.failed");
     }
   } finally {
     downloading.value = false;
@@ -297,7 +313,7 @@ const deleteError = ref("");
 
 const removeRegion = async (region) => {
   const ok = window.confirm(
-    `Delete "${region.name}" and remove its downloaded tiles?`,
+    t("panel.offline.confirmDelete", { name: region.name }),
   );
   if (!ok) return;
   deleteError.value = "";
@@ -306,7 +322,7 @@ const removeRegion = async (region) => {
     await deleteRegion(region);
     await refreshStorage();
   } catch (err) {
-    deleteError.value = err.message || "Failed to delete region.";
+    deleteError.value = err.message || t("panel.offline.deleteFailed");
   } finally {
     deleting.value = false;
   }
@@ -315,18 +331,20 @@ const removeRegion = async (region) => {
 
 <template>
   <div class="p-3">
-    <h6 class="text-body-secondary mb-3">Offline Maps</h6>
+    <h6 class="text-body-secondary mb-3">{{ t("menu.offline") }}</h6>
 
     <!-- Region selection -->
     <p class="small text-body-secondary mb-2">
-      Drag on the map to select a region to download.
+      {{ t("panel.offline.dragHint") }}
     </p>
     <button
       class="btn btn-sm mb-3"
       :class="drawing ? 'btn-warning' : 'btn-primary'"
       @click="drawing ? stopDraw() : startDraw()"
     >
-      {{ drawing ? "Drawing… (drag on map)" : "Select region" }}
+      {{
+        drawing ? t("panel.offline.drawing") : t("panel.offline.selectRegion")
+      }}
     </button>
 
     <!-- Draw overlay: teleported to body so it escapes the offcanvas's
@@ -340,19 +358,21 @@ const removeRegion = async (region) => {
     </Teleport>
 
     <div v-if="bounds" class="small text-body-secondary mb-3">
-      <strong>Selected region</strong>
+      <strong>{{ t("panel.offline.selectedRegion") }}</strong>
       <div class="font-monospace">
-        W {{ bounds.west.toFixed(4) }} · S {{ bounds.south.toFixed(4) }} ·<br />
-        E {{ bounds.east.toFixed(4) }} · N {{ bounds.north.toFixed(4) }}
+        {{ t("panel.offline.compassW") }} {{ bounds.west.toFixed(4) }} ·
+        {{ t("panel.offline.compassS") }} {{ bounds.south.toFixed(4) }} ·<br />
+        {{ t("panel.offline.compassE") }} {{ bounds.east.toFixed(4) }} ·
+        {{ t("panel.offline.compassN") }} {{ bounds.north.toFixed(4) }}
       </div>
     </div>
 
     <!-- Zoom range -->
     <div class="row g-2 mb-3">
       <div class="col-6">
-        <label class="form-label small mb-1" for="offline-minzoom"
-          >Min zoom</label
-        >
+        <label class="form-label small mb-1" for="offline-minzoom">{{
+          t("panel.offline.minZoom")
+        }}</label>
         <input
           id="offline-minzoom"
           v-model.number="minZoom"
@@ -363,9 +383,9 @@ const removeRegion = async (region) => {
         />
       </div>
       <div class="col-6">
-        <label class="form-label small mb-1" for="offline-maxzoom"
-          >Max zoom</label
-        >
+        <label class="form-label small mb-1" for="offline-maxzoom">{{
+          t("panel.offline.maxZoom")
+        }}</label>
         <input
           id="offline-maxzoom"
           v-model.number="maxZoom"
@@ -383,7 +403,7 @@ const removeRegion = async (region) => {
       :disabled="!bounds || downloading"
       @click="estimateNow"
     >
-      Estimate size
+      {{ t("panel.offline.estimate") }}
     </button>
 
     <div v-if="estimateError" class="small text-danger mb-2">
@@ -396,19 +416,18 @@ const removeRegion = async (region) => {
       :class="{ 'text-danger': isLarge }"
     >
       <div class="d-flex justify-content-between">
-        <span>Tiles</span>
+        <span>{{ t("panel.offline.tilesLabel") }}</span>
         <strong>{{ estimateState.tileCount.toLocaleString() }}</strong>
       </div>
       <div class="d-flex justify-content-between">
-        <span>Est. size</span>
+        <span>{{ t("panel.offline.estSize") }}</span>
         <strong>{{ formatBytes(estimateState.estimatedBytes) }}</strong>
       </div>
       <div v-if="isLarge" class="text-danger mt-1">
-        Large region — downloading may take a while.
+        {{ t("panel.offline.largeRegion") }}
       </div>
       <div v-if="mayNotFit" class="text-danger mt-1">
-        This region may not fit in available storage — it could exceed the
-        quota. Consider a smaller area or lower max zoom.
+        {{ t("panel.offline.quotaWarning") }}
       </div>
     </div>
 
@@ -437,7 +456,7 @@ const removeRegion = async (region) => {
         class="btn btn-sm btn-outline-danger w-100"
         @click="cancelDownload"
       >
-        Cancel
+        {{ t("panel.offline.cancel") }}
       </button>
     </template>
     <button
@@ -446,7 +465,7 @@ const removeRegion = async (region) => {
       :disabled="!bounds"
       @click="runDownload"
     >
-      Download region
+      {{ t("panel.offline.download") }}
     </button>
 
     <div v-if="downloadError" class="small text-danger mt-2">
@@ -455,13 +474,19 @@ const removeRegion = async (region) => {
 
     <!-- Storage summary -->
     <hr class="my-3 opacity-25" />
-    <h6 class="text-body-secondary">Storage</h6>
+    <h6 class="text-body-secondary">{{ t("panel.offline.storage") }}</h6>
     <div class="small text-body-secondary mb-1 d-flex justify-content-between">
-      <span
-        >{{ formatBytes(storageInfo.usage) }} of
-        {{ formatBytes(storageInfo.quota) }} used</span
-      >
-      <span>{{ storageInfo.persisted ? "Persistent" : "May be cleared" }}</span>
+      <span>{{
+        t("panel.offline.storageUsed", {
+          usage: formatBytes(storageInfo.usage),
+          quota: formatBytes(storageInfo.quota),
+        })
+      }}</span>
+      <span>{{
+        storageInfo.persisted
+          ? t("panel.offline.persistent")
+          : t("panel.offline.mayBeCleared")
+      }}</span>
     </div>
     <div class="progress mb-3" style="height: 6px">
       <div
@@ -476,10 +501,12 @@ const removeRegion = async (region) => {
 
     <!-- Downloaded regions -->
     <hr class="my-3 opacity-25" />
-    <h6 class="text-body-secondary">Downloaded Regions</h6>
+    <h6 class="text-body-secondary">
+      {{ t("panel.offline.downloadedRegions") }}
+    </h6>
 
     <p v-if="!regions.length" class="text-body-tertiary small">
-      No regions downloaded yet.
+      {{ t("panel.offline.empty") }}
     </p>
 
     <div v-for="region in regions" :key="region.id" class="border-top py-2">
@@ -489,8 +516,14 @@ const removeRegion = async (region) => {
             <strong>{{ region.name }}</strong>
           </div>
           <div class="text-body-secondary">
-            z{{ region.minZoom }}–{{ region.maxZoom }} ·
-            {{ region.tileCount.toLocaleString() }} tiles
+            {{
+              t("panel.offline.zoomRange", {
+                min: region.minZoom,
+                max: region.maxZoom,
+              })
+            }}
+            · {{ region.tileCount.toLocaleString() }}
+            {{ t("panel.offline.tiles", { count: region.tileCount }) }}
           </div>
           <div class="text-body-tertiary">
             {{ formatBytes(region.estimatedBytes) }} ·
@@ -503,14 +536,14 @@ const removeRegion = async (region) => {
             :disabled="deleting"
             @click="showRegion(region)"
           >
-            Show
+            {{ t("panel.offline.show") }}
           </button>
           <button
             class="btn btn-sm btn-outline-danger"
             :disabled="deleting"
             @click="removeRegion(region)"
           >
-            Delete
+            {{ t("panel.offline.delete") }}
           </button>
         </div>
       </div>

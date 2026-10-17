@@ -40,7 +40,7 @@ export function useAuthSession(instanceId) {
       }
 
       state.user.value = null;
-      state.error.value = "Unable to load your account session.";
+      state.error.value = "session-load-failed";
       throw error;
     } finally {
       state.loading.value = false;
@@ -56,7 +56,7 @@ export function useAuthSession(instanceId) {
       await api.post("/api/auth/logout");
     } catch (error) {
       if (error?.response?.status !== 401) {
-        state.error.value = "Unable to log out right now.";
+        state.error.value = "logout-failed";
         throw error;
       }
     } finally {

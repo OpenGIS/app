@@ -89,6 +89,19 @@ export function matchLocale(tag, codes) {
 }
 
 /**
+ * Substitute `{token}` placeholders in a message with `String()`-coerced
+ * values from `params`. Tokens without a matching parameter key are left as-is.
+ */
+const interpolate = (message, params) => {
+  if (!params) return message;
+  return message.replace(/\{([^{}]+)\}/g, (match, token) =>
+    Object.prototype.hasOwnProperty.call(params, token)
+      ? String(params[token])
+      : match,
+  );
+};
+
+/**
  * @param {string} [instanceId] - App instance ID. If omitted, resolved via inject('ogisAppId').
  *   Pass explicitly when calling from outside Vue setup context (e.g. a feature install()).
  */
@@ -129,15 +142,39 @@ export const useLocale = (instanceId) => {
     { immediate: true },
   );
 
-  /**
-   * Translate a key. Resolution order:
-   *   custom messages for active locale → active locale → English → key itself
-   */
-  const t = (key) => {
-    const lang = locale.value;
+  /** Resolve a key across the chain: custom → active locale → English → undefined. */
+  const resolveMessage = (lang, key) => {
     const custom = customMessages[lang] ?? {};
     const msgs = LOCALES[lang] ?? LOCALES.en;
-    return custom[key] ?? msgs[key] ?? LOCALES.en[key] ?? key;
+    return custom[key] ?? msgs[key] ?? LOCALES.en[key];
+  };
+
+  /**
+   * Translate a key, optionally interpolating and pluralising.
+   *
+   * Resolution order for a plain key:
+   *   custom messages for active locale → active locale → English → key itself
+   *
+   * When `params.count` is a number, the CLDR plural category for the active
+   * locale is selected and resolved as `key_<category>` first, then
+   * `key_other`, then the base `key`, and finally the key itself. The chosen
+   * message is then interpolated: `{token}` occurrences are replaced with
+   * `String(params[token])`; tokens without a matching parameter stay as-is.
+   */
+  const t = (key, params) => {
+    const lang = locale.value;
+
+    if (params && typeof params.count === "number") {
+      const category = new Intl.PluralRules(lang).select(params.count);
+      const message =
+        resolveMessage(lang, `${key}_${category}`) ??
+        resolveMessage(lang, `${key}_other`) ??
+        resolveMessage(lang, key) ??
+        key;
+      return interpolate(message, params);
+    }
+
+    return interpolate(resolveMessage(lang, key) ?? key, params);
   };
 
   /**

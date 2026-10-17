@@ -15,7 +15,10 @@ export function parseGPX(xml, fallbackName = "Route") {
   const doc = parser.parseFromString(xml, "text/xml");
 
   if (doc.getElementsByTagName("parsererror").length > 0) {
-    throw new Error("Invalid GPX file");
+    // Stable sentinel code; the panel maps it to a translated message.
+    const error = new Error("Invalid GPX file");
+    error.code = "invalid-gpx";
+    throw error;
   }
 
   const routes = [];
@@ -55,7 +58,10 @@ export function parseGPX(xml, fallbackName = "Route") {
   }
 
   if (routes.length === 0) {
-    throw new Error("No routes found in GPX file");
+    // Stable sentinel code; the panel maps it to a translated message.
+    const error = new Error("No routes found in GPX file");
+    error.code = "no-routes";
+    throw error;
   }
 
   return routes;

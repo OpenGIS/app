@@ -18,7 +18,7 @@ export { formatDuration, formatDistance };
 // ---------------------------------------------------------------------------
 
 /** Convert a saved recording to a GPX XML string. */
-function toGPX(recording) {
+function toGPX(recording, name) {
   const pts = recording.points
     .map(
       (p) =>
@@ -30,7 +30,7 @@ function toGPX(recording) {
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<gpx version="1.1" creator="ogis.app">',
     "  <trk>",
-    `    <name>Recording ${new Date(recording.timestamp).toLocaleString()}</name>`,
+    `    <name>${name}</name>`,
     "    <trkseg>",
     pts,
     "    </trkseg>",
@@ -52,10 +52,19 @@ const TRACK_ID = "recordings-active-track";
 // ---------------------------------------------------------------------------
 
 export const RecordingsFeature = {
-  install({ useStorage, useSettings, getMap, instanceId, provide, addPanel }) {
+  install({
+    useStorage,
+    useSettings,
+    getMap,
+    instanceId,
+    provide,
+    addPanel,
+    useLocale,
+  }) {
     const stored = useStorage("recordings", { saved: [], active: null });
     const { isMetric } = useSettings();
     const { requestPermission } = useLocate(instanceId);
+    const { t } = useLocale();
 
     const state = reactive({
       isRecording: false,
@@ -193,7 +202,10 @@ export const RecordingsFeature = {
 
     const downloadGPX = async (recording) => {
       const filename = `recording-${recording.id}.gpx`;
-      const blob = new Blob([toGPX(recording)], {
+      const name = t("panel.recordings.exportName", {
+        date: new Date(recording.timestamp).toLocaleString(),
+      });
+      const blob = new Blob([toGPX(recording, name)], {
         type: "application/gpx+xml",
       });
 
@@ -287,7 +299,7 @@ export const RecordingsFeature = {
     addPanel({
       id: "record",
       icon: "route",
-      title: "Recordings",
+      title: () => t("menu.recordings"),
       component: RecordingsPanel,
     });
 

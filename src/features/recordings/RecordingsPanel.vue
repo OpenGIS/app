@@ -2,9 +2,11 @@
 <script setup>
 import { inject, computed } from "vue";
 import { useSettings } from "@/composables/useSettings.js";
+import { useLocale } from "@/composables/useLocale";
 import { formatDuration, formatDistance } from "./index.js";
 
 const { isMetric } = useSettings();
+const { t, locale } = useLocale();
 
 const {
   state,
@@ -33,16 +35,18 @@ const sortedRecordings = computed(() =>
   <div class="p-3">
     <!-- Active recording -->
     <template v-if="isActive">
-      <h6 class="text-body-secondary mb-3">Current Recording</h6>
+      <h6 class="text-body-secondary mb-3">
+        {{ t("panel.recordings.currentRecording") }}
+      </h6>
 
       <div class="d-flex justify-content-between mb-1">
-        <span>Duration</span>
+        <span>{{ t("panel.recordings.duration") }}</span>
         <strong>{{ formatDuration(elapsed) }}</strong>
       </div>
 
       <div class="d-flex justify-content-between mb-3">
-        <span>Distance</span>
-        <strong>{{ formatDistance(distance, isMetric) }}</strong>
+        <span>{{ t("panel.recordings.distance") }}</span>
+        <strong>{{ formatDistance(distance, isMetric, locale.value) }}</strong>
       </div>
 
       <div class="d-flex gap-2 mb-4">
@@ -51,11 +55,17 @@ const sortedRecordings = computed(() =>
           :class="state.isRecording ? 'btn-warning' : 'btn-primary'"
           @click="state.isRecording ? pause() : resume()"
         >
-          {{ state.isRecording ? "Pause" : "Resume" }}
+          {{
+            state.isRecording
+              ? t("panel.recordings.pause")
+              : t("panel.recordings.resume")
+          }}
         </button>
-        <button class="btn btn-sm btn-success" @click="save">Save</button>
+        <button class="btn btn-sm btn-success" @click="save">
+          {{ t("panel.recordings.save") }}
+        </button>
         <button class="btn btn-sm btn-outline-danger" @click="discard">
-          Discard
+          {{ t("panel.recordings.discard") }}
         </button>
       </div>
     </template>
@@ -67,15 +77,15 @@ const sortedRecordings = computed(() =>
         class="btn btn-sm btn-primary w-100 mb-3"
         @click="start"
       >
-        Start recording
+        {{ t("panel.recordings.start") }}
       </button>
     </template>
 
     <!-- Saved recordings -->
-    <h6 class="text-body-secondary">Saved Recordings</h6>
+    <h6 class="text-body-secondary">{{ t("panel.recordings.saved") }}</h6>
 
     <p v-if="!state.saved.length" class="text-body-tertiary small">
-      No recordings yet.
+      {{ t("panel.recordings.empty") }}
     </p>
 
     <div v-for="rec in sortedRecordings" :key="rec.id" class="border-top py-2">
@@ -84,23 +94,23 @@ const sortedRecordings = computed(() =>
       </div>
       <div class="d-flex justify-content-between small">
         <span>{{ formatDuration(rec.duration) }}</span>
-        <span>{{ formatDistance(rec.distance, isMetric) }}</span>
+        <span>{{ formatDistance(rec.distance, isMetric, locale.value) }}</span>
       </div>
       <div class="d-flex gap-1 mt-1">
         <button class="btn btn-sm btn-outline-primary" @click="showOnMap(rec)">
-          Show
+          {{ t("panel.recordings.show") }}
         </button>
         <button
           class="btn btn-sm btn-outline-secondary"
           @click="downloadGPX(rec)"
         >
-          GPX
+          {{ t("panel.recordings.gpx") }}
         </button>
         <button
           class="btn btn-sm btn-outline-danger"
           @click="deleteRecording(rec.id)"
         >
-          Delete
+          {{ t("panel.recordings.delete") }}
         </button>
       </div>
     </div>

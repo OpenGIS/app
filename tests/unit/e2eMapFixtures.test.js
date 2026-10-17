@@ -127,3 +127,22 @@ describe("e2e map fixture middleware serves no raw placeholder", () => {
     }
   });
 });
+
+describe("e2e map fixture middleware missing-asset behaviour", () => {
+  it("404s a missing Mapterhorn DEM tile instead of returning an empty 200", async () => {
+    // A GB tile outside the demo-area fixture coverage: an empty 200 body
+    // decodes to a 1×1 bitmap and trips MapLibre's DEM backfill.
+    const { status } = await serve(
+      `${E2E_MAP_MOUNT}/tiles.mapterhorn.com/4/7/5.webp`,
+    );
+    expect(status).toBe(404);
+  });
+
+  it("still serves an empty 200 for other missing tile ranges", async () => {
+    const { status, body } = await serve(
+      `${E2E_MAP_MOUNT}/tile.ogis.app/terrain/99/0/0.pbf`,
+    );
+    expect(status).toBe(200);
+    expect(body).toBe("");
+  });
+});

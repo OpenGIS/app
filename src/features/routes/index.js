@@ -6,12 +6,21 @@ import { parseGPX } from "./gpx.js";
 import RoutesPanel from "./RoutesPanel.vue";
 
 export const RoutesFeature = {
-  install({ useStorage, useSettings, getMap, instanceId, provide, addPanel }) {
+  install({
+    useStorage,
+    useSettings,
+    getMap,
+    instanceId,
+    provide,
+    addPanel,
+    useLocale,
+  }) {
     const routes = useStorage("routes", []);
     const navigating = ref(null);
     const error = ref(null);
     const { isMetric } = useSettings();
     const geoJSON = useGeoJSON(instanceId);
+    const { t } = useLocale();
 
     let watchId = null;
 
@@ -35,7 +44,7 @@ export const RoutesFeature = {
         const text = await file.text();
         const parsed = parseGPX(
           text,
-          file.name.replace(/\.gpx$/i, "") || "Route",
+          file.name.replace(/\.gpx$/i, "") || t("panel.routes.defaultName"),
         );
         for (const { name, points, type } of parsed) {
           const route = {
@@ -52,7 +61,9 @@ export const RoutesFeature = {
         error.value = null;
         return parsed.length;
       } catch (err) {
-        error.value = err.message;
+        // Keep the error object (with its stable `code`) so the panel can map
+        // it to a translated message; unknown errors fall back to `err.message`.
+        error.value = err;
         return 0;
       }
     };
@@ -131,7 +142,7 @@ export const RoutesFeature = {
     addPanel({
       id: "routes",
       icon: "graph-down",
-      title: "Routes",
+      title: () => t("menu.routes"),
       component: RoutesPanel,
     });
 

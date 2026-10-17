@@ -36,7 +36,7 @@ describe("useMagicLinkAuth", () => {
       email: "user@example.com",
       intended: "https://maps.example.com/auth/callback",
     });
-    expect(auth.message.value).toBe("Magic link sent! Check your email.");
+    expect(auth.message.value).toBe("magic-link-sent");
   });
 
   it("returns a validation error when email is missing", async () => {
@@ -51,7 +51,7 @@ describe("useMagicLinkAuth", () => {
 
     expect(result).toEqual({ ok: false, status: 422 });
     expect(postMock).not.toHaveBeenCalled();
-    expect(auth.error.value).toBe("Email is required.");
+    expect(auth.error.value).toBe("email-required");
   });
 
   it("captures retry-after information on 429 responses", async () => {
@@ -73,9 +73,7 @@ describe("useMagicLinkAuth", () => {
     );
 
     expect(result).toEqual({ ok: false, status: 429 });
-    expect(auth.error.value).toBe(
-      "Too many attempts. Please try again shortly.",
-    );
+    expect(auth.error.value).toBe("too-many-attempts");
     expect(auth.retryAfter.value).toBe(45);
   });
 

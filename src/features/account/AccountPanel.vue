@@ -60,6 +60,29 @@ const resourcesErrorMessage = computed(() => {
   return null;
 });
 
+const sessionErrorMessage = computed(() => {
+  const code = sessionError.value;
+  if (code === "session-load-failed") return t("panel.account.errorSession");
+  if (code === "logout-failed") return t("panel.account.errorLogout");
+  return code;
+});
+
+const magicLinkMessageText = computed(() => {
+  const message = magicLinkMessage.value;
+  if (message === "magic-link-sent") return t("panel.account.magicLinkSent");
+  return message;
+});
+
+const magicLinkErrorText = computed(() => {
+  const code = magicLinkError.value;
+  if (code === "email-required") return t("panel.account.errorEmailRequired");
+  if (code === "too-many-attempts")
+    return t("panel.account.errorTooManyAttempts");
+  if (code === "invalid-request") return t("panel.account.errorInvalidRequest");
+  if (code === "request-failed") return t("panel.account.errorRequestFailed");
+  return code;
+});
+
 const visibilityLabel = (visibility) =>
   visibility === "public"
     ? t("panel.account.visibilityPublic")
@@ -276,30 +299,30 @@ onMounted(() => {
       </template>
 
       <p
-        v-if="magicLinkMessage"
+        v-if="magicLinkMessageText"
         class="alert alert-success small py-2 px-3 mt-3 mb-0"
         role="status"
       >
-        {{ magicLinkMessage }}
+        {{ magicLinkMessageText }}
       </p>
 
       <p
-        v-if="magicLinkError"
+        v-if="magicLinkErrorText"
         class="alert alert-warning small py-2 px-3 mt-3 mb-0"
         role="alert"
       >
-        {{ magicLinkError }}
+        {{ magicLinkErrorText }}
         <span v-if="magicLinkRetryAfter">
           ({{ magicLinkRetryAfter }}s). {{ t("panel.account.retryAfterHint") }}
         </span>
       </p>
 
       <p
-        v-if="panelError || sessionError"
+        v-if="panelError || sessionErrorMessage"
         class="alert alert-danger small py-2 px-3 mt-3 mb-0"
         role="alert"
       >
-        {{ panelError || sessionError }}
+        {{ panelError || sessionErrorMessage }}
       </p>
     </div>
   </div>

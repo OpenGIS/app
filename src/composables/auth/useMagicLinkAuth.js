@@ -42,7 +42,7 @@ export function useMagicLinkAuth(instanceId) {
     clearFeedback();
 
     if (!normalizedEmail) {
-      state.error.value = "Email is required.";
+      state.error.value = "email-required";
       state.submitting.value = false;
       return { ok: false, status: 422 };
     }
@@ -54,13 +54,13 @@ export function useMagicLinkAuth(instanceId) {
         intended: callbackUrl,
       });
 
-      state.message.value = "Magic link sent! Check your email.";
+      state.message.value = "magic-link-sent";
       return { ok: true, status: 200 };
     } catch (error) {
       const status = error?.response?.status;
 
       if (status === 429) {
-        state.error.value = "Too many attempts. Please try again shortly.";
+        state.error.value = "too-many-attempts";
         state.retryAfter.value =
           Number(error.response.headers["retry-after"] || 0) || null;
         return { ok: false, status };
@@ -69,11 +69,11 @@ export function useMagicLinkAuth(instanceId) {
       if (status === 422) {
         state.error.value =
           firstValidationMessage(error?.response?.data?.errors) ||
-          "Invalid login request.";
+          "invalid-request";
         return { ok: false, status };
       }
 
-      state.error.value = "Unable to request login link.";
+      state.error.value = "request-failed";
       return { ok: false, status: status || 0 };
     } finally {
       state.submitting.value = false;

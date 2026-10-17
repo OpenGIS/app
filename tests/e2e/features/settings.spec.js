@@ -1,4 +1,12 @@
 import { test, expect } from "../helpers/test.js";
+import {
+  trackConsoleErrors,
+  expectNoConsoleErrors,
+} from "../helpers/console.js";
+
+// Assert a clean console for every test in this spec (see helpers/console.js).
+test.beforeEach(({ page }) => trackConsoleErrors(page));
+test.afterEach(({ page }) => expectNoConsoleErrors(page));
 
 /** Returns the app theme root — <html>, which carries data-bs-theme. */
 function themeRoot(page) {

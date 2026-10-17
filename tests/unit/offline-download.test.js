@@ -37,7 +37,7 @@ afterEach(() => {
 });
 
 describe("buildRegionUrls", () => {
-  it("throws when the map is not ready", async () => {
+  it("throws a map-not-ready sentinel when the map is not ready", async () => {
     await expect(
       buildRegionUrls({
         bounds: {},
@@ -45,7 +45,7 @@ describe("buildRegionUrls", () => {
         maxZoom: 1,
         getMap: () => null,
       }),
-    ).rejects.toThrow("Map is not ready");
+    ).rejects.toMatchObject({ code: "map-not-ready" });
   });
 
   it("builds tile + glyph URLs and allUrls is their concatenation", async () => {

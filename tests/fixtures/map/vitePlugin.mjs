@@ -12,7 +12,8 @@
  *
  * Missing assets degrade by kind, mirroring the pre-existing glyph behaviour:
  * tiles and glyphs return an instant empty 200 (so a missing range never
- * reaches the network or raises a console error), while a missing sprite —
+ * reaches the network or raises a console error) — except Mapterhorn DEM
+ * tiles, which return 404 (see serveMissing) — while a missing sprite —
  * genuine drift — returns 404 loudly.
  */
 
@@ -41,6 +42,17 @@ const TILE_EXTENSIONS = new Set([".pbf", ".webp", ".png", ".jpg", ".jpeg"]);
 
 /** A sprite request (its `.json` metadata or `.png` atlas) must fail loudly. */
 const isSprite = (pathname) => /(?:^|\/)sprite\.(?:json|png)$/i.test(pathname);
+
+/**
+ * A Mapterhorn DEM tile path. Missing ranges must 404 rather than take the
+ * generic empty 200: Chromium decodes an empty image body to a 1×1 bitmap,
+ * which MapLibre accepts as elevation data and later throws "dem dimension
+ * mismatch" on when backfilling against a real 512×512 tile. A 404 surfaces
+ * only as a tile-load console entry whose URL the shared console helper
+ * already filters, like the deliberately-404 Esri raster.
+ */
+const isMapterhornDem = (pathname) =>
+  pathname.startsWith("tiles.mapterhorn.com/");
 
 const setHeaders = (res, contentType) => {
   res.setHeader("content-type", contentType);
@@ -95,6 +107,9 @@ const serveMissing = (res, pathname, origin) => {
   const extension = extname(pathname).toLowerCase();
   if (isSprite(pathname)) {
     return send(res, 404, "text/plain", "Missing sprite fixture");
+  }
+  if (isMapterhornDem(pathname)) {
+    return send(res, 404, "text/plain", "Missing Mapterhorn DEM fixture");
   }
   if (TILE_EXTENSIONS.has(extension)) {
     // Empty tile/glyph range: no network hit, no console error.

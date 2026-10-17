@@ -73,7 +73,7 @@ export function useSyncStore(instanceId) {
 
     const status = error?.response?.status ?? null;
     const message =
-      error?.response?.data?.message || error?.message || "Sync failed";
+      error?.response?.data?.message || error?.message || "sync-failed";
 
     item.status = "failed";
     item.lastError = { status, message };

@@ -33,14 +33,32 @@ export function formatDuration(ms) {
   return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`;
 }
 
-/** Format metres as a human-readable distance string, respecting unit preference. */
-export function formatDistance(metres, isMetric = true) {
+/** Format a value with a localised unit using Intl (no digit grouping). */
+const formatUnit = (value, unit, locale, fractionDigits) =>
+  new Intl.NumberFormat(locale, {
+    style: "unit",
+    unit,
+    unitDisplay: "short",
+    useGrouping: false,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+
+/**
+ * Format metres as a human-readable distance string, respecting unit preference.
+ * `locale` drives the number and unit formatting. Values are pre-rounded with
+ * `toFixed`/`Math.round` before localisation, so the English output is
+ * byte-identical to the previous fixed-point formatter.
+ */
+export function formatDistance(metres, isMetric = true, locale = "en") {
   if (isMetric) {
     return metres >= 1000
-      ? `${(metres / 1000).toFixed(2)} km`
-      : `${Math.round(metres)} m`;
+      ? formatUnit(Number((metres / 1000).toFixed(2)), "kilometer", locale, 2)
+      : formatUnit(Math.round(metres), "meter", locale, 0);
   }
   const feet = metres * 3.28084;
   const miles = metres / 1609.344;
-  return miles >= 0.1 ? `${miles.toFixed(2)} mi` : `${Math.round(feet)} ft`;
+  return miles >= 0.1
+    ? formatUnit(Number(miles.toFixed(2)), "mile", locale, 2)
+    : formatUnit(Math.round(feet), "foot", locale, 0);
 }

@@ -1,4 +1,8 @@
 import { test, expect } from "../helpers/test.js";
+import {
+  trackConsoleErrors,
+  expectNoConsoleErrors,
+} from "../helpers/console.js";
 import { waitForMapReady, openMenuTab } from "../helpers/panel";
 import { DEMO } from "../../fixtures/demo.mjs";
 
@@ -15,6 +19,10 @@ import { DEMO } from "../../fixtures/demo.mjs";
 // intermittently fails these tests on slower machines — raise the file budget;
 // assertions are unchanged.
 test.setTimeout(120000);
+
+// Assert a clean console for every test in this spec (see helpers/console.js).
+test.beforeEach(({ page }) => trackConsoleErrors(page));
+test.afterEach(({ page }) => expectNoConsoleErrors(page));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

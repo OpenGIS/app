@@ -10,7 +10,17 @@ import {
 } from "./download.js";
 
 export const OfflineFeature = {
-  install({ useStorage, getMap, provide, addPanel, onMapReady, instanceId }) {
+  install({
+    useStorage,
+    getMap,
+    provide,
+    addPanel,
+    onMapReady,
+    instanceId,
+    useLocale,
+  }) {
+    const { t } = useLocale();
+
     // Downloaded region metadata, persisted to localStorage.
     const regions = useStorage("offline-regions", []);
 
@@ -182,7 +192,7 @@ export const OfflineFeature = {
     addPanel({
       id: "offline",
       icon: "file-arrow-down",
-      title: "Offline Maps",
+      title: () => t("menu.offline"),
       component: OfflinePanel,
     });
   },

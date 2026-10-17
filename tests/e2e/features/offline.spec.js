@@ -1,4 +1,8 @@
 import { test, expect } from "../helpers/test.js";
+import {
+  trackConsoleErrors,
+  expectNoConsoleErrors,
+} from "../helpers/console.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
@@ -7,6 +11,10 @@ import { DEMO } from "../../fixtures/demo.mjs";
  * Covers the Offline Maps side panel tab, region selection + estimate, the
  * real-network download flow, and deleting a downloaded region.
  */
+
+// Assert a clean console for every test in this spec (see helpers/console.js).
+test.beforeEach(({ page }) => trackConsoleErrors(page));
+test.afterEach(({ page }) => expectNoConsoleErrors(page));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

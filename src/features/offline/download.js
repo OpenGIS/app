@@ -170,7 +170,12 @@ async function runWorker(queue, worker) {
  */
 export async function buildRegionUrls({ bounds, minZoom, maxZoom, getMap }) {
   const map = getMap();
-  if (!map) throw new Error("Map is not ready");
+  if (!map) {
+    // Stable sentinel code; the panel maps it to a translated message.
+    const error = new Error("Map is not ready");
+    error.code = "map-not-ready";
+    throw error;
+  }
 
   const style = map.getStyle();
   const sources = style.sources || {};
