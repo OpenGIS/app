@@ -3,9 +3,11 @@
 import { ref, computed, inject, onUnmounted, onMounted } from "vue";
 import { useUI } from "@/composables/useUI";
 import { useLocale } from "@/composables/useLocale";
+import { useOrientView } from "@/composables/useOrientView";
 
 const { closePanel, openPanel, isDesktop } = useUI();
 const { t, locale } = useLocale();
+const { orientView, switchProjection } = useOrientView();
 
 const {
   regions,
@@ -28,6 +30,7 @@ let moveHandler = null;
 let upHandler = null;
 let downHandler = null;
 let cancelHandler = null;
+let restoreProjection = null;
 
 const map = () => getMap();
 
@@ -76,6 +79,11 @@ const startDraw = () => {
   overlayStyle.value = { display: "none" };
   drawing.value = true;
   if (!isDesktop.value) closePanel();
+
+  // Use a flat 2D mercator projection for the duration of the drag (restored
+  // when the draw stops) and reset rotation. Centre and zoom are untouched.
+  restoreProjection = switchProjection("mercator");
+  orientView();
 
   // Stop MapLibre panning/box-zoom while we capture the drag ourselves
   if (m.dragPan) m.dragPan.disable();
@@ -150,6 +158,11 @@ const stopDraw = (opts = {}) => {
   upHandler = null;
   downHandler = null;
   cancelHandler = null;
+  // Restore the previous projection now the draw is over
+  if (restoreProjection) {
+    restoreProjection();
+    restoreProjection = null;
+  }
   // Restore the map's default drag/zoom behaviours
   if (m && m.dragPan) m.dragPan.enable();
   if (m && m.boxZoom) m.boxZoom.enable();

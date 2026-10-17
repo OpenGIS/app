@@ -550,13 +550,14 @@ const insideAnyCountry = (lat, lng) =>
     insideBounds(lat, lng, bounds),
   );
 
-// Load the app cold in a supplied context and return its fitted view.
+// Load the app cold in a supplied context and return its page and fitted view.
 const coldStartView = async (context) => {
   const page = await context.newPage();
+  trackConsoleErrors(page);
   await withFreshView(page);
   await page.goto("/");
   await waitForMapReady(page);
-  return waitForFittedView(page);
+  return { page, view: await waitForFittedView(page) };
 };
 
 test.describe("First load / Country focus", () => {
@@ -605,8 +606,11 @@ test.describe("First load / Country focus", () => {
       });
 
       try {
-        const phoneView = await coldStartView(phone);
-        const desktopView = await coldStartView(desktop);
+        const { page: phonePage, view: phoneView } = await coldStartView(phone);
+        const { page: desktopPage, view: desktopView } =
+          await coldStartView(desktop);
+        expectNoConsoleErrors(phonePage);
+        expectNoConsoleErrors(desktopPage);
         // Padding scales with the smaller axis, so the narrower device zooms out.
         expect(desktopView.zoom).toBeGreaterThan(phoneView.zoom);
       } finally {

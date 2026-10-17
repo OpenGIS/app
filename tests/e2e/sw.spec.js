@@ -19,6 +19,10 @@ import { DEMO } from "../fixtures/demo.mjs";
 // tens of seconds under SwiftShader; the default 30 s budget is too tight.
 test.setTimeout(120000);
 
+// Assert a clean console for every test in this spec (see helpers/console.js).
+test.beforeEach(({ page }) => trackConsoleErrors(page));
+test.afterEach(({ page }) => expectNoConsoleErrors(page));
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Seed a known map view so the map renders a consistent tile set. */
@@ -56,12 +60,7 @@ const serviceWorkerCount = (page) =>
 
 test.describe("Service worker", () => {
   test.beforeEach(async ({ page }) => {
-    trackConsoleErrors(page);
     await withViewStorage(page);
-  });
-
-  test.afterEach(async ({ page }) => {
-    expectNoConsoleErrors(page);
   });
 
   test("registers on load and stays in control across a reload", async ({

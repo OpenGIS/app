@@ -3,6 +3,7 @@ import {
   trackConsoleErrors,
   expectNoConsoleErrors,
 } from "../helpers/console.js";
+import { projectionType } from "../helpers/mapProjection.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
@@ -192,6 +193,13 @@ test.describe("Offline / Estimate", () => {
     page,
   }) => {
     await page.getByRole("button", { name: "Select region" }).click();
+
+    // Arming the draw switches to flat 2D mercator for the duration of the
+    // drag (the previous projection is restored when the draw ends).
+    await expect
+      .poll(() => projectionType(page), { timeout: 15000 })
+      .toBe("mercator");
+
     await drawRegion(page);
 
     // Selected region bounds are shown
@@ -201,6 +209,59 @@ test.describe("Offline / Estimate", () => {
 
     await expect(page.getByText("Tiles", { exact: true })).toBeVisible();
     await expect(page.getByText("Est. size")).toBeVisible();
+  });
+});
+
+// ─── Offline / Region selection orientation ──────────────────────────────────
+
+test.describe("Offline / Region selection orientation", () => {
+  test.beforeEach(async ({ page }) => {
+    await withViewStorage(page);
+    await page.goto("/");
+    await page.waitForSelector(".ogis-map canvas");
+    await openOfflinePanel(page);
+  });
+
+  test("Select region switches to mercator for the drag and restores the globe afterwards", async ({
+    page,
+  }) => {
+    // Precondition: the map boots in the globe projection.
+    await expect
+      .poll(() => projectionType(page), { timeout: 15000 })
+      .toBe("globe");
+
+    // The seeded view settles into the URL hash; the hash encodes zoom, centre,
+    // pitch and bearing — everything the scoped projection switch must leave
+    // alone.
+    const seededHash = `#map=14/${DEMO.center.lat.toFixed(6)}/${DEMO.center.lng.toFixed(6)}/0/0`;
+    await expect
+      .poll(() => page.url(), { timeout: 15000 })
+      .toContain(seededHash);
+    const hashBefore = new URL(page.url()).hash;
+
+    await page.getByRole("button", { name: "Select region" }).click();
+
+    // The draw is armed: mercator for the duration of the drag.
+    await expect
+      .poll(() => projectionType(page), { timeout: 15000 })
+      .toBe("mercator");
+
+    // Arming the draw left the camera alone.
+    expect(new URL(page.url()).hash).toBe(hashBefore);
+
+    // Complete a real drag on the map.
+    await drawRegion(page);
+
+    // The draw ended with a region selected...
+    await expect(page.getByText("Selected region")).toBeVisible();
+
+    // ...and the previous projection came back at draw end (mouseup).
+    await expect
+      .poll(() => projectionType(page), { timeout: 15000 })
+      .toBe("globe");
+
+    // Centre, zoom, pitch and bearing are all untouched throughout.
+    expect(new URL(page.url()).hash).toBe(hashBefore);
   });
 });
 

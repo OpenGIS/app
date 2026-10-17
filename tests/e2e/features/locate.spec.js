@@ -4,6 +4,7 @@ import {
   expectNoConsoleErrors,
 } from "../helpers/console.js";
 import { waitForMapReady, openMenuTab } from "../helpers/panel";
+import { projectionType } from "../helpers/mapProjection.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
@@ -12,10 +13,11 @@ import { DEMO } from "../../fixtures/demo.mjs";
  * Covers the Locate button states, permission flow modals, and map marker.
  */
 
-// Locate's post-activation fly-to lands at z16 with terrain/hillshade. Under
-// SwiftShader + load its FULL tile-render settle (`data-map-idle`) has been
-// measured at ~246–275 s, but no assertion here inspects a rendered tile set.
-// The cold-load waits use the cheap app-ready signal (`data-map-ready`, see
+// Locate's post-activation orientation flight lands at the viewport-fitted
+// horizon-disc zoom (≈z12 on the desktop viewport) with terrain/hillshade. A
+// FULL tile-render settle (`data-map-idle`) there is prohibitively slow under
+// SwiftShader + load, but no assertion here inspects a rendered tile set. The
+// cold-load waits use the cheap app-ready signal (`data-map-ready`, see
 // waitForMapReady), and the move guards below wait at the moveend / URL-hash
 // level (see waitForCameraSettle).
 
@@ -32,6 +34,10 @@ const LOCATE_TIMEOUT = 60000;
 // that the per-test post-activation tile settles are no longer awaited.
 test.setTimeout(420000);
 
+// Assert a clean console for every test in this spec (see helpers/console.js).
+test.beforeEach(({ page }) => trackConsoleErrors(page));
+test.afterEach(({ page }) => expectNoConsoleErrors(page));
+
 const withNoLocateStorage = (page) =>
   page.addInitScript(() => {
     localStorage.removeItem("ogis_locate_app");
@@ -46,14 +52,56 @@ const withGrantedStorage = (page) =>
     );
   });
 
-const grantGeolocation = (
-  page,
-  coords = { latitude: DEMO.center.lat, longitude: DEMO.center.lng },
-) =>
+/** Mocked geolocation fix shared by the camera tests: the demo-area centre. */
+const FIX = { latitude: DEMO.center.lat, longitude: DEMO.center.lng };
+
+const grantGeolocation = (page, coords = FIX) =>
   page
     .context()
     .grantPermissions(["geolocation"])
     .then(() => page.context().setGeolocation(coords));
+
+/** Escape a literal string so it can be matched exactly inside a RegExp. */
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Pattern matching one exact settled hash string (no accidental wildcards). */
+const expectedHashRegExp = (hash) => new RegExp(escapeRegExp(hash));
+
+/**
+ * Hash the one-shot orientation flight must settle to, derived live.
+ *
+ * The fitted zoom is computed at call time from the real map canvas (the same
+ * `clientWidth`/`clientHeight` source the flight uses) and the mocked fix
+ * latitude, calling the production helpers through the dev server's own module
+ * graph — so the expectation follows the actual viewport and formula instead of
+ * hardcoding a zoom. The trailing `/0/0` is the north-up reset the flight
+ * applies. Note the helpers cannot be imported from Node here: `src/utils/
+ * orient.js` resolves its defaults through the Vite `@` alias, which Playwright
+ * does not map.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ latitude: number, longitude: number }} [fix]
+ * @returns {Promise<string>} e.g. `#map=12/48.953134/-55.643057/0/0`
+ */
+const orientHash = (page, fix = FIX) =>
+  page.evaluate(async ({ latitude, longitude }) => {
+    const { fitZoomForDisc, horizonDistanceMetres } =
+      await import("/src/utils/orient.js");
+    const { orientCameraDefaults } = await import("/src/defaults/maplibre.js");
+    const { getMapInstance } = await import("/src/composables/useMap.js");
+    const canvas = getMapInstance("app").getCanvas();
+    const { clientWidth: widthPx, clientHeight: heightPx } = canvas;
+    const zoom = fitZoomForDisc({
+      widthPx,
+      heightPx,
+      latitude,
+      radiusMetres: horizonDistanceMetres(orientCameraDefaults.eyeHeightMetres),
+      paddingPx: Math.round(
+        Math.min(widthPx, heightPx) * orientCameraDefaults.fitPaddingFraction,
+      ),
+    });
+    return `#map=${Math.round(zoom)}/${latitude.toFixed(6)}/${longitude.toFixed(6)}/0/0`;
+  }, fix);
 
 /**
  * Light wait: the camera has ARRIVED, without waiting for every tile to render.
@@ -70,7 +118,8 @@ const grantGeolocation = (
  * the hash with `history.replaceState` (a same-document update).
  *
  * @param {import('@playwright/test').Page} page
- * @param {RegExp} expectedHash - hash the camera must reach, e.g. /#map=16\//
+ * @param {RegExp} expectedHash - hash pattern the camera must reach, e.g. the
+ *   fitted orientation-flight hash from orientHash (via expectedHashRegExp)
  * @param {number} [timeout]
  */
 const waitForCameraSettle = async (
@@ -326,9 +375,9 @@ test.describe("Locate / Active and Following states", () => {
     await btn.click();
     await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
 
-    // Light: the first activation's fly-to z16 only needs the camera to
-    // arrive (moveend/hash), not a full tile render.
-    await waitForCameraSettle(page, /#map=16\//);
+    // Light: the first activation's orientation flight only needs the camera
+    // to arrive (moveend/hash), not a full tile render.
+    await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
     await btn.click();
     await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
   });
@@ -340,8 +389,8 @@ test.describe("Locate / Active and Following states", () => {
 
     // Second click → Following, then a third (stop). Wait for the button to
     // reflect Following before the stop click, and for the camera to arrive
-    // (fly-to z16 — moveend/hash level, no tile render).
-    await waitForCameraSettle(page, /#map=16\//);
+    // (orientation flight — moveend/hash level, no tile render).
+    await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
     await btn.click();
     await expect(btn).toContainText("Following", {
       timeout: LOCATE_TIMEOUT,
@@ -372,8 +421,8 @@ test.describe("Locate / Active and Following states", () => {
       .toBeGreaterThan(0);
 
     // Second click → Following, then third (stop). Wait for the camera to
-    // arrive (fly-to z16 — moveend/hash level, no tile render).
-    await waitForCameraSettle(page, /#map=16\//);
+    // arrive (orientation flight — moveend/hash level, no tile render).
+    await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
     await btn.click();
     await expect(btn).toContainText("Following", {
       timeout: LOCATE_TIMEOUT,
@@ -384,17 +433,14 @@ test.describe("Locate / Active and Following states", () => {
   });
 });
 
-// ─── Locate / Initial zoom ───────────────────────────────────────────────────
+// ─── Locate / Orientation reset ──────────────────────────────────────────────
 
-test.describe("Locate / Initial zoom", () => {
-  test("map flies to the user's position at zoom 16 on first fix", async ({
+test.describe("Locate / Orientation reset", () => {
+  test("map flies to the user's position fitted to the horizon disc on first fix", async ({
     page,
   }) => {
     await withGrantedStorage(page);
-    await grantGeolocation(page, {
-      latitude: DEMO.center.lat,
-      longitude: DEMO.center.lng,
-    });
+    await grantGeolocation(page);
     await page.goto("/");
     await waitForMapReady(page);
 
@@ -403,30 +449,58 @@ test.describe("Locate / Initial zoom", () => {
     await expect(page.locator("#locate-button")).toContainText("Located", {
       timeout: LOCATE_TIMEOUT,
     });
-    await expect(page).toHaveURL(/#map=16\//, { timeout: LOCATE_TIMEOUT });
+    await expect(page).toHaveURL(expectedHashRegExp(await orientHash(page)), {
+      timeout: LOCATE_TIMEOUT,
+    });
   });
 
-  test("initial zoom fires again when locate is re-activated after stopping", async ({
+  test("orientation flight keeps the globe projection", async ({ page }) => {
+    await withGrantedStorage(page);
+    await grantGeolocation(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // Precondition: style.load applies the globe projection before the
+    // app-ready signal. The live read returns the stylesheet specification,
+    // e.g. { type: "globe" }.
+    expect(await projectionType(page)).toBe("globe");
+
+    await page.locator("#locate-button").click();
+
+    await expect(page.locator("#locate-button")).toContainText("Located", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    // The camera has settled at the fitted, north-up view.
+    await expect(page).toHaveURL(expectedHashRegExp(await orientHash(page)), {
+      timeout: LOCATE_TIMEOUT,
+    });
+
+    // The flight is projection-neutral: the globe stays active throughout.
+    await expect
+      .poll(() => projectionType(page), { timeout: LOCATE_TIMEOUT })
+      .toBe("globe");
+  });
+
+  test("orientation flight fires again when locate is re-activated after stopping", async ({
     page,
   }) => {
     await withGrantedStorage(page);
-    await grantGeolocation(page, {
-      latitude: DEMO.center.lat,
-      longitude: DEMO.center.lng,
-    });
+    await grantGeolocation(page);
     await page.goto("/");
     await waitForMapReady(page);
 
     const btn = page.locator("#locate-button");
 
-    // First activation — map flies to zoom 16
+    // First activation — the orientation flight refits the horizon disc.
     await btn.click();
-    await expect(page).toHaveURL(/#map=16\//, { timeout: LOCATE_TIMEOUT });
+    await expect(page).toHaveURL(expectedHashRegExp(await orientHash(page)), {
+      timeout: LOCATE_TIMEOUT,
+    });
 
     // Stop locate (active → following → inactive). The camera already
-    // arrived at z16 (URL asserted above), so settle at the hash level — no
-    // tile render wait, and the Following click below is not blocked by one.
-    await waitForCameraSettle(page, /#map=16\//);
+    // arrived (URL asserted above), so settle at the hash level — no tile
+    // render wait, and the Following click below is not blocked by one.
+    await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
     await btn.click();
     await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
     await btn.click();
@@ -435,10 +509,10 @@ test.describe("Locate / Initial zoom", () => {
     // Seed a stored view at zoom 10 in the NEXT document, then load a
     // HASH-LESS URL so that storage is actually applied. A hash survives a
     // reload and outranks storage, which would mask whether the re-activation
-    // zoom fired. Seeding via an init script keeps the write in the fresh
+    // flight fired. Seeding via an init script keeps the write in the fresh
     // document: the previous page — including the still-running camera
     // animation from the Following click, whose programmatic moveend persists
-    // the old z16 view — is already gone, so no late persist can clobber it.
+    // the old fitted view — is already gone, so no late persist can clobber it.
     await page.addInitScript((center) => {
       const stored = JSON.parse(localStorage.getItem("ogis_view_app") || "{}");
       stored.mapView = { center, zoom: 10 };
@@ -448,14 +522,45 @@ test.describe("Locate / Initial zoom", () => {
     await waitForMapReady(page);
 
     // Precondition: the map really is at the stored zoom 10 before the
-    // re-activation, so a later #map=16 proves the initial zoom fired again.
+    // re-activation, so a later fitted hash proves the flight fired again.
     await expect(page).toHaveURL(/#map=10\//, { timeout: LOCATE_TIMEOUT });
     await waitForCameraSettle(page, /#map=10\//);
 
-    // Re-activate locate — should zoom back to 16
+    // Re-activate locate — the flight refits the horizon disc again.
     await btn.click();
     await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
-    await expect(page).toHaveURL(/#map=16\//, { timeout: LOCATE_TIMEOUT });
+    await expect(page).toHaveURL(expectedHashRegExp(await orientHash(page)), {
+      timeout: LOCATE_TIMEOUT,
+    });
+  });
+
+  test("one-shot flight resets a user-rotated view to north-up", async ({
+    page,
+  }) => {
+    await withGrantedStorage(page);
+    await grantGeolocation(page);
+
+    // Boot on a full 5-segment hash: a user-rotated view (pitch 45, bearing
+    // 120) centred on the mocked fix position.
+    const startHash = `#map=13/${FIX.latitude.toFixed(6)}/${FIX.longitude.toFixed(6)}/45/120`;
+    await page.goto(`/${startHash}`);
+    await waitForMapReady(page);
+
+    // Precondition: the app applies the rotated view, so the flight really
+    // starts from pitch/bearing rather than from north-up.
+    await expect(page).toHaveURL(expectedHashRegExp(startHash));
+
+    await page.locator("#locate-button").click();
+
+    await expect(page.locator("#locate-button")).toContainText("Located", {
+      timeout: LOCATE_TIMEOUT,
+    });
+
+    // The settled hash's trailing /0/0 proves the flight reset both pitch and
+    // bearing, alongside the fitted zoom and the mocked fix position.
+    await expect(page).toHaveURL(expectedHashRegExp(await orientHash(page)), {
+      timeout: LOCATE_TIMEOUT,
+    });
   });
 });
 
@@ -705,7 +810,6 @@ test.describe("Locate / French locale", () => {
   test("confirmation modal renders French text for a French browser locale", async ({
     page,
   }) => {
-    trackConsoleErrors(page);
     await withNoLocateStorage(page);
     await page.goto("/");
     await waitForMapReady(page);
@@ -735,14 +839,11 @@ test.describe("Locate / French locale", () => {
       "aria-label",
       "Fermer",
     );
-
-    expectNoConsoleErrors(page);
   });
 
   test("error modal renders French text when geolocation permission is denied", async ({
     page,
   }) => {
-    trackConsoleErrors(page);
     await withGrantedStorage(page);
     // Do NOT grant geolocation — denial triggers the error callback
     await page.goto("/");
@@ -767,7 +868,5 @@ test.describe("Locate / French locale", () => {
       "aria-label",
       "Fermer",
     );
-
-    expectNoConsoleErrors(page);
   });
 });

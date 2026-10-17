@@ -3,8 +3,8 @@ import maplibregl from "maplibre-gl";
 import { magvar } from "magvar";
 import { useStorage } from "@/composables/useStorage";
 import { getMapInstance } from "@/composables/useMap";
+import { useOrientView } from "@/composables/useOrientView";
 import { emitter } from "@/emitter.js";
-import { locateZoom } from "@/defaults/maplibre";
 import { Position } from "@/classes/Position";
 
 // Per-instance cache: instanceId -> instance state
@@ -42,9 +42,9 @@ export const useLocate = (explicitInstanceId) => {
       headingLost: ref(false), // true when orientation events have stopped arriving
       smoothedHeading: null, // internal: raw float used for smoothing
       magneticDeclination: 0, // degrees East; corrects webkitCompassHeading to true north
-      needsInitialZoom: false, // true until the first fix after activation
+      needsInitialOrient: false, // true until the first fix after activation
       generation: 0, // incremented on start/stop; discards stale callbacks
-      mapReadyListener: null, // pending map:ready retry for the initial zoom
+      mapReadyListener: null, // pending map:ready retry for the orient flight
       headingTimeoutId: null, // timeout handle for heading-loss detection
       showConfirmModal: ref(false),
       showErrorModal: ref(false),
@@ -57,6 +57,8 @@ export const useLocate = (explicitInstanceId) => {
   }
 
   const c = locateCache.get(instanceId);
+
+  const { orientView } = useOrientView();
 
   // ─── Map markers ─────────────────────────────────────────────────────────
 
@@ -232,10 +234,10 @@ export const useLocate = (explicitInstanceId) => {
     c.headingLost.value = false;
   };
 
-  // ─── Initial zoom ─────────────────────────────────────────────────────────
+  // ─── Orientation flight ───────────────────────────────────────────────────
 
-  /** Drop any pending map:ready retry for the one-shot initial zoom. */
-  const clearInitialZoomRetry = () => {
+  /** Drop any pending map:ready retry for the orient flight. */
+  const clearOrientRetry = () => {
     if (c.mapReadyListener) {
       emitter.off("map:ready", c.mapReadyListener);
       c.mapReadyListener = null;
@@ -243,32 +245,33 @@ export const useLocate = (explicitInstanceId) => {
   };
 
   /**
-   * Apply the one-shot initial zoom, exactly once per activation.
+   * Apply the one-shot orientation flight, exactly once per activation.
    *
-   * The flag is only consumed when the map is ready and a position exists, so
-   * a first fix that lands before map init is retained for a later fix rather
-   * than being lost. On success the flag is cleared, preventing a double zoom.
+   * Delegates the flight — the reset to a north-up, viewport-fitted
+   * line-of-sight disc — to the orient facility, while retaining the one-shot
+   * lifecycle here: the flag is only consumed when the map is ready and a
+   * position exists, so a first fix that lands before map init is retained for
+   * a later fix rather than being lost.
    */
-  const applyInitialZoom = () => {
-    if (!c.needsInitialZoom) return;
-    const map = getMapInstance(instanceId);
-    if (!map || !c.position.value) return;
-    c.needsInitialZoom = false;
-    clearInitialZoomRetry();
-    map.flyTo({
-      center: [c.position.value.lng, c.position.value.lat],
-      zoom: locateZoom,
-    });
+  const applyOrientFlight = () => {
+    if (!c.needsInitialOrient) return;
+    if (!c.position.value) return;
+
+    const { lng, lat } = c.position.value;
+    if (!orientView({ target: { lat, lng } })) return;
+
+    c.needsInitialOrient = false;
+    clearOrientRetry();
   };
 
   /**
-   * If the map is not ready yet, retry the initial zoom once `map:ready`
+   * If the map is not ready yet, retry the orientation flight once `map:ready`
    * fires. Guards against a first fix arriving before MapLibre has
-   * initialised (see applyInitialZoom). The listener is registered once.
+   * initialised (see applyOrientFlight). The listener is registered once.
    */
-  const armInitialZoomRetry = () => {
+  const armOrientRetry = () => {
     if (getMapInstance(instanceId) || c.mapReadyListener) return;
-    c.mapReadyListener = () => applyInitialZoom();
+    c.mapReadyListener = () => applyOrientFlight();
     emitter.once("map:ready", c.mapReadyListener);
   };
 
@@ -299,7 +302,7 @@ export const useLocate = (explicitInstanceId) => {
       speed,
     });
 
-    applyInitialZoom();
+    applyOrientFlight();
     syncMarkers();
 
     if (c.mode.value === "following") {
@@ -319,8 +322,8 @@ export const useLocate = (explicitInstanceId) => {
   const onError = (err, gen) => {
     if (gen !== c.generation) return;
     c.generation++; // bump so any other in-flight callback is discarded
-    clearInitialZoomRetry();
-    c.needsInitialZoom = false;
+    clearOrientRetry();
+    c.needsInitialOrient = false;
     stopWatcher();
     stopOrientationWatching();
     removeMarkers();
@@ -339,8 +342,8 @@ export const useLocate = (explicitInstanceId) => {
     }
     const gen = ++c.generation;
     c.mode.value = "active";
-    c.needsInitialZoom = true;
-    armInitialZoomRetry();
+    c.needsInitialOrient = true;
+    armOrientRetry();
 
     // Request orientation permission (no-op on non-iOS) then start listening.
     // Both happen inside the same user-gesture call stack so iOS treats them
@@ -426,8 +429,8 @@ export const useLocate = (explicitInstanceId) => {
     // startWatching still awaiting orientation permission) is superseded
     // and can no longer create a watcher or markers.
     c.generation++;
-    clearInitialZoomRetry();
-    c.needsInitialZoom = false;
+    clearOrientRetry();
+    c.needsInitialOrient = false;
     stopWatcher();
     stopOrientationWatching();
     removeMarkers();

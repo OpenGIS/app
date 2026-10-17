@@ -265,8 +265,8 @@ export const useMap = (containerRef = null, options = {}) => {
         map.on("moveend", (event) => {
           // A programmatic camera move (flyTo/easeTo/jumpTo) carries no
           // originalEvent. Its hash write must never be dropped by the
-          // throttle, otherwise the final view (e.g. the locate initial
-          // zoom to #map=16) can be swallowed, leaving a stale hash.
+          // throttle, otherwise the final view (e.g. the locate orientation
+          // flight) can be swallowed, leaving a stale hash.
           if (event?.originalEvent) {
             throttledPersistView();
           } else {
