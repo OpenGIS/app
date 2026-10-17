@@ -384,8 +384,8 @@ $font-size-base: 0.9375rem; // 15 px
 // feature-agnostic here: the caller supplies the state, core owns the styling.
 .ogis-menu-badge {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 11px;
+  right: 11px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -402,8 +402,19 @@ $font-size-base: 0.9375rem; // 15 px
   }
 }
 
-// Chip variant — horizontal glass pill for the map-corner controls
+// Chip variant — round glass button for the map-corner controls.
+//
+// Tunable levers (one-line edits): diameter, icon size, vertical gap and the
+// label's fitting bounds. useFitText reads the label levers back off the chip
+// (custom properties inherit to the label) to size the text at runtime.
 .icon-btn--chip {
+  --ogis-chip-diameter: 72px;
+  --ogis-chip-icon-size: 29px;
+  --ogis-chip-gap: 0.25rem;
+  --ogis-chip-label-min: 8px;
+  --ogis-chip-label-max: 11px;
+  --ogis-chip-label-target: 62%;
+
   gap: 0.4rem;
   padding: 0.4rem 0.7rem;
   border-radius: 999px;
@@ -417,10 +428,13 @@ $font-size-base: 0.9375rem; // 15 px
   .icon-btn__label {
     position: static;
     transform: none;
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+      monospace;
     font-size: 0.75rem;
     font-weight: 600;
-    letter-spacing: 0.02em;
-    text-transform: none;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   a {
@@ -436,6 +450,40 @@ $font-size-base: 0.9375rem; // 15 px
   &[aria-pressed="true"] {
     color: var(--bs-primary);
     background: rgba(255, 255, 255, 0.92);
+  }
+}
+
+// Round geometry — the menu, locate and custom corner chips, plus the
+// attribution chip once collapsed to its icon + fitted label. The expanded
+// attribution chip keeps its pill shape so the credits text can still wrap
+// inline.
+.icon-btn--chip:not(.ogis-attribution-chip),
+.ogis-root[data-attrib-collapsed="true"] .ogis-attribution-chip {
+  width: var(--ogis-chip-diameter);
+  height: var(--ogis-chip-diameter);
+  padding: 0;
+  border-radius: 50%;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--ogis-chip-gap);
+
+  .icon-btn__icon {
+    height: var(--ogis-chip-icon-size);
+  }
+
+  .icon-btn__icon svg {
+    width: var(--ogis-chip-icon-size);
+    height: var(--ogis-chip-icon-size);
+  }
+
+  .icon-btn__label {
+    display: inline-block;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  &:focus-visible {
+    border-radius: 50%;
   }
 }
 
@@ -493,6 +541,8 @@ $font-size-base: 0.9375rem; // 15 px
 }
 
 .ogis-attribution-chip .ogis-attribution-chip__text {
+  font-family: inherit;
+  text-transform: none;
   white-space: normal;
   font-size: 0.6875rem;
   font-weight: 500;
@@ -581,11 +631,11 @@ $font-size-base: 0.9375rem; // 15 px
   }
 }
 
-// Once the chip collapses to the ⓘ icon, the scale moves inline to its right
+// Once the chip collapses to the circle, the scale moves inline to its right
 // (same row, vertically centred with the chip). Tune these two values only.
 .ogis-root[data-attrib-collapsed="true"] .maplibregl-ctrl-bottom-left {
   bottom: 0.6rem !important;
-  left: 3.5rem !important;
+  left: 4.75rem !important;
 }
 
 // Dark theme: MapLibre's scale control ships as a bright white box, which is

@@ -58,8 +58,7 @@ const handleCustomClick = (btn) => {
         chip
         icon="layout-sidebar-inset"
         :label="t('nav.menu')"
-        :icon-width="20"
-        :icon-height="20"
+        :icon-size="29"
         :active="isMenuVisible"
         @click="togglePanel()"
       >

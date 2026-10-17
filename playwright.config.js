@@ -7,6 +7,11 @@ import { isDeterministicRun } from "./tests/e2e/helpers/determinism.js";
 // cuts post-network render settle from ~3 s to ~0.5 s (≈6×).
 const useSwiftShader = !!process.env.CI || process.env.E2E_SWIFTSHADER === "1";
 
+// Port for the E2E web server (and the base URL the specs hit). Defaults to
+// 5184 — never a default dev port — so CI and existing scripts are unchanged;
+// override with E2E_PORT to let a local run pick a free port.
+const E2E_PORT = process.env.E2E_PORT ?? 5184;
+
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
@@ -39,7 +44,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: "http://localhost:5184",
+    baseURL: `http://localhost:${E2E_PORT}`,
 
     /* Dark is the default scheme for tests/screenshots. The app follows the
        OS/browser prefers-color-scheme setting (no in-app toggle), so light mode
@@ -158,10 +163,11 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  /* Uses port 5184 to avoid conflicting with the dev server on port 5173/4/5 */
+  /* Uses port 5184 by default (override with E2E_PORT) to avoid conflicting
+     with the dev server on port 5173/4/5 */
   webServer: {
-    command: "npm run dev -- --port 5184",
-    url: "http://localhost:5184",
+    command: `npm run dev -- --port ${E2E_PORT}`,
+    url: `http://localhost:${E2E_PORT}`,
     // Opt the E2E dev server into the app-shell service worker (closest to
     // production) and into the committed map fixtures (same-origin, zero live
     // external requests). Spread process.env so PATH and friends are preserved.

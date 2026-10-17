@@ -64,7 +64,7 @@ test.describe.skip("Account feature", () => {
       .poll(() => requestBody, { timeout: 5000 })
       .toEqual(expect.objectContaining({ email: "user@example.com" }));
     await expect(requestBody.intended).toContain(
-      baseURL || "http://localhost:5184",
+      baseURL || `http://localhost:${process.env.E2E_PORT ?? 5184}`,
     );
     await expect(
       page.getByText("Magic link sent! Check your email."),

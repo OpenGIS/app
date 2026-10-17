@@ -466,7 +466,9 @@ test.describe("Panel geometry / desktop", () => {
 // (`duration: 0`) and, being a programmatic move, is persisted to the URL hash
 // (`#map=zoom/lat/lng/...`) and localStorage by the existing `moveend` handler.
 
-const BASE_URL = "http://localhost:5184";
+// E2E web-server base URL. Overridable via E2E_PORT; defaults to 5184 to match
+// the Playwright webServer config and CI.
+const BASE_URL = `http://localhost:${process.env.E2E_PORT ?? 5184}`;
 
 // Bounds from COUNTRY_BOUNDS.GB (lat 49.96–58.64, lng -7.57–1.68).
 const GB = { minLat: 49.96, maxLat: 58.64, minLng: -7.57, maxLng: 1.68 };
