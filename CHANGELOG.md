@@ -1,3 +1,10 @@
+# [3.13.0](https://github.com/OpenGIS/app/compare/v3.12.2...v3.13.0) (2026-10-17)
+
+
+### Features
+
+* **ui:** rework corner buttons into fitted circles ([c8cb318](https://github.com/OpenGIS/app/commit/c8cb3184440e8adbc1f692f866ceb4a3279bbd37))
+
 ## [3.12.2](https://github.com/OpenGIS/app/compare/v3.12.1...v3.12.2) (2026-10-16)
 
 
