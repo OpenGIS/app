@@ -62,7 +62,8 @@ export const RoutesFeature = {
         return parsed.length;
       } catch (err) {
         // Keep the error object (with its stable `code`) so the panel can map
-        // it to a translated message; unknown errors fall back to `err.message`.
+        // it to a translated message; unknown errors fall back to a generic
+        // translated import error.
         error.value = err;
         return 0;
       }

@@ -18,14 +18,14 @@ const {
   formatDistance,
 } = inject("routes");
 
-// Map the parser's stable error codes to translated messages; fall back to the
-// raw message only for unknown errors.
+// Map the parser's stable error codes to translated messages; unknown errors
+// fall back to the generic import failure rather than the raw message.
 const errorMessage = computed(() => {
   const err = error.value;
   if (!err) return "";
   if (err.code === "invalid-gpx") return t("panel.routes.errorInvalidGpx");
   if (err.code === "no-routes") return t("panel.routes.errorNoRoutes");
-  return err.message;
+  return t("panel.routes.errorImport");
 });
 
 const onFiles = async (e) => {

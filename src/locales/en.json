@@ -1,4 +1,6 @@
 {
+  "app.description": "ogis.app — a navigation app for the real world.",
+
   "common.close": "Close",
 
   "nav.menu": "Menu",
@@ -29,7 +31,6 @@
   "panel.account.requestMagicLink": "Email me a magic link",
   "panel.account.requesting": "Requesting…",
   "panel.account.checkSession": "Check session",
-  "panel.account.signedIn": "Signed in",
   "panel.account.signedInAs": "Signed in as",
   "panel.account.memberSince": "Member since",
   "panel.account.logout": "Log out",
@@ -209,6 +210,7 @@
   "panel.routes.navigating": "Navigation active — following GPS position.",
   "panel.routes.errorInvalidGpx": "Invalid GPX file",
   "panel.routes.errorNoRoutes": "No routes found in GPX file",
+  "panel.routes.errorImport": "Unable to import GPX file.",
 
   "panel.info.readMore": "Read more",
   "panel.info.readLess": "Read less",

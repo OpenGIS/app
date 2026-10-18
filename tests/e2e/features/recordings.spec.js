@@ -427,7 +427,9 @@ test.describe("Recordings / Saved list order", () => {
     await expect(items).toHaveCount(2);
 
     // Format the expected labels in the page's own locale, matching the
-    // component's `new Date(rec.timestamp).toLocaleString()` rendering.
+    // component's `new Date(rec.timestamp).toLocaleString(formatLocale)`
+    // rendering. Playwright pins en-CA, so the page locale and the computed
+    // formatLocale agree.
     const [newerLabel, olderLabel] = await page.evaluate(
       ([newer, older]) =>
         [newer, older].map((timestamp) => new Date(timestamp).toLocaleString()),

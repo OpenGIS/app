@@ -1,11 +1,13 @@
 <script setup>
 import { computed, inject, ref, shallowRef, watch, nextTick } from "vue";
 import { useUI } from "@/composables/useUI";
+import { useLocale } from "@/composables/useLocale";
 import { getMapInstance } from "@/composables/useMap";
 import IconButton from "@/components/ui/icon-button.vue";
 import InfoPanel from "@/components/panels/info.vue";
 
 const instanceId = inject("ogisAppId", "app");
+const { t } = useLocale(instanceId);
 const buttonsRef = inject("navigatorButtons", shallowRef([]));
 const panelsRef = inject("navigatorPanels", shallowRef([]));
 
@@ -121,9 +123,13 @@ watch(
     class="offcanvas offcanvas-start ogis-panel"
     :class="{ show: isPanelVisible }"
     tabindex="-1"
-    aria-labelledby="offcanvasLabel"
+    role="region"
+    aria-labelledby="ogis-panel-label"
   >
     <div class="offcanvas-body p-0 d-flex flex-column">
+      <span id="ogis-panel-label" class="visually-hidden">{{
+        t("nav.menu")
+      }}</span>
       <!-- Menu Pane: tab strip. Rendered whenever the Info pane is not active so
            the tabbed feature panels stay mounted while the pane is closed
            (offcanvas `show` class handles visibility). Switching to Info still

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, inject, onMounted } from "vue";
+import { ref, inject, onMounted, watch } from "vue";
 import iconSprite from "@/icons/ogis-icons.svg?raw";
 
 // UI
@@ -9,10 +9,23 @@ import LocateConfirm from "@/components/modals/locate-confirm.vue";
 
 import { useMap } from "@/composables/useMap";
 import { useUI } from "@/composables/useUI";
+import { useLocale } from "@/composables/useLocale";
 import { useAttribution } from "@/composables/useAttribution";
 import { useWakeLock } from "@/composables/useWakeLock";
 
 const instanceId = inject("ogisAppId", "app");
+
+// Keep the meta description in sync with the active locale. The static English
+// value in index.html is the no-JS default; this replaces it once the app boots.
+const { locale, t } = useLocale();
+watch(
+  locale,
+  () => {
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute("content", t("app.description"));
+  },
+  { immediate: true },
+);
 
 // Map — template ref passed so useMap manages the full lifecycle
 const mapContainer = ref(null);

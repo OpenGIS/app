@@ -166,6 +166,47 @@ describe("useLocale", () => {
     });
   });
 
+  describe("formatLocale", () => {
+    it("keeps the regional browser tag for the active UI language (en-CA)", async () => {
+      const { useLocale } = await loadLocale(["en-CA"]);
+      const { result } = createLocaleInstance(useLocale);
+      expect(result.locale.value).toBe("en");
+      expect(result.formatLocale.value).toBe("en-CA");
+    });
+
+    it("uses the ?locale= tag when it drives the active UI language", async () => {
+      const { useLocale } = await loadLocale(["en-CA"]);
+      const { result } = createLocaleInstance(useLocale, {
+        defaultLocale: "fr",
+      });
+      expect(result.locale.value).toBe("fr");
+      expect(result.formatLocale.value).toBe("fr");
+    });
+
+    it("keeps the regional browser tag for the active UI language (fr-CA)", async () => {
+      const { useLocale } = await loadLocale(["fr-CA"]);
+      const { result } = createLocaleInstance(useLocale);
+      expect(result.locale.value).toBe("fr");
+      expect(result.formatLocale.value).toBe("fr-CA");
+    });
+
+    it("falls back to the locale code when the browser language is unsupported", async () => {
+      const { useLocale } = await loadLocale(["de-DE"]);
+      const { result } = createLocaleInstance(useLocale);
+      expect(result.locale.value).toBe("en");
+      expect(result.formatLocale.value).toBe("en");
+    });
+
+    it("prefers the ?locale= tag when it resolves the UI language", async () => {
+      const { useLocale } = await loadLocale(["fr-FR"]);
+      const { result } = createLocaleInstance(useLocale, {
+        defaultLocale: "en-GB",
+      });
+      expect(result.locale.value).toBe("en");
+      expect(result.formatLocale.value).toBe("en-GB");
+    });
+  });
+
   describe("matchLocale", () => {
     it("matches a script-region tag against a script-level code", () => {
       expect(matchLocale("zh-Hans-CN", ["en", "fr", "zh-Hans"])).toBe(

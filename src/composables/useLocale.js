@@ -187,9 +187,31 @@ export const useLocale = (instanceId) => {
     () => MAP_LANGUAGE_TAG_OVERRIDES[locale.value] ?? locale.value,
   );
 
+  /**
+   * The BCP 47 tag used to format dates and numbers.
+   *
+   * Formatting follows the user's regional tag — the explicit `?locale=` value
+   * when it is one, otherwise their first preferred browser language — while
+   * staying aligned with the active UI language. A tag that resolves to a
+   * different language than the active locale is ignored, so `en-CA` yields
+   * Canadian English formatting for English but French formatting (not Canadian
+   * English) once `?locale=fr` switches the UI to French.
+   */
+  const formatLocale = computed(() => {
+    const paramMatch = matchLocale(defaultLocale, LOCALE_CODES);
+    if (paramMatch && paramMatch === locale.value) return defaultLocale;
+
+    const preferred = navigatorLanguages.value[0];
+    const preferredMatch = matchLocale(preferred, LOCALE_CODES);
+    if (preferredMatch && preferredMatch === locale.value) return preferred;
+
+    return locale.value;
+  });
+
   return {
     locale,
     mapLanguageTag,
+    formatLocale,
     t,
   };
 };

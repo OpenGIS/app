@@ -4,7 +4,7 @@ import { useLocale } from "@/composables/useLocale";
 import { useResourceOverview } from "@/composables/resources/useResourceOverview";
 import { useAuthStore } from "@/stores/authStore";
 
-const { t } = useLocale();
+const { t, formatLocale } = useLocale();
 const {
   user,
   loading,
@@ -42,7 +42,7 @@ const memberSinceLabel = computed(() => {
   if (!user.value?.created_at) return null;
   const date = new Date(user.value.created_at);
   if (Number.isNaN(date.getTime())) return user.value.created_at;
-  return date.toLocaleString();
+  return date.toLocaleString(formatLocale.value);
 });
 
 const visibleMaps = computed(() => maps.value.slice(0, 5));

@@ -124,6 +124,14 @@ test.describe("Info pane / Pane separation", () => {
 // ─── Info panel ───────────────────────────────────────────────────────────────
 
 test.describe("Info panel", () => {
+  test("the side panel exposes the Menu accessible name", async ({ page }) => {
+    await withViewStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect(page.locator(".ogis-panel")).toHaveAccessibleName("Menu");
+  });
+
   test("Info panel shows map view, about, privacy and attribution content", async ({
     page,
   }) => {
@@ -356,6 +364,36 @@ test.describe("Info panel", () => {
 
     expect(position).toBe("sticky");
     expect(bottom).toBe("0px");
+  });
+});
+
+// ─── Meta description ────────────────────────────────────────────────────────
+
+test.describe("Meta description", () => {
+  test("the default page keeps the English meta description", async ({
+    page,
+  }) => {
+    await withViewStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+      "content",
+      "ogis.app — a navigation app for the real world.",
+    );
+  });
+
+  test("boots with ?locale=fr and updates the meta description in French", async ({
+    page,
+  }) => {
+    await withViewStorage(page);
+    await page.goto("/?locale=fr");
+    await waitForMapReady(page);
+
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+      "content",
+      "ogis.app — une application de navigation pour le monde réel.",
+    );
   });
 });
 

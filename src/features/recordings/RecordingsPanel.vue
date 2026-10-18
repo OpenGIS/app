@@ -6,7 +6,7 @@ import { useLocale } from "@/composables/useLocale";
 import { formatDuration, formatDistance } from "./index.js";
 
 const { isMetric } = useSettings();
-const { t, locale } = useLocale();
+const { t, locale, formatLocale } = useLocale();
 
 const {
   state,
@@ -90,7 +90,7 @@ const sortedRecordings = computed(() =>
 
     <div v-for="rec in sortedRecordings" :key="rec.id" class="border-top py-2">
       <div class="small text-body-secondary">
-        {{ new Date(rec.timestamp).toLocaleString() }}
+        {{ new Date(rec.timestamp).toLocaleString(formatLocale) }}
       </div>
       <div class="d-flex justify-content-between small">
         <span>{{ formatDuration(rec.duration) }}</span>

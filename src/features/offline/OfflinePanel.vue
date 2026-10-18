@@ -6,7 +6,7 @@ import { useLocale } from "@/composables/useLocale";
 import { useOrientView } from "@/composables/useOrientView";
 
 const { closePanel, openPanel, isDesktop } = useUI();
-const { t, locale } = useLocale();
+const { t, locale, formatLocale } = useLocale();
 const { orientView, switchProjection } = useOrientView();
 
 const {
@@ -289,7 +289,7 @@ const runDownload = async () => {
     } else if (err.code === "map-not-ready") {
       downloadError.value = t("panel.offline.errorMapNotReady");
     } else {
-      downloadError.value = err.message || t("panel.offline.failed");
+      downloadError.value = t("panel.offline.failed");
     }
   } finally {
     downloading.value = false;
@@ -334,8 +334,8 @@ const removeRegion = async (region) => {
   try {
     await deleteRegion(region);
     await refreshStorage();
-  } catch (err) {
-    deleteError.value = err.message || t("panel.offline.deleteFailed");
+  } catch {
+    deleteError.value = t("panel.offline.deleteFailed");
   } finally {
     deleting.value = false;
   }
@@ -430,7 +430,9 @@ const removeRegion = async (region) => {
     >
       <div class="d-flex justify-content-between">
         <span>{{ t("panel.offline.tilesLabel") }}</span>
-        <strong>{{ estimateState.tileCount.toLocaleString() }}</strong>
+        <strong>{{
+          estimateState.tileCount.toLocaleString(formatLocale)
+        }}</strong>
       </div>
       <div class="d-flex justify-content-between">
         <span>{{ t("panel.offline.estSize") }}</span>
@@ -460,8 +462,8 @@ const removeRegion = async (region) => {
         class="d-flex justify-content-between small text-body-secondary mb-2"
       >
         <span
-          >{{ progress.done.toLocaleString() }} /
-          {{ progress.total.toLocaleString() }}</span
+          >{{ progress.done.toLocaleString(formatLocale) }} /
+          {{ progress.total.toLocaleString(formatLocale) }}</span
         >
         <span>{{ progressPct }}%</span>
       </div>
@@ -535,12 +537,12 @@ const removeRegion = async (region) => {
                 max: region.maxZoom,
               })
             }}
-            · {{ region.tileCount.toLocaleString() }}
+            · {{ region.tileCount.toLocaleString(formatLocale) }}
             {{ t("panel.offline.tiles", { count: region.tileCount }) }}
           </div>
           <div class="text-body-tertiary">
             {{ formatBytes(region.estimatedBytes) }} ·
-            {{ new Date(region.createdAt).toLocaleString() }}
+            {{ new Date(region.createdAt).toLocaleString(formatLocale) }}
           </div>
         </div>
         <div class="d-flex gap-1">

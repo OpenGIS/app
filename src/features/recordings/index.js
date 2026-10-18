@@ -64,7 +64,7 @@ export const RecordingsFeature = {
     const stored = useStorage("recordings", { saved: [], active: null });
     const { isMetric } = useSettings();
     const { requestPermission } = useLocate(instanceId);
-    const { t } = useLocale();
+    const { t, formatLocale } = useLocale();
 
     const state = reactive({
       isRecording: false,
@@ -203,7 +203,7 @@ export const RecordingsFeature = {
     const downloadGPX = async (recording) => {
       const filename = `recording-${recording.id}.gpx`;
       const name = t("panel.recordings.exportName", {
-        date: new Date(recording.timestamp).toLocaleString(),
+        date: new Date(recording.timestamp).toLocaleString(formatLocale.value),
       });
       const blob = new Blob([toGPX(recording, name)], {
         type: "application/gpx+xml",
