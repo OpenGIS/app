@@ -28,3 +28,14 @@ export const isDeterministicRun = () =>
   !!process.env.CI ||
   process.env.E2E_SWIFTSHADER_PIN === "1" ||
   process.env.E2E_SCREENSHOTS_COMMIT === "1";
+
+/**
+ * Whether the current run renders with SwiftShader.
+ *
+ * Mirrors the `useSwiftShader` condition in `playwright.config.js` exactly:
+ * any CI run, or an explicit `E2E_SWIFTSHADER=1` opt-in. Keep the two in sync.
+ * It selects the software rasteriser, whose multi-second frames need much
+ * larger interaction budgets than the local GPU path.
+ */
+export const isSwiftShaderRun = () =>
+  !!process.env.CI || process.env.E2E_SWIFTSHADER === "1";

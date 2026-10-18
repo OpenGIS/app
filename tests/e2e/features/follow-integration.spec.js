@@ -4,9 +4,9 @@ import {
   expectNoConsoleErrors,
 } from "../helpers/console.js";
 import { waitForMapReady } from "../helpers/panel.js";
+import { isSwiftShaderRun } from "../helpers/determinism.js";
 import {
   LOCATE_FIX,
-  dispatchCompass,
   emitFix,
   expectedHashRegExp,
   installGeolocationMock,
@@ -27,14 +27,14 @@ import {
  * real `deviceorientationabsolute` events, as in the locate spec.
  */
 
-// Generous backstop for the light camera-settle waits, not an expected
-// duration: software rasterisation renders slowly, so a single animation frame
-// can be seconds apart.
-const CAMERA_TIMEOUT = 60000;
+// Ceiling for the light camera-settle waits. SwiftShader quantises interaction
+// and animation to multi-second frames, so the software path needs a much
+// larger backstop; the GPU path keeps the tight budget.
+const CAMERA_TIMEOUT = isSwiftShaderRun() ? 120000 : 60000;
 
 // One cold-load boot plus several camera settles; ample headroom under
 // SwiftShader.
-test.setTimeout(180000);
+test.setTimeout(isSwiftShaderRun() ? 360000 : 180000);
 
 test.beforeEach(({ page }) => trackConsoleErrors(page));
 test.afterEach(({ page }) => expectNoConsoleErrors(page));
@@ -50,8 +50,14 @@ const angleDelta = (a, b) => {
 /** Ground-plane separation between two centres, in degrees. */
 const centreDelta = (a, b) => Math.hypot(a.lat - b.lat, a.lng - b.lng);
 
-/** Drag the map canvas to explore the camera away from the follow pose. */
-const dragMap = async (page, { dx = 140, dy = 80 } = {}) => {
+/**
+ * Drag the map canvas to explore the camera away from the follow pose.
+ *
+ * The pointer can be left held (`hold`), which keeps the driver suspended
+ * without arming its idle-resume timer, so a hold assertion cannot race the
+ * timer.
+ */
+const dragMap = async (page, { dx = 140, dy = 80, hold = false } = {}) => {
   const canvas = page.locator(".ogis-map canvas");
   await canvas.waitFor({ state: "visible" });
   const box = await canvas.boundingBox();
@@ -59,7 +65,10 @@ const dragMap = async (page, { dx = 140, dy = 80 } = {}) => {
   const y0 = box.y + box.height / 2;
   await page.mouse.move(x0, y0);
   await page.mouse.down();
-  await page.mouse.move(x0 + dx, y0 + dy, { steps: 12 });
+  // A couple of large steps clear the drag threshold; more steps only add
+  // multi-second input dispatches under software rasterisation.
+  await page.mouse.move(x0 + dx, y0 + dy, { steps: 2 });
+  if (hold) return;
   await page.mouse.up();
   // Wait for pan inertia to finish before reading the settled pose.
   await expect
@@ -73,6 +82,22 @@ const dragMap = async (page, { dx = 140, dy = 80 } = {}) => {
     )
     .toBe(false);
 };
+
+/**
+ * Record the exact pointerup time in-page, so the idle delay can be measured
+ * from the release rather than from a slow `evaluate` round-trip.
+ */
+const markPointerRelease = (page) =>
+  page.evaluate(() => {
+    window.__dragRelease = null;
+    window.addEventListener(
+      "pointerup",
+      () => {
+        window.__dragRelease = performance.now();
+      },
+      { capture: true, once: true },
+    );
+  });
 
 /**
  * Publish a stream of fast, course-over-ground fixes so the follow driver is
@@ -442,14 +467,17 @@ test.describe("Follow / Locate chase", () => {
         timeout: CAMERA_TIMEOUT,
       })
       .toBeGreaterThan(0);
-    await dispatchCompass(page, 90);
+    // Start a live compass stream: a single event would be cleared by the ~8 s
+    // heading watchdog before the (slow) follow click reads it.
+    await startCompassStream(page, 90);
     await waitForCameraSettle(
       page,
       expectedHashRegExp(await orientHash(page)),
       CAMERA_TIMEOUT,
     );
 
-    await dispatchCompass(page, 90);
+    // The stream stays live through the slow follow click, so the heading
+    // cannot be cleared before the driver starts.
     await btn.click();
     await expect(btn).toContainText("Following", { timeout: CAMERA_TIMEOUT });
     await expect
@@ -457,13 +485,22 @@ test.describe("Follow / Locate chase", () => {
         timeout: CAMERA_TIMEOUT,
       })
       .toBeLessThan(1);
+    await stopCompassStream(page);
 
     const restPose = await readCamera(page);
 
-    // 2. A user drag suspends the driver: the camera stays where it was left
-    // and the chip still reads Following (no mode change, no immediate
-    // recentre).
-    await dragMap(page, { dx: 140, dy: 80 });
+    // 2. A user drag suspends the driver: hold the pointer down so the idle
+    // timer cannot start mid-assertion, and confirm the camera stays where it
+    // was left with the chip still reading Following (no mode change, no
+    // immediate recentre).
+    const idleResumeDelayMs = await page.evaluate(async () => {
+      const { followCameraDefaults } =
+        await import("/src/defaults/maplibre.js");
+      return followCameraDefaults.idleResumeDelayMs;
+    });
+    await startCameraSampler(page);
+    await markPointerRelease(page);
+    await dragMap(page, { dx: 140, dy: 80, hold: true });
     await expect(btn).toContainText("Following");
 
     const draggedPose = await readCamera(page);
@@ -471,15 +508,18 @@ test.describe("Follow / Locate chase", () => {
       0.0005,
     );
 
-    // Well within the idle delay the camera holds the user's pose.
-    await page.waitForTimeout(1500);
+    // Timer-free: while the pointer is held the driver cannot resume, so this
+    // hold cannot race the idle delay even when each read is slow.
+    await page.waitForTimeout(900);
     const heldPose = await readCamera(page);
     expect(centreDelta(heldPose.center, draggedPose.center)).toBeLessThan(
       0.0005,
     );
     await expect(btn).toContainText("Following");
 
-    // 3. Past the idle delay plus glide, the camera returns to the follow pose.
+    // 3. Release: the idle delay starts from pointerup. Past the delay plus
+    // glide, the camera returns to the follow pose.
+    await page.mouse.up();
     await expect
       .poll(
         async () =>
@@ -495,6 +535,21 @@ test.describe("Follow / Locate chase", () => {
       )
       .toBeLessThan(0.0005);
     await expect(btn).toContainText("Following");
+
+    // The continuous sampler records the release-to-resume gap on-page, so the
+    // idle delay is not sampled through slow round-trips: the camera must not
+    // reach the follow pose before the delay has elapsed.
+    const releaseAt = await page.evaluate(() => window.__dragRelease);
+    expect(releaseAt).not.toBeNull();
+    const samples = await stopCameraSampler(page);
+    const resumed = samples.find(
+      (sample) =>
+        sample.t > releaseAt && centreDelta(sample, restPose.center) < 0.0005,
+    );
+    expect(resumed).toBeTruthy();
+    expect(resumed.t - releaseAt).toBeGreaterThanOrEqual(
+      idleResumeDelayMs - 100,
+    );
 
     // 4. Stop: the final camera is persisted exactly once, through the normal
     // view-persistence path, then stays put.
