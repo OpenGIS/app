@@ -181,3 +181,37 @@ export const dispatchCompass = (page, bearingDeg) =>
     });
     window.dispatchEvent(event);
   }, bearingDeg);
+
+/**
+ * Start a live compass stream: dispatch the bearing immediately and then every
+ * `intervalMs`. Real devices stream orientation continuously; a single event is
+ * insufficient while following because `useLocate` clears the heading after ~8 s
+ * without an event, and any slow actionability wait can exceed that. The
+ * interval handle is stored on the page so {@link stopCompassStream} can clear
+ * it.
+ */
+export const startCompassStream = (page, bearingDeg, intervalMs = 1000) =>
+  page.evaluate(
+    ({ bearing, interval }) => {
+      const dispatch = () => {
+        const event = new DeviceOrientationEvent("deviceorientationabsolute", {
+          alpha: (360 - bearing) % 360,
+          beta: 0,
+          gamma: 0,
+          absolute: true,
+        });
+        window.dispatchEvent(event);
+      };
+      if (window.__compassStream) clearInterval(window.__compassStream);
+      dispatch();
+      window.__compassStream = setInterval(dispatch, interval);
+    },
+    { bearing: bearingDeg, interval: intervalMs },
+  );
+
+/** Stop the live compass stream started by {@link startCompassStream}. */
+export const stopCompassStream = (page) =>
+  page.evaluate(() => {
+    if (window.__compassStream) clearInterval(window.__compassStream);
+    window.__compassStream = null;
+  });

@@ -11,18 +11,13 @@ import {
   deadReckon,
   deriveCourse,
   deriveSpeed,
-  followFitZoom,
   lookAheadMetres,
+  navigationZoomForSpeed,
   offsetFractionForPitch,
   pitchForSpeedKmh,
   zoomPullBackForSpeed,
 } from "@/utils/follow";
-import {
-  fitZoomForDisc,
-  horizonDistanceMetres,
-  horizonFitZoom,
-} from "@/utils/orient";
-import { orientCameraDefaults } from "@/defaults/maplibre";
+import { followCameraDefaults } from "@/defaults/maplibre";
 
 const METRES_PER_DEGREE_LATITUDE = 111_194.93;
 
@@ -67,7 +62,7 @@ describe("zoomPullBackForSpeed", () => {
     expect(zoomPullBackForSpeed(5)).toBe(0);
   });
 
-  it("pulls back one zoom level at 100 km/h and clamps beyond", () => {
+  it("pulls back fully at 100 km/h and clamps beyond", () => {
     expect(zoomPullBackForSpeed(100)).toBe(1);
     expect(zoomPullBackForSpeed(200)).toBe(1);
   });
@@ -407,78 +402,52 @@ describe("deadReckon", () => {
   });
 });
 
-describe("followFitZoom", () => {
-  const widthPx = 1440;
-  const heightPx = 900;
-  const latitude = 45;
+describe("navigationZoomForSpeed", () => {
+  it("rests at the close navigation zoom at walking pace", () => {
+    expect(navigationZoomForSpeed(0)).toBe(followCameraDefaults.restZoom);
+    expect(navigationZoomForSpeed(5)).toBe(followCameraDefaults.restZoom);
+    expect(navigationZoomForSpeed(3)).toBe(followCameraDefaults.restZoom);
+  });
 
-  it("matches the direct horizon-fit calculation", () => {
-    const expected = fitZoomForDisc({
-      widthPx,
-      heightPx,
-      latitude,
-      radiusMetres: horizonDistanceMetres(orientCameraDefaults.eyeHeightMetres),
-      paddingPx: Math.round(
-        Math.min(widthPx, heightPx) * orientCameraDefaults.fitPaddingFraction,
-      ),
-    });
-    expect(followFitZoom({ widthPx, heightPx, latitude })).toBe(expected);
-    expect(followFitZoom({ widthPx, heightPx, latitude })).toBe(
-      horizonFitZoom({ widthPx, heightPx, latitude }),
+  it("pulls back half a level at 100 km/h and clamps beyond", () => {
+    expect(navigationZoomForSpeed(100)).toBeCloseTo(17, 6);
+    expect(navigationZoomForSpeed(200)).toBeCloseTo(17, 6);
+  });
+
+  it("is monotone and bounded between the rest and pulled-back zooms", () => {
+    let previous = Infinity;
+    for (let speed = 0; speed <= 120; speed += 1) {
+      const zoom = navigationZoomForSpeed(speed);
+      expect(zoom).toBeLessThanOrEqual(previous);
+      expect(zoom).toBeLessThanOrEqual(followCameraDefaults.restZoom);
+      expect(zoom).toBeGreaterThanOrEqual(
+        followCameraDefaults.restZoom - followCameraDefaults.zoomPullBack,
+      );
+      previous = zoom;
+    }
+  });
+
+  it("treats a non-finite speed as rest", () => {
+    expect(navigationZoomForSpeed(null)).toBe(followCameraDefaults.restZoom);
+    expect(navigationZoomForSpeed(NaN)).toBe(followCameraDefaults.restZoom);
+    expect(navigationZoomForSpeed(undefined)).toBe(
+      followCameraDefaults.restZoom,
     );
   });
 
-  it("zooms in as the viewport grows", () => {
-    const small = followFitZoom({
-      widthPx: 800,
-      heightPx: 600,
-      latitude,
-    });
-    const large = followFitZoom({
-      widthPx: 1600,
-      heightPx: 1200,
-      latitude,
-    });
-    expect(large).toBeGreaterThan(small);
-  });
-
-  it("respects padding and eye-height options", () => {
-    const plain = followFitZoom(
-      { widthPx, heightPx, latitude },
-      { paddingFraction: 0 },
-    );
-    const padded = followFitZoom(
-      { widthPx, heightPx, latitude },
-      { paddingFraction: 0.16 },
-    );
-    expect(padded).toBeLessThan(plain);
-
-    const eyeLevel = followFitZoom(
-      { widthPx, heightPx, latitude },
-      { eyeHeightMetres: 1.83 },
-    );
-    const tall = followFitZoom(
-      { widthPx, heightPx, latitude },
-      { eyeHeightMetres: 10 },
-    );
-    expect(tall).toBeLessThan(eyeLevel);
-  });
-
-  it("clamps to [0, 22]", () => {
+  it("accepts an explicit baseline and pull-back", () => {
     expect(
-      followFitZoom({
-        widthPx: 1e9,
-        heightPx: 1e9,
-        latitude: 0,
-      }),
-    ).toBe(22);
-
+      navigationZoomForSpeed(100, { restZoom: 18, pullBackLevels: 2 }),
+    ).toBeCloseTo(16, 6);
     expect(
-      followFitZoom(
-        { widthPx, heightPx, latitude: 0 },
-        { eyeHeightMetres: 1e15 },
-      ),
-    ).toBe(0);
+      navigationZoomForSpeed(0, { restZoom: 18, pullBackLevels: 2 }),
+    ).toBeCloseTo(18, 6);
+  });
+
+  it("ignores a negative pull-back", () => {
+    expect(navigationZoomForSpeed(100, { pullBackLevels: -2 })).toBe(
+      followCameraDefaults.restZoom,
+    );
   });
 });
 

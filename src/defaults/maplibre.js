@@ -49,10 +49,27 @@ export const followCameraDefaults = {
   bearingTimeConstantS: 0.3,
   pitchTimeConstantS: 0.4,
   zoomTimeConstantS: 0.4,
+  // Third-person floor: the speed curve may only tilt the camera further, so
+  // following enters a chase view immediately rather than resting on the flat
+  // orientation pose. Clamped to the map's own pitch range.
+  restPitch: 45,
+  // Navigation zoom model: the close chase view rests at `restZoom` and pulls
+  // back by only `zoomPullBack` level as speed rises to 100 km/h, keeping the
+  // driver's immediate surroundings in view. The locate orientation flight
+  // remains a separate, wider fit.
+  restZoom: 17.5,
+  zoomPullBack: 0.5,
+  // Hand-off glide from the wide locate pose into the navigation pose. The
+  // glide is eased over `handoffGlideMs`; each frame moves the zoom by at most
+  // `handoffMaxZoomStep` levels, so a slow renderer cannot jump-cut the ~5.85
+  // level zoom-in. Reduced-motion users snap instead of gliding.
+  handoffGlideMs: 1600,
+  handoffMaxZoomStep: 0.35,
   // Lower-third composition: the map centre is displaced ahead of the user
-  // along the bearing so the user sits below the screen midpoint once tilted.
-  // The offset scales from 0 at pitch 0 to `maxOffsetFraction` at
-  // `offsetRampPitchDeg`, and is clamped to the look-ahead limits below.
+  // along the bearing so the user sits below the screen midpoint in the
+  // third-person view. The offset scales from 0 at pitch 0 to
+  // `maxOffsetFraction` at `offsetRampPitchDeg`, and is clamped to the
+  // look-ahead limits below.
   maxOffsetFraction: 0.2,
   offsetRampPitchDeg: 60,
   lookAheadMinMetres: 0,

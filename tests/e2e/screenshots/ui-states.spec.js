@@ -775,9 +775,10 @@ const withGrantedStorage = (page) =>
  *
  * The locate click triggers the one-shot orientation flight: the camera
  * recentres on this position and settles at the viewport-fitted horizon-disc
- * zoom (~z12 on desktop) with bearing and pitch reset to 0 — so locate-active
- * and locate-following captures record that fitted view, not the z16 capture
- * view. `waitForOrientHash` waits the flight out before either is captured.
+ * zoom (~z12 on desktop) with bearing and pitch reset to 0 — so the
+ * locate-active capture records that fitted view, not the z16 capture view.
+ * Locate-following then glides into the close third-person follow pose.
+ * `waitForOrientHash` waits the flight out before either is captured.
  */
 const grantGeolocation = (page) => {
   const { lat, lng } = DEMO.center;
@@ -1466,6 +1467,10 @@ test.describe("Secondary UI states — desktop landscape", () => {
     await expect(page.locator("#locate-button")).toContainText("Following", {
       timeout: 60000,
     });
+    // The hand-off glides from the wide orientation view into the close
+    // third-person navigation pose; wait for it to settle so the capture is
+    // deterministic.
+    await waitForMapIdle(page, testInfo);
     await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "locate-following");
   });

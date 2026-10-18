@@ -86,7 +86,7 @@ test.describe("Follow / Camera driver", () => {
     lng: DEMO.center.lng,
     bearing: 90,
     pitch: 60,
-    zoom: 15,
+    zoom: 17,
   };
 
   test("drives a tilted lower-third view, withholds persistence while active and persists once on stop", async ({

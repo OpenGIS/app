@@ -53,5 +53,7 @@
   "map": 61748,
   "waymark-logo": 61749,
   "share": 61750,
-  "dice": 61751
+  "dice": 61751,
+  "position-locked": 61752,
+  "position-unlocked": 61753
 }

@@ -3,7 +3,8 @@
 // Everything here is map- and DOM-free so it can be unit-tested in Node. The
 // composable owns all MapLibre interaction; this module only decides numbers.
 
-import { horizonFitZoom, metresPerPixel } from "@/utils/orient";
+import { followCameraDefaults } from "@/defaults/maplibre";
+import { metresPerPixel } from "@/utils/orient";
 import { haversine } from "@/utils/geo";
 
 /** Mean Earth radius in metres (matches utils/geo.js and utils/orient.js). */
@@ -15,7 +16,9 @@ const RADIANS_TO_DEGREES = 180 / Math.PI;
 /**
  * Agreed non-linear pitch curve, as speed/pitch keyframes. Piecewise linear
  * interpolation between these points keeps the curve monotone; the camera
- * damping smooths the corners in practice.
+ * damping smooths the corners in practice. The follow composable floors the
+ * result at `followCameraDefaults.restPitch`, so the chase view never falls
+ * back to this flat 0° rest pose.
  *
  * @type {ReadonlyArray<{ speedKmh: number, pitchDeg: number }>}
  */
@@ -34,7 +37,7 @@ export const ZOOM_PULLBACK_START_KMH = 5;
 /** Speed at which zoom pull-back reaches its maximum, in km/h. */
 export const ZOOM_PULLBACK_END_KMH = 100;
 
-/** Maximum zoom levels pulled back at high speed. */
+/** Normalised pull-back at high speed: the fraction of the configured levels. */
 export const ZOOM_PULLBACK_MAX = 1;
 
 /** Lower-third offset fraction at full tilt. */
@@ -121,12 +124,12 @@ export function pitchForSpeedKmh(speedKmh) {
 }
 
 /**
- * Zoom levels to pull back as speed rises, from 0 at walking pace to
+ * Normalised pull-back as speed rises, from 0 at walking pace to
  * {@link ZOOM_PULLBACK_MAX} at {@link ZOOM_PULLBACK_END_KMH}. A smoothstep
  * shape avoids a hard knee in the zoom curve.
  *
  * @param {number|null} speedKmh - Speed in km/h.
- * @returns {number} Pull-back in zoom levels, in [0, 1].
+ * @returns {number} Pull-back fraction, in [0, 1].
  */
 export function zoomPullBackForSpeed(speedKmh) {
   if (!isFiniteNumber(speedKmh)) return 0;
@@ -139,6 +142,36 @@ export function zoomPullBackForSpeed(speedKmh) {
     speedKmh,
   );
   return ZOOM_PULLBACK_MAX * t;
+}
+
+/**
+ * Navigation zoom for a ground speed.
+ *
+ * The close chase view rests at `restZoom` and pulls back by `zoomPullBack`
+ * levels as speed rises to {@link ZOOM_PULLBACK_END_KMH}, reusing the
+ * smoothstep {@link zoomPullBackForSpeed}. The result is not clamped: the
+ * composable clamps to the map's configured zoom range.
+ *
+ * @param {number|null} speedKmh - Speed in km/h; non-finite → rest zoom.
+ * @param {Object} [options]
+ * @param {number} [options.restZoom] - Rest zoom, at or below walking pace.
+ * @param {number} [options.pullBackLevels] - Zoom levels pulled back at speed.
+ * @returns {number} Navigation zoom level before map clamping.
+ */
+export function navigationZoomForSpeed(
+  speedKmh,
+  {
+    restZoom = followCameraDefaults.restZoom,
+    pullBackLevels = followCameraDefaults.zoomPullBack,
+  } = {},
+) {
+  const rest = isFiniteNumber(restZoom)
+    ? restZoom
+    : followCameraDefaults.restZoom;
+  const pullBack = isFiniteNumber(pullBackLevels)
+    ? Math.max(0, pullBackLevels)
+    : followCameraDefaults.zoomPullBack;
+  return rest - pullBack * zoomPullBackForSpeed(speedKmh);
 }
 
 /**
@@ -405,31 +438,4 @@ export function deadReckon({ lat, lng } = {}, bearingDeg, distanceMetres) {
     lat: lat2 * RADIANS_TO_DEGREES,
     lng: normaliseLongitude(lng2 * RADIANS_TO_DEGREES),
   };
-}
-
-/**
- * Locate's horizon-fit baseline, reused by the follow camera so its rest pose
- * and the orientation flight cannot drift apart.
- *
- * @param {Object} params
- * @param {number} params.widthPx - Viewport width in pixels.
- * @param {number} params.heightPx - Viewport height in pixels.
- * @param {number} params.latitude - Latitude in degrees.
- * @param {Object} [options]
- * @param {number} [options.eyeHeightMetres] - Observer eye height in metres.
- * @param {number} [options.paddingFraction] - Padding per side, as a fraction
- *   of the smaller viewport axis.
- * @returns {number} Fitted zoom, clamped to [0, 22].
- */
-export function followFitZoom(
-  { widthPx, heightPx, latitude } = {},
-  { eyeHeightMetres, paddingFraction } = {},
-) {
-  return horizonFitZoom({
-    widthPx,
-    heightPx,
-    latitude,
-    eyeHeightMetres,
-    paddingFraction,
-  });
 }
