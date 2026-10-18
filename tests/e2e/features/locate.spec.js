@@ -163,7 +163,7 @@ test.describe("Locate / Confirmation modal", () => {
     page,
   }) => {
     await page.locator("#locate-button").click();
-    await expect(page.getByText("Permission Required")).toBeVisible();
+    await expect(page.getByText("Trust")).toBeVisible();
   });
 
   test("confirmation modal body explains the permission request", async ({
@@ -171,7 +171,9 @@ test.describe("Locate / Confirmation modal", () => {
   }) => {
     await page.locator("#locate-button").click();
     await expect(
-      page.getByText(/To display your current location and compass heading/),
+      page.getByText(
+        /Permission is required to access your current location and compass heading/,
+      ),
     ).toBeVisible();
   });
 
@@ -180,16 +182,16 @@ test.describe("Locate / Confirmation modal", () => {
   }) => {
     await page.locator("#locate-button").click();
     await page.getByText("Cancel").click();
-    await expect(page.getByText("Permission Required")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden();
     await expect(page.locator("#locate-button")).toContainText("Locate");
   });
 
   test("confirming the modal starts location tracking", async ({ page }) => {
     await grantGeolocation(page);
     await page.locator("#locate-button").click();
-    await expect(page.getByText("Permission Required")).toBeVisible();
+    await expect(page.getByText("Trust")).toBeVisible();
     await page.getByRole("button", { name: "I Understand" }).click();
-    await expect(page.getByText("Permission Required")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden();
     await expect(page.locator("#locate-button")).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -206,7 +208,7 @@ test.describe("Locate / Confirmation modal", () => {
     await waitForMapReady(page);
 
     await page.locator("#locate-button").click();
-    await expect(page.getByText("Permission Required")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden();
   });
 
   test("hovering the modal close control does not change its opacity", async ({
@@ -248,16 +250,16 @@ test.describe("Locate / Recordings integration", () => {
     page,
   }) => {
     await page.locator("#recordings-start-button").click();
-    await expect(page.getByText("Permission Required")).toBeVisible();
+    await expect(page.getByText("Trust")).toBeVisible();
   });
 
   test("cancelling the confirmation from Recordings leaves the recording stopped", async ({
     page,
   }) => {
     await page.locator("#recordings-start-button").click();
-    await expect(page.getByText("Permission Required")).toBeVisible();
+    await expect(page.getByText("Trust")).toBeVisible();
     await page.getByText("Cancel").click();
-    await expect(page.getByText("Permission Required")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden();
     // Still idle: the start control remains and no status badge is shown.
     await expect(page.locator("#recordings-start-button")).toBeVisible();
     await expect(page.locator(".ogis-menu-badge")).toBeHidden();
@@ -493,7 +495,7 @@ test.describe("Locate / Error state", () => {
     await expect(page.locator("#locate-button")).toContainText("Error", {
       timeout: LOCATE_TIMEOUT,
     });
-    await expect(page.getByText("Location Permission Denied")).toBeVisible({
+    await expect(page.getByText("Unable to Locate")).toBeVisible({
       timeout: LOCATE_TIMEOUT,
     });
   });
@@ -505,7 +507,7 @@ test.describe("Locate / Error state", () => {
 
     await page.locator("#locate-button").click();
 
-    await expect(page.getByText("Location Permission Denied")).toBeVisible({
+    await expect(page.getByText("Unable to Locate")).toBeVisible({
       timeout: LOCATE_TIMEOUT,
     });
 
@@ -521,12 +523,12 @@ test.describe("Locate / Error state", () => {
 
     await page.locator("#locate-button").click();
 
-    await expect(page.getByText("Location Permission Denied")).toBeVisible({
+    await expect(page.getByText("Unable to Locate")).toBeVisible({
       timeout: LOCATE_TIMEOUT,
     });
 
     await page.locator("#locate-error-close").click();
-    await expect(page.getByText("Location Permission Denied")).toBeHidden();
+    await expect(page.getByText("Unable to Locate")).toBeHidden();
     await expect(page.locator("#locate-button")).toContainText("Error");
   });
 
@@ -544,10 +546,10 @@ test.describe("Locate / Error state", () => {
     });
 
     await page.locator("#locate-error-close").click();
-    await expect(page.getByText("Location Permission Denied")).toBeHidden();
+    await expect(page.getByText("Unable to Locate")).toBeHidden();
 
     await page.locator("#locate-button").click();
-    await expect(page.getByText("Location Permission Denied")).toBeVisible();
+    await expect(page.getByText("Unable to Locate")).toBeVisible();
   });
 });
 
@@ -704,7 +706,7 @@ test.describe("Locate / Error modal retry", () => {
     await page.locator("#locate-error-retry").click();
 
     // Modal should close
-    await expect(page.getByText("Location Permission Denied")).toBeHidden();
+    await expect(page.getByText("Unable to Locate")).toBeHidden();
 
     // Locate button should exit error state
     await expect(page.locator("#locate-button")).not.toContainText("Error", {
@@ -736,11 +738,9 @@ test.describe("Locate / French locale", () => {
       '.ogis-modal[aria-labelledby="locate-confirm-title"]',
     );
 
-    await expect(page.locator("#locate-confirm-title")).toHaveText(
-      "Autorisation requise",
-    );
+    await expect(page.locator("#locate-confirm-title")).toHaveText("Confiance");
     await expect(modal.locator(".modal-body")).toContainText(
-      "Pour afficher votre position actuelle et le cap de la boussole, cette application a besoin de votre autorisation. Lorsque vous y êtes invité, veuillez autoriser l'accès à la localisation et à la boussole.",
+      "Une autorisation est nécessaire pour accéder à votre position actuelle et au cap de la boussole. Votre position est utilisée uniquement sur cet appareil. Lorsque vous y êtes invité, veuillez autoriser les deux.",
     );
     await expect(modal.getByRole("button", { name: "Annuler" })).toHaveText(
       "Annuler",
@@ -769,11 +769,11 @@ test.describe("Locate / French locale", () => {
     );
 
     await expect(page.locator("#locate-error-title")).toHaveText(
-      "Autorisation de localisation refusée",
+      "Localisation impossible",
       { timeout: LOCATE_TIMEOUT },
     );
     await expect(modal.locator(".modal-body")).toContainText(
-      "Impossible d'obtenir votre localisation, peut-être en raison d'un refus d'autorisation préalable. Pour le réactiver, essayez :",
+      "L'application n'a pas pu obtenir votre localisation, peut-être en raison d'un refus d'autorisation préalable. Pour la réactiver, essayez :",
     );
     await expect(page.locator("#locate-error-retry")).toHaveText("Réessayer");
     await expect(page.locator("#locate-error-close")).toHaveText("Fermer");

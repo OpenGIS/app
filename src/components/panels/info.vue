@@ -174,25 +174,12 @@ const onRandom = (e) => {
           <h6 class="mb-2 text-muted small text-uppercase fw-semibold">
             {{ t("panel.privacy.onDevice") }}
           </h6>
-          <p class="mb-2 small">{{ t("panel.privacy.onDeviceBody") }}</p>
-          <ul class="mb-3 small ps-3">
-            <li>{{ t("panel.privacy.mapView") }}</li>
-          </ul>
+          <p class="mb-3 small">{{ t("panel.privacy.onDeviceBody") }}</p>
 
           <h6 class="mb-2 text-muted small text-uppercase fw-semibold">
             {{ t("panel.privacy.thirdParty") }}
           </h6>
-          <p class="mb-3 small">{{ t("panel.privacy.thirdPartyBody") }}</p>
-
-          <h6 class="mb-2 text-muted small text-uppercase fw-semibold">
-            {{ t("panel.privacy.location") }}
-          </h6>
-          <p class="mb-3 small">{{ t("panel.privacy.locationBody") }}</p>
-
-          <h6 class="mb-2 text-muted small text-uppercase fw-semibold">
-            {{ t("panel.privacy.noTracking") }}
-          </h6>
-          <p class="mb-0 small">{{ t("panel.privacy.noTrackingBody") }}</p>
+          <p class="mb-0 small">{{ t("panel.privacy.thirdPartyBody") }}</p>
         </div>
       </details>
     </div>

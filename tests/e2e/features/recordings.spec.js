@@ -97,7 +97,7 @@ test.describe("Recordings / Permission modal", () => {
   }) => {
     await openMenuTab(page, "Recordings");
     await page.locator("#recordings-start-button").click();
-    await expect(page.getByText("Permission Required")).toBeVisible();
+    await expect(page.getByText("Trust")).toBeVisible();
   });
 
   test("cancelling the permission modal does not start recording", async ({
@@ -105,9 +105,9 @@ test.describe("Recordings / Permission modal", () => {
   }) => {
     await openMenuTab(page, "Recordings");
     await page.locator("#recordings-start-button").click();
-    await expect(page.getByText("Permission Required")).toBeVisible();
+    await expect(page.getByText("Trust")).toBeVisible();
     await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByText("Permission Required")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden();
     await expect(page.locator("#recordings-start-button")).toBeVisible();
     await expect(page.locator(".ogis-menu-badge")).toBeHidden();
   });
@@ -116,9 +116,9 @@ test.describe("Recordings / Permission modal", () => {
     await grantGeolocation(page);
     await openMenuTab(page, "Recordings");
     await page.locator("#recordings-start-button").click();
-    await expect(page.getByText("Permission Required")).toBeVisible();
+    await expect(page.getByText("Trust")).toBeVisible();
     await page.getByRole("button", { name: "I Understand" }).click();
-    await expect(page.getByText("Permission Required")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden();
     await expect(page.getByText("Current Recording")).toBeVisible({
       timeout: 5000,
     });
@@ -137,7 +137,7 @@ test.describe("Recordings / Permission modal", () => {
     await waitForMapReady(page);
     await openMenuTab(page, "Recordings");
     await page.locator("#recordings-start-button").click();
-    await expect(page.getByText("Permission Required")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden();
   });
 });
 

@@ -202,10 +202,10 @@ test.describe("Info panel", () => {
     await expect(aboutLogo).toHaveAttribute("src", /\/icon-192\.png$/);
 
     const privacy = panel.locator(".ogis-privacy-section");
-    await expect(privacy).toContainText("local storage");
-    await expect(privacy).toContainText("OpenFreeMap");
-    await expect(privacy).toContainText("Locate");
-    await expect(privacy).toContainText("no analytics");
+    await expect(privacy).toContainText("All data in this app");
+    await expect(privacy).toContainText("location information");
+    await expect(privacy).toContainText("Third-party data sources");
+    await expect(privacy).toContainText("public data sources");
 
     await expect(panel.locator(".ogis-attribution-section")).toContainText(
       /OpenStreetMap/,
