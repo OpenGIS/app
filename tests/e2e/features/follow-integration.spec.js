@@ -128,15 +128,70 @@ const navigationZoom = (page, speedKmh) =>
     return navigationZoomForSpeed(speed);
   }, speedKmh);
 
-/** Begin recording the live camera pose every animation frame. */
+/**
+ * The camera centre the follow driver settles on for a fix: the fix
+ * dead-reckoned forward along the bearing by the speed drift (capped at the
+ * driver's 3 s window), then displaced by the composition look-ahead, which
+ * seats the user in the lower third of the tilted view instead of at the exact
+ * centre. Mirrors `resolveTarget` and the goal composition in
+ * `useFollowCamera` through the production helpers, so the expectation follows
+ * the tuning constants rather than restating them.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ lat: number, lng: number }} fix
+ * @param {{ bearing: number, speedKmh?: number }} motion - Settled bearing and
+ *   ground speed the driver resolved for the fix.
+ * @returns {Promise<{ lat: number, lng: number }>} Settled centre.
+ */
+const followGoal = (page, fix, { bearing, speedKmh = 0 }) =>
+  page.evaluate(
+    async ({ lat, lng, bearing, speedKmh }) => {
+      const {
+        deadReckon,
+        lookAheadMetres,
+        navigationZoomForSpeed,
+        pitchForSpeedKmh,
+      } = await import("/src/utils/follow.js");
+      const { followCameraDefaults } =
+        await import("/src/defaults/maplibre.js");
+      const { getMapInstance } = await import("/src/composables/useMap.js");
+      const map = getMapInstance("app");
+      const heightPx = map.getCanvas().clientHeight;
+      const pitch = Math.max(
+        pitchForSpeedKmh(speedKmh),
+        followCameraDefaults.restPitch,
+      );
+      const zoom = navigationZoomForSpeed(speedKmh);
+      const lookAhead = lookAheadMetres({
+        pitchDeg: pitch,
+        zoom,
+        latitude: lat,
+        viewportHeightPx: heightPx,
+        maxOffsetFraction: followCameraDefaults.maxOffsetFraction,
+        offsetRampPitchDeg: followCameraDefaults.offsetRampPitchDeg,
+      });
+      // A moving fix is dead-reckoned at most 3 s ahead, so its goal
+      // saturates at this drift.
+      const driftMetres = (speedKmh / 3.6) * 3;
+      const drifted = deadReckon({ lat, lng }, bearing, driftMetres);
+      return deadReckon(drifted, bearing, lookAhead);
+    },
+    { lat: fix.lat, lng: fix.lng, bearing, speedKmh },
+  );
+
+/**
+ * Begin recording the live camera pose every animation frame. Each sample
+ * carries its rAF timestamp so motion can be judged as a rate over real time.
+ */
 const startCameraSampler = (page) =>
   page.evaluate(async () => {
     const { getMapInstance } = await import("/src/composables/useMap.js");
     const map = getMapInstance("app");
     window.__camSamples = [];
-    const tick = () => {
+    const tick = (now) => {
       const c = map.getCenter();
       window.__camSamples.push({
+        t: now,
         bearing: map.getBearing(),
         pitch: map.getPitch(),
         zoom: map.getZoom(),
@@ -254,12 +309,11 @@ test.describe("Follow / Locate chase", () => {
     // 4. Fast (100 km/h, course turned south): pitch 60°, the bearing turns to
     // the course over ground, and the zoom pulls back to the navigation
     // high-speed baseline.
-    await emitFix(page, {
+    const fastFix = {
       lat: LOCATE_FIX.latitude - 0.002,
       lng: LOCATE_FIX.longitude,
-      speed: 100 / 3.6,
-      heading: 180,
-    });
+    };
+    await emitFix(page, { ...fastFix, speed: 100 / 3.6, heading: 180 });
     await expect
       .poll(async () => Math.abs((await readCamera(page)).pitch - 60), {
         timeout: CAMERA_TIMEOUT,
@@ -276,19 +330,42 @@ test.describe("Follow / Locate chase", () => {
       })
       .toBeLessThan(0.2);
 
-    // 5. Bound the per-frame camera delta across the whole hand-off and chase:
-    // damped motion never produces a jump cut.
+    // The centre converges on the fast fix's designed follow goal: the fix
+    // dead-reckoned south by the capped speed drift, then displaced by the
+    // composition look-ahead of the 60° tilted view.
+    const fastGoal = await followGoal(page, fastFix, {
+      bearing: 180,
+      speedKmh: 100,
+    });
+    await expect
+      .poll(
+        async () => centreDelta((await readCamera(page)).center, fastGoal),
+        { timeout: CAMERA_TIMEOUT },
+      )
+      .toBeLessThan(0.0002);
+
+    // 5. The camera glides without teleporting: the invariant is the rate of
+    // change, not a per-frame delta. The driver damps on real elapsed time, so
+    // after a slow frame it deliberately closes the whole remaining gap in one
+    // step — a large per-frame delta is expected, but it spans a
+    // correspondingly long frame, keeping the designed rate: the damped
+    // bearing (τ 0.3 s over at most a 90° chase per leg) and the eased
+    // hand-off glide both peak below ~300°/s, whereas a jumpTo-style
+    // discontinuity would move the bearing by thousands of degrees per second.
     const samples = await stopCameraSampler(page);
     expect(samples.length).toBeGreaterThan(10);
 
-    let maxBearingDelta = 0;
+    let maxBearingRate = 0;
     let maxPitchDelta = 0;
     let maxZoomDelta = 0;
     for (let i = 1; i < samples.length; i++) {
-      maxBearingDelta = Math.max(
-        maxBearingDelta,
-        angleDelta(samples[i].bearing, samples[i - 1].bearing),
-      );
+      const dtSeconds = (samples[i].t - samples[i - 1].t) / 1000;
+      if (dtSeconds > 0) {
+        maxBearingRate = Math.max(
+          maxBearingRate,
+          angleDelta(samples[i].bearing, samples[i - 1].bearing) / dtSeconds,
+        );
+      }
       maxPitchDelta = Math.max(
         maxPitchDelta,
         Math.abs(samples[i].pitch - samples[i - 1].pitch),
@@ -298,7 +375,7 @@ test.describe("Follow / Locate chase", () => {
         Math.abs(samples[i].zoom - samples[i - 1].zoom),
       );
     }
-    expect(maxBearingDelta).toBeLessThan(45);
+    expect(maxBearingRate).toBeLessThan(400);
     expect(maxPitchDelta).toBeLessThan(45);
     expect(maxZoomDelta).toBeLessThan(0.6);
 
@@ -500,7 +577,10 @@ test.describe("Follow / Locate chase", () => {
 
     // 2. Put the driver under load: a fast fix stream tilts and pulls the
     // camera back while it chases, so the drag below starts mid-motion.
-    await startMovingFixes(page, LOCATE_FIX);
+    await startMovingFixes(page, {
+      lat: LOCATE_FIX.latitude,
+      lng: LOCATE_FIX.longitude,
+    });
     await expect
       .poll(async () => (await readCamera(page)).pitch, {
         timeout: CAMERA_TIMEOUT,
@@ -542,15 +622,20 @@ test.describe("Follow / Locate chase", () => {
     await emitFix(page, { ...finalFix, speed: 0 });
     await expect(btn).toContainText("Following");
 
-    // 5. Past the idle delay plus glide, the camera returns to the follow pose.
+    // 5. Past the idle delay plus glide, the camera returns to the designed
+    // follow pose for the final fix (0 km/h, so no drift): the fix displaced
+    // along the bearing by the composition look-ahead, which seats the user in
+    // the lower third of the tilted view — the centre does not rest on the
+    // raw fix, and this assertion fails if the camera strays from the pose.
+    const finalGoal = await followGoal(page, finalFix, { bearing: 90 });
     await expect
       .poll(
-        async () => centreDelta((await readCamera(page)).center, finalFix),
+        async () => centreDelta((await readCamera(page)).center, finalGoal),
         {
           timeout: CAMERA_TIMEOUT,
         },
       )
-      .toBeLessThan(0.0005);
+      .toBeLessThan(0.0002);
     await expect(btn).toContainText("Following");
 
     await stopCompassStream(page);
