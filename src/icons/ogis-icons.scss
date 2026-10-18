@@ -2,8 +2,8 @@ $ogis-icons-font: "ogis-icons";
 
 @font-face {
     font-family: $ogis-icons-font;
-    src: url("./ogis-icons.woff2?35596a4c72b86e841754f208d2755397") format("woff2"),
-url("./ogis-icons.woff?35596a4c72b86e841754f208d2755397") format("woff");
+    src: url("./ogis-icons.woff2?be717dea45f173534927dae6a16a8dcb") format("woff2"),
+url("./ogis-icons.woff?be717dea45f173534927dae6a16a8dcb") format("woff");
 }
 
 i[class^="oi-"]:before, i[class*=" oi-"]:before {
@@ -73,6 +73,8 @@ $ogis-icons-map: (
     "waymark-logo": "\f135",
     "share": "\f136",
     "dice": "\f137",
+    "position-locked": "\f138",
+    "position-unlocked": "\f139",
 );
 
 .oi-x:before {
@@ -239,4 +241,10 @@ $ogis-icons-map: (
 }
 .oi-dice:before {
     content: map-get($ogis-icons-map, "dice");
+}
+.oi-position-locked:before {
+    content: map-get($ogis-icons-map, "position-locked");
+}
+.oi-position-unlocked:before {
+    content: map-get($ogis-icons-map, "position-unlocked");
 }

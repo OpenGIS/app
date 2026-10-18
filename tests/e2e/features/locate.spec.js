@@ -48,6 +48,27 @@ const grantGeolocation = (page, coords = FIX) =>
     .grantPermissions(["geolocation"])
     .then(() => page.context().setGeolocation(coords));
 
+// The chip glyph is an inline SVG <use> pointing at the sprite symbol. Read the
+// resolved reference, which normalises `href` and `xlink:href`, so the
+// assertion tracks the rendered icon rather than the binding's attribute form.
+// Poll so it tolerates the render tick that follows a mode change.
+const expectLocateButtonIcon = async (page, name) => {
+  const use = page.locator("#locate-button svg use");
+  await expect(use).toHaveCount(1);
+  await expect
+    .poll(
+      () =>
+        use.evaluate(
+          (el) =>
+            el.href?.baseVal ??
+            el.getAttribute("href") ??
+            el.getAttribute("xlink:href"),
+        ),
+      { timeout: LOCATE_TIMEOUT },
+    )
+    .toBe(`#${name}`);
+};
+
 // ─── Locate / Button ──────────────────────────────────────────────────────────
 
 test.describe("Locate / Button", () => {
@@ -65,6 +86,7 @@ test.describe("Locate / Button", () => {
 
   test("locate button shows Locate label when inactive", async ({ page }) => {
     await expect(page.locator("#locate-button")).toContainText("Locate");
+    await expectLocateButtonIcon(page, "position");
   });
 
   test("locate button is not in pressed state when inactive", async ({
@@ -281,6 +303,7 @@ test.describe("Locate / Active and Following states", () => {
     await expect(page.locator("#locate-button")).toContainText("Located", {
       timeout: LOCATE_TIMEOUT,
     });
+    await expectLocateButtonIcon(page, "position-unlocked");
   });
 
   test("button advances to Following on second click", async ({ page }) => {
@@ -293,6 +316,7 @@ test.describe("Locate / Active and Following states", () => {
     await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
     await btn.click();
     await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    await expectLocateButtonIcon(page, "position-locked");
   });
 
   test("button returns to Locate on third click", async ({ page }) => {
@@ -311,6 +335,7 @@ test.describe("Locate / Active and Following states", () => {
 
     await btn.click();
     await expect(btn).toContainText("Locate", { timeout: LOCATE_TIMEOUT });
+    await expectLocateButtonIcon(page, "position");
   });
 
   test("position marker appears on the map when active", async ({ page }) => {

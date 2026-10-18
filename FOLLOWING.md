@@ -30,7 +30,7 @@ A briefing on the **locate-following** behaviour: the map camera that tracks the
 - `mode` is `null | 'active' | 'following' | 'error'` (`useLocate.js`), and the chip maps it to labels and visuals ([`locate.vue`](src/components/ui/controls/locate.vue)):
   - **Locate** (`null`) — inactive, default colour.
   - **Located** (`active`) — tracking, not following. Primary colour, `aria-pressed="true"`. The mode flips on activation, so the label reads "Located" **before any fix arrives**.
-  - **Following** (`following`) — primary colour, `position-lock` icon.
+  - **Following** (`following`) — primary colour, `position-locked` icon.
   - **Error** (`error`) — danger colour, not pressed.
 - Labels resolve through `locate.button.*` keys in [`src/locales/en.json`](src/locales/en.json) / `fr.json`.
 - The chip uses `IconButton`'s chip variant and carries the fitted-label levers (`iconSize`, `labelTarget`); its colour reflects follow mode alone — there is deliberately no `:hover` colour change (pinned by E2E on pointer and touch).

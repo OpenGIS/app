@@ -9,7 +9,8 @@ const { mode, cycle } = useLocate();
 const { t } = useLocale();
 
 const iconName = computed(() => {
-  if (mode.value === "following") return "position-lock";
+  if (mode.value === "following") return "position-locked";
+  if (mode.value === "active") return "position-unlocked";
   return "position";
 });
 

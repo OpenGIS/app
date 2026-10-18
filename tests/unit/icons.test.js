@@ -29,7 +29,9 @@ const symbolIds = [...sprite.matchAll(/<symbol[^>]*\bid="([^"]+)"/g)].map(
  * Every icon id the running app references. Tied to app usage, not the whole
  * sprite, so an accidental deletion of a used symbol fails here:
  *  - position / position-heading — map-marker HTML in useLocate.js
- *  - position-lock — following-mode control in components/ui/controls/locate.vue
+ *  - position-locked / position-unlocked — located and following states of the
+ *    locate control in components/ui/controls/locate.vue (position remains its
+ *    inactive-state icon)
  *  - layout-sidebar-inset — panel toggle in components/ui/controls.vue
  *  - info-circle — attribution chip in components/ui/controls/attribution.vue
  *  - check / pencil / share / dice — Info panel actions in
@@ -41,7 +43,8 @@ const symbolIds = [...sprite.matchAll(/<symbol[^>]*\bid="([^"]+)"/g)].map(
 const REQUIRED_ICON_IDS = [
   "position",
   "position-heading",
-  "position-lock",
+  "position-locked",
+  "position-unlocked",
   "layout-sidebar-inset",
   "info-circle",
   "check",
@@ -64,9 +67,9 @@ describe("vendored icon sprite", () => {
     );
   });
 
-  it("defines 54 symbols with unique ids", () => {
-    expect(symbolIds).toHaveLength(54);
-    expect(new Set(symbolIds).size).toBe(54);
+  it("defines 56 symbols with unique ids", () => {
+    expect(symbolIds).toHaveLength(56);
+    expect(new Set(symbolIds).size).toBe(56);
   });
 });
 
@@ -86,8 +89,8 @@ describe("generated icon output consistency", () => {
     expect(orphans).toEqual(["logo"]);
   });
 
-  it("has 55 generated codepoint entries", () => {
-    expect(Object.keys(generatedCodepoints)).toHaveLength(55);
+  it("has 57 generated codepoint entries", () => {
+    expect(Object.keys(generatedCodepoints)).toHaveLength(57);
   });
 
   it("matches the source codepoints file exactly", () => {
