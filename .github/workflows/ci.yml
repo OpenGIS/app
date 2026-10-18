@@ -130,7 +130,10 @@ jobs:
 
   deploy:
     needs: release
-    if: needs.release.outputs.released == 'true'
+    # Same skipped-transitive guard as `release`: without a status function the
+    # implicit `success()` would skip deploy whenever e2e is skipped via
+    # `[skip e2e]`; the explicit checks preserve the gate.
+    if: ${{ always() && !cancelled() && needs.release.result == 'success' && needs.release.outputs.released == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -172,7 +175,10 @@ jobs:
   # the job simply commits whatever the run produced.
   heroes:
     needs: release
-    if: needs.release.outputs.released == 'true'
+    # Same skipped-transitive guard as `release`: without a status function the
+    # implicit `success()` would skip the heroes refresh whenever e2e is skipped
+    # via `[skip e2e]`; the explicit checks preserve the gate.
+    if: ${{ always() && !cancelled() && needs.release.result == 'success' && needs.release.outputs.released == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
