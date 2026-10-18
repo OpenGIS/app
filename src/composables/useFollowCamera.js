@@ -11,10 +11,9 @@ import {
   dampAngle,
   dampingFactor,
   deadReckon,
-  followFitZoom,
   lookAheadMetres,
+  navigationZoomForSpeed,
   pitchForSpeedKmh,
-  zoomPullBackForSpeed,
 } from "@/utils/follow";
 import { emitter } from "@/emitter.js";
 
@@ -66,6 +65,28 @@ const USER_GESTURE_EVENTS = Object.freeze([
   "moveend",
 ]);
 
+/**
+ * Keys that drive the camera: arrows pan (with Shift they rotate/pitch),
+ * plus/minus zoom, and page/home/end zoom as well. Modifier chords are
+ * excluded because they are browser shortcuts, not map gestures.
+ */
+const CAMERA_KEYS = Object.freeze(
+  new Set([
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowUp",
+    "ArrowDown",
+    "+",
+    "=",
+    "-",
+    "_",
+    "PageUp",
+    "PageDown",
+    "Home",
+    "End",
+  ]),
+);
+
 /** Clamp a value to [0, 1]. */
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 
@@ -86,7 +107,10 @@ const exceedsEpsilon = (pose, applied) =>
  * It damps centre, bearing, pitch and zoom towards a target derived from speed
  * and heading, dead-reckoning the fix forward between ~1 Hz updates and
  * displacing the centre ahead of the target so the user sits in the lower third
- * once tilted. Gesture suspension and an idle timer are later slices.
+ * of the third-person view. A user gesture suspends the driver — leaving the
+ * camera where it was put — and it glides back to the follow pose after an idle
+ * delay (snapping under reduced motion). Starting it from the wider locate
+ * orientation view glides into the close navigation pose rather than jumping.
  *
  * State is cached per app instance and shared across all callers. While active
  * it suppresses controller-driven view persistence (see `useMap`), then
@@ -117,10 +141,15 @@ export const useFollowCamera = (explicitInstanceId) => {
       mapRemoveHandler: null, // MapLibre 'remove' cleanup
       appDestroyHandler: null, // app-level 'destroy' cleanup
       gestureHandler: null, // user-gesture suspension listener
-      resizeHandler: null, // follow-fit recompute listener
+      resizeHandler: null, // look-ahead recompute listener
+      domListeners: [], // capture-phase pre-suspension listeners
+      pointerDown: false, // true between a canvas pointerdown and pointerup
+      pointerId: null, // the pointer that opened the current hold
+      pointerMoved: false, // a user-originated camera move since pointerdown
       suspended: false, // true while the user owns the camera
       idleTimerId: null, // idle-resume timeout handle
-      resume: null, // active resume glide { from, startedAt, finished }
+      resume: null, // active glide { from, startedAt, finished, progress, kind, durationMs }
+      handoffPending: false, // start() has not yet glided into the follow pose
     });
   }
 
@@ -136,7 +165,19 @@ export const useFollowCamera = (explicitInstanceId) => {
     c.idleTimerId = null;
   };
 
+  /** Remove the capture-phase DOM pre-suspension listeners. */
+  const removeDomListeners = () => {
+    for (const { target, type, handler, options } of c.domListeners) {
+      target.removeEventListener(type, handler, options);
+    }
+    c.domListeners = [];
+    c.pointerDown = false;
+    c.pointerId = null;
+    c.pointerMoved = false;
+  };
+
   const disarmCleanup = () => {
+    removeDomListeners();
     if (c.gestureHandler) {
       for (const type of USER_GESTURE_EVENTS) {
         c.map?.off?.(type, c.gestureHandler);
@@ -185,6 +226,7 @@ export const useFollowCamera = (explicitInstanceId) => {
     c.raw = null;
     c.suspended = false;
     c.resume = null;
+    c.handoffPending = false;
     c.isActive.value = false;
     setMapViewSuppressed(instanceId, false);
   };
@@ -206,14 +248,26 @@ export const useFollowCamera = (explicitInstanceId) => {
     return result;
   };
 
+  /** Clamp a pitch to the map's configured range, when it exposes one. */
+  const clampPitch = (pitch, map) => {
+    if (!Number.isFinite(pitch)) return pitch;
+    let result = pitch;
+    const minPitch = map?.getMinPitch?.();
+    const maxPitch = map?.getMaxPitch?.();
+    if (Number.isFinite(minPitch)) result = Math.max(minPitch, result);
+    if (Number.isFinite(maxPitch)) result = Math.min(maxPitch, result);
+    return result;
+  };
+
   /**
    * Resolve raw follow inputs into a full camera target.
    *
-   * Explicit `bearing`/`pitch`/`zoom` overrides win (the low-level test path).
-   * Otherwise the pose is derived from speed and heading: speed-driven pitch, a
-   * viewport-fitted horizon zoom pulled back by speed (clamped to the map's
-   * range), a compass/course bearing blend, and the composition look-ahead. A
-   * missing canvas holds the previous zoom; an undecidable bearing holds the
+   * Explicit `bearing`/`pitch`/`zoom` overrides win (the low-level test path),
+   * so an explicit pitch is never floored or clamped. Otherwise the pose is
+   * derived from speed and heading: a speed-driven pitch floored at the
+   * third-person rest pitch, a speed-driven navigation zoom pulled back from a
+   * close rest baseline (clamped to the map's range), a compass/course bearing
+   * blend, and the composition look-ahead. An undecidable bearing holds the
    * previous target (then the camera) bearing.
    */
   const resolveTarget = (raw) => {
@@ -221,7 +275,6 @@ export const useFollowCamera = (explicitInstanceId) => {
     const previous = c.target;
     const pose = c.pose ?? {};
     const canvas = map?.getCanvas?.();
-    const widthPx = canvas?.clientWidth;
     const heightPx = canvas?.clientHeight;
 
     let bearing;
@@ -238,21 +291,19 @@ export const useFollowCamera = (explicitInstanceId) => {
 
     const pitch = Number.isFinite(raw.pitch)
       ? raw.pitch
-      : pitchForSpeedKmh(raw.speedKmh);
+      : clampPitch(
+          Math.max(
+            pitchForSpeedKmh(raw.speedKmh),
+            followCameraDefaults.restPitch,
+          ),
+          map,
+        );
 
     let zoom;
     if (Number.isFinite(raw.zoom)) {
       zoom = raw.zoom;
-    } else if (
-      Number.isFinite(widthPx) &&
-      Number.isFinite(heightPx) &&
-      widthPx > 0 &&
-      heightPx > 0
-    ) {
-      const fitZoom = followFitZoom({ widthPx, heightPx, latitude: raw.lat });
-      zoom = clampZoom(fitZoom - zoomPullBackForSpeed(raw.speedKmh), map);
     } else {
-      zoom = previous?.zoom ?? pose.zoom ?? 0;
+      zoom = clampZoom(navigationZoomForSpeed(raw.speedKmh), map);
     }
 
     const lookAhead = Number.isFinite(raw.lookAheadMetres)
@@ -281,18 +332,28 @@ export const useFollowCamera = (explicitInstanceId) => {
   // ─── Interaction suspension and idle resume ────────────────────────────────
 
   /**
-   * Suspend the driver: leave the camera exactly where the user put it, keep
-   * following active, and (re)start the idle timer. Repeated camera-changing
-   * interactions simply reset the timer; a bare tap that moves nothing never
-   * reaches this because it fires no movement event.
+   * Suspend the driver: cancel the frame loop and leave the camera exactly
+   * where the user put it, while keeping following active. Does not arm the
+   * idle timer, so a pointer hold can suspend for as long as it lasts.
    */
-  const suspend = () => {
+  const suspendLoop = () => {
     if (!c.isActive.value) return;
     if (!c.suspended) {
       c.suspended = true;
       c.resume = null;
+      c.handoffPending = false;
       cancelLoop();
     }
+  };
+
+  /**
+   * Suspend and arm the idle resume. Use this for self-contained gestures
+   * (wheel, keys, double click) and for user movement events; a pointer hold
+   * uses {@link suspendLoop} alone so the timer cannot fire mid-gesture.
+   */
+  const suspend = () => {
+    if (!c.isActive.value) return;
+    suspendLoop();
     resetIdleTimer();
   };
 
@@ -307,7 +368,7 @@ export const useFollowCamera = (explicitInstanceId) => {
 
   /**
    * Idle delay elapsed: hand the camera back to the driver. A timed glide
-   * blends from the frozen pose to the live follow pose over
+   * blends from wherever the user left the camera to the live follow pose over
    * `resumeGlideMs`; under reduced motion there is no glide and the next frame
    * snaps straight to the pose.
    */
@@ -315,25 +376,151 @@ export const useFollowCamera = (explicitInstanceId) => {
     c.idleTimerId = null;
     if (!c.isActive.value || !c.suspended) return;
 
+    // Re-capture the camera the user left, so the glide (and the damping state)
+    // starts from the real pose rather than the pre-suspension controller pose.
+    const map = c.map ?? getMapInstance(instanceId);
+    if (map) {
+      const centre = map.getCenter();
+      c.pose = {
+        lng: centre.lng,
+        lat: centre.lat,
+        bearing: map.getBearing(),
+        pitch: map.getPitch(),
+        zoom: map.getZoom(),
+      };
+      c.applied = { ...c.pose };
+    }
+
     c.suspended = false;
     c.lastFrame = 0;
     c.resume =
       prefersReducedMotion() || !c.pose
         ? null
-        : { from: { ...c.pose }, startedAt: null, finished: false };
+        : {
+            from: { ...c.pose },
+            startedAt: null,
+            finished: false,
+            progress: 0,
+            kind: "resume",
+            durationMs: followCameraDefaults.resumeGlideMs,
+          };
     scheduleFrame();
   };
 
-  /** Mark a user-driven camera change from a MapLibre movement event. */
+  /**
+   * Mark a user-driven camera change from a MapLibre movement event. This is a
+   * backstop: the capture-phase DOM listeners below suspend before MapLibre's
+   * gesture handlers run. While a pointer is held, movement only records that
+   * the gesture changed the camera — the idle timer waits for pointerup.
+   */
   const onUserGesture = (event) => {
     if (!event?.originalEvent) return; // controller-driven: no originating event
+    if (c.pointerDown) {
+      c.pointerMoved = true;
+      suspendLoop();
+      return;
+    }
     suspend();
   };
 
-  /** Viewport resized: recompute the fit baseline so the resume framing holds. */
+  /** Viewport resized: recompute the look-ahead so the resume framing holds. */
   const onResize = () => {
     if (c.raw) c.target = resolveTarget(c.raw);
     scheduleFrame();
+  };
+
+  /**
+   * Register capture-phase listeners on the map canvas container.
+   *
+   * They run before MapLibre's own gesture handlers, so the driver suspends
+   * before a drag or zoom begins rather than after MapLibre has reset its
+   * handlers. A pointer hold suspends without arming the idle timer (the timer
+   * starts at pointerup, and only if the gesture actually moved the camera);
+   * wheel, camera keys and double click suspend and arm it immediately.
+   */
+  const armDomListeners = (map) => {
+    if (c.domListeners.length > 0) return;
+
+    const container = map.getCanvasContainer?.();
+    const canvas = map.getCanvas?.();
+    if (
+      !container ||
+      !canvas ||
+      typeof container.addEventListener !== "function"
+    ) {
+      return;
+    }
+
+    const options = { capture: true };
+    const listen = (type, handler, target = container) => {
+      target.addEventListener(type, handler, options);
+      c.domListeners.push({ target, type, handler, options });
+    };
+    const onCanvas = (event) => event.target === canvas;
+
+    const onPointerDown = (event) => {
+      if (!onCanvas(event) || !c.isActive.value) return;
+      // Every button can drive a camera gesture (left pans, right/ctrl rotates).
+      if (event.isPrimary === false) return;
+      c.pointerDown = true;
+      c.pointerId = event.pointerId ?? null;
+      c.pointerMoved = false;
+      clearIdleTimer();
+      suspendLoop();
+    };
+
+    const releasePointer = (event) => {
+      if (!c.pointerDown) return;
+      if (
+        event.pointerId !== undefined &&
+        c.pointerId !== null &&
+        event.pointerId !== c.pointerId
+      ) {
+        return;
+      }
+      c.pointerDown = false;
+      c.pointerId = null;
+      if (!c.isActive.value || !c.suspended) return;
+      // A bare tap moves nothing, so resume at once; a drag waits out the idle
+      // delay like any other camera-changing gesture.
+      if (c.pointerMoved) resetIdleTimer();
+      else beginResume();
+    };
+
+    const onDiscreteGesture = (event) => {
+      if (!onCanvas(event)) return;
+      suspend();
+    };
+
+    const onKeyDown = (event) => {
+      if (!onCanvas(event)) return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (!CAMERA_KEYS.has(event.key)) return;
+      suspend();
+    };
+
+    const onTouchStart = (event) => {
+      // Pointer events cover modern browsers; this is a legacy fallback only.
+      if (typeof window !== "undefined" && "PointerEvent" in window) return;
+      if (!onCanvas(event)) return;
+      suspend();
+    };
+
+    listen("pointerdown", onPointerDown);
+    listen("pointerup", releasePointer);
+    listen("pointercancel", releasePointer);
+    listen("wheel", onDiscreteGesture);
+    listen("keydown", onKeyDown);
+    listen("dblclick", onDiscreteGesture);
+    listen("touchstart", onTouchStart);
+
+    // A mouse released outside the canvas never reaches the container, so keep
+    // a window-level fallback. The pointerDown guard makes duplicate delivery
+    // harmless.
+    if (typeof window !== "undefined") {
+      listen("pointerup", releasePointer, window);
+      listen("pointercancel", releasePointer, window);
+    }
   };
 
   /**
@@ -367,6 +554,7 @@ export const useFollowCamera = (explicitInstanceId) => {
       c.resizeHandler = onResize;
       map.on("resize", c.resizeHandler);
     }
+    armDomListeners(map);
 
     if (c.raw) c.target = resolveTarget(c.raw);
   };
@@ -393,7 +581,14 @@ export const useFollowCamera = (explicitInstanceId) => {
       return;
     }
 
-    const dt = c.lastFrame ? Math.min((now - c.lastFrame) / 1000, 0.1) : 0;
+    // Frame interval in seconds, from the real elapsed time. The damping is a
+    // continuous function of elapsed time, so it must use the true interval —
+    // capping it (e.g. to 0.1 s) makes the camera take tens of seconds of
+    // wall-clock time to settle on a slow renderer, where frames are seconds
+    // apart, instead of the intended ~1 s. A large interval simply closes the
+    // gap (dampingFactor clamps to 1), which is the correct behaviour after a
+    // stall or a backgrounded tab.
+    const dt = c.lastFrame ? Math.max(0, (now - c.lastFrame) / 1000) : 0;
     c.lastFrame = now;
 
     const {
@@ -409,6 +604,23 @@ export const useFollowCamera = (explicitInstanceId) => {
     const pose = c.pose;
     const alpha = (tau) => (reduced ? 1 : dampingFactor(dt, tau));
 
+    // Hand-off: the first target after start() glides from the pose the driver
+    // inherited (the wide locate orientation view) into the close navigation
+    // pose. Reduced-motion users snap instead.
+    if (c.handoffPending) {
+      c.handoffPending = false;
+      c.resume = reduced
+        ? null
+        : {
+            from: { ...pose },
+            startedAt: null,
+            finished: false,
+            progress: 0,
+            kind: "handoff",
+            durationMs: followCameraDefaults.handoffGlideMs,
+          };
+    }
+
     // A resume glide runs a deterministic timed blend from the pose the user
     // left to the live follow pose; otherwise the normal damping applies. The
     // glide's progress is carried into the centre blend below so the whole pose
@@ -417,15 +629,31 @@ export const useFollowCamera = (explicitInstanceId) => {
     let resumeK = 0;
     if (c.resume) {
       if (c.resume.startedAt === null) c.resume.startedAt = now;
-      const duration = followCameraDefaults.resumeGlideMs;
+      const duration = Number.isFinite(c.resume.durationMs)
+        ? c.resume.durationMs
+        : followCameraDefaults.resumeGlideMs;
       const t =
         duration > 0 ? clamp01((now - c.resume.startedAt) / duration) : 1;
       resumeFrom = c.resume.from;
-      resumeK = easeOut(t);
+      let eased = easeOut(t);
+      if (c.resume.kind === "handoff") {
+        // Cap the per-frame zoom movement so a slow frame cannot jump-cut the
+        // ~5.85-level hand-off. The cap stretches the glide on a slow renderer
+        // rather than dropping frames of the transition.
+        const span = Math.abs(target.zoom - resumeFrom.zoom);
+        const maxStep = followCameraDefaults.handoffMaxZoomStep;
+        const maxKStep = span > 0 ? Math.min(1, maxStep / span) : 1;
+        const progress = Number.isFinite(c.resume.progress)
+          ? c.resume.progress
+          : 0;
+        eased = Math.max(progress, Math.min(eased, progress + maxKStep));
+        c.resume.progress = eased;
+      }
+      resumeK = eased;
       pose.bearing = dampAngle(resumeFrom.bearing, target.bearing, resumeK);
       pose.pitch = damp(resumeFrom.pitch, target.pitch, resumeK);
       pose.zoom = damp(resumeFrom.zoom, target.zoom, resumeK);
-      if (t >= 1) c.resume.finished = true;
+      if (t >= 1 && resumeK >= 1) c.resume.finished = true;
     } else {
       // Rotation and zoom first, so the look-ahead below uses the damped values.
       pose.bearing = dampAngle(
@@ -440,7 +668,7 @@ export const useFollowCamera = (explicitInstanceId) => {
     // Dead-reckon the fix forward along its own bearing for the time since it
     // arrived (capped), so the camera keeps pace between fixes. At rest this is
     // the fix itself. The composition offset is then applied along the current
-    // damped bearing so the user sits in the lower third once tilted.
+    // damped bearing so the user sits in the lower third of the tilted view.
     const elapsed = Number.isFinite(target.timestampMs)
       ? Math.min((now - target.timestampMs) / 1000, DEAD_RECKON_MAX_SECONDS)
       : 0;
@@ -500,6 +728,7 @@ export const useFollowCamera = (explicitInstanceId) => {
     c.isActive.value = true;
     c.suspended = false;
     c.resume = null;
+    c.handoffPending = true;
     c.lastFrame = 0;
     armAppDestroyCleanup();
 
@@ -573,6 +802,7 @@ export const useFollowCamera = (explicitInstanceId) => {
     cancelLoop();
     clearIdleTimer();
     c.resume = null;
+    c.handoffPending = false;
     c.suspended = false;
     disarmCleanup();
     setMapViewSuppressed(instanceId, false);

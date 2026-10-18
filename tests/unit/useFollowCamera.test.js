@@ -14,7 +14,8 @@ import {
   persistMapView,
 } from "@/composables/useMap.js";
 import { useFollowCamera } from "@/composables/useFollowCamera.js";
-import { followFitZoom } from "@/utils/follow.js";
+import { navigationZoomForSpeed } from "@/utils/follow.js";
+import { followCameraDefaults } from "@/defaults/maplibre.js";
 import { emitter } from "@/emitter.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -32,9 +33,22 @@ const createMap = ({
   center = { lat: 0, lng: 0 },
   width = 1000,
   height = 800,
+  dom = false,
 } = {}) => {
   const handlers = new Map();
-  return {
+  let canvasEl = null;
+  let containerEl = null;
+
+  if (dom) {
+    containerEl = document.createElement("div");
+    canvasEl = document.createElement("canvas");
+    containerEl.appendChild(canvasEl);
+    document.body.appendChild(containerEl);
+    Object.defineProperty(canvasEl, "clientWidth", { value: width });
+    Object.defineProperty(canvasEl, "clientHeight", { value: height });
+  }
+
+  const map = {
     stop: vi.fn(),
     getCenter: vi.fn(() => ({ ...center })),
     getBearing: vi.fn(() => bearing),
@@ -42,7 +56,9 @@ const createMap = ({
     getZoom: vi.fn(() => zoom),
     getMinZoom: vi.fn(() => 1),
     getMaxZoom: vi.fn(() => 22),
-    getCanvas: vi.fn(() => ({ clientWidth: width, clientHeight: height })),
+    getCanvas: vi.fn(
+      () => canvasEl ?? { clientWidth: width, clientHeight: height },
+    ),
     jumpTo: vi.fn(),
     once: vi.fn(),
     off: vi.fn(),
@@ -55,6 +71,22 @@ const createMap = ({
       for (const handler of handlers.get(type) ?? []) handler(event);
     },
   };
+
+  if (dom) {
+    map.getCanvasContainer = vi.fn(() => containerEl);
+    map.canvasEl = canvasEl;
+    map.containerEl = containerEl;
+    // Dispatch a DOM event at the canvas, so the capture-phase listener on the
+    // container sees it exactly as it would in the browser.
+    map.send = (type, props = {}) => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.assign(event, props);
+      canvasEl.dispatchEvent(event);
+      return event;
+    };
+  }
+
+  return map;
 };
 
 let rafCallbacks;
@@ -98,6 +130,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  document.body.replaceChildren();
 });
 
 // ─── Target -> pose mapping ──────────────────────────────────────────────────
@@ -109,12 +142,14 @@ describe("useFollowCamera / target -> pose", () => {
     const driver = useFollowCamera(nextInstanceId());
 
     driver.start();
-    driver.setTarget({ lat: 45, lng: -60, bearing: 123, pitch: 45, zoom: 14 });
+    driver.setTarget({ lat: 45, lng: -60, bearing: 123, pitch: 20, zoom: 14 });
     flushFrame();
 
     const jump = lastJump(map);
     expect(jump.bearing).toBeCloseTo(123, 6);
-    expect(jump.pitch).toBeCloseTo(45, 6);
+    // An explicit pitch is authoritative: it is neither floored at the rest
+    // pitch nor derived from speed.
+    expect(jump.pitch).toBeCloseTo(20, 6);
     expect(jump.zoom).toBeCloseTo(14, 6);
   });
 
@@ -130,7 +165,7 @@ describe("useFollowCamera / target -> pose", () => {
     expect(lastJump(map).bearing).toBeCloseTo(77, 6);
   });
 
-  it("derives a flat, viewport-fitted pose at rest", () => {
+  it("derives a third-person navigation pose at rest", () => {
     const map = createMap({ width: 1000, height: 800 });
     getMapInstance.mockReturnValue(map);
     const driver = useFollowCamera(nextInstanceId());
@@ -147,14 +182,56 @@ describe("useFollowCamera / target -> pose", () => {
 
     const jump = lastJump(map);
     expect(jump.bearing).toBeCloseTo(90, 3);
-    expect(jump.pitch).toBeCloseTo(0, 3);
-    expect(jump.zoom).toBeCloseTo(
-      followFitZoom({ widthPx: 1000, heightPx: 800, latitude: 45 }),
-      6,
-    );
+    expect(jump.pitch).toBeCloseTo(followCameraDefaults.restPitch, 3);
+    expect(jump.zoom).toBeCloseTo(followCameraDefaults.restZoom, 6);
   });
 
-  it("tilts, pulls back one level and follows the course at speed", () => {
+  it.each([
+    [5, 45],
+    [15, 45],
+    [30, 50],
+  ])(
+    "maps %s km/h to a %s° pitch, flooring the speed curve at rest",
+    (speedKmh, expectedPitch) => {
+      const map = createMap({ width: 1000, height: 800 });
+      getMapInstance.mockReturnValue(map);
+      const driver = useFollowCamera(nextInstanceId());
+
+      driver.start();
+      driver.setTarget({
+        lat: 45,
+        lng: -60,
+        compassHeading: 90,
+        speedKmh,
+        timestampMs: 0,
+      });
+      flushFrame();
+
+      expect(lastJump(map).pitch).toBeCloseTo(expectedPitch, 3);
+    },
+  );
+
+  it("clamps the derived pitch to the map's pitch range", () => {
+    const map = createMap({ width: 1000, height: 800 });
+    map.getMinPitch = vi.fn(() => 0);
+    map.getMaxPitch = vi.fn(() => 40);
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({
+      lat: 45,
+      lng: -60,
+      compassHeading: 90,
+      speedKmh: 100,
+      timestampMs: 0,
+    });
+    flushFrame();
+
+    expect(lastJump(map).pitch).toBeCloseTo(40, 3);
+  });
+
+  it("tilts, pulls back the navigation zoom and follows the course at speed", () => {
     const map = createMap({ width: 1000, height: 800 });
     getMapInstance.mockReturnValue(map);
     const driver = useFollowCamera(nextInstanceId());
@@ -173,8 +250,10 @@ describe("useFollowCamera / target -> pose", () => {
     const jump = lastJump(map);
     expect(jump.pitch).toBeCloseTo(60, 3);
     expect(jump.bearing).toBeCloseTo(180, 3);
-    const fit = followFitZoom({ widthPx: 1000, heightPx: 800, latitude: 45 });
-    expect(jump.zoom).toBeCloseTo(fit - 1, 6);
+    expect(jump.zoom).toBeCloseTo(
+      followCameraDefaults.restZoom - followCameraDefaults.zoomPullBack,
+      6,
+    );
   });
 
   it("holds the previous bearing when the blend is undecidable", () => {
@@ -215,6 +294,99 @@ describe("useFollowCamera / target -> pose", () => {
     flushFrame();
 
     expect(map.jumpTo).not.toHaveBeenCalled();
+  });
+
+  it("settles in wall-clock time when frames are seconds apart", () => {
+    // A slow renderer (software rasterisation): the interval between frames is
+    // seconds, and the damping must still converge over that real elapsed time
+    // rather than being throttled by a capped per-frame step. The initial
+    // hand-off is already snapped here (reduced motion) so this isolates the
+    // damping path from the hand-off glide.
+    const map = createMap();
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({ lat: 45, lng: -60, bearing: 0, pitch: 0, zoom: 12 });
+    flushFrame(); // attach frame: dt is 0 by construction
+
+    reducedMotion = false;
+    driver.setTarget({ lat: 45, lng: -60, bearing: 90, pitch: 60, zoom: 12 });
+    flushFrame(4000); // one real frame, four seconds later
+
+    const jump = lastJump(map);
+    expect(jump.pitch).toBeGreaterThan(59.5);
+    expect(Math.abs(jump.bearing - 90)).toBeLessThan(1);
+  });
+});
+
+// ─── Hand-off ────────────────────────────────────────────────────────────────
+
+describe("useFollowCamera / hand-off", () => {
+  it("glides from the wide locate pose into the navigation pose without a jump", () => {
+    reducedMotion = false;
+    const startZoom = 11.65;
+    const map = createMap({ zoom: startZoom, bearing: 0, pitch: 0 });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({
+      lat: 45,
+      lng: -60,
+      compassHeading: 90,
+      speedKmh: 0,
+      timestampMs: 0,
+    });
+    flushFrame();
+
+    let previousZoom = startZoom;
+    let previousPitch = 0;
+    let frames = 0;
+    while (previousZoom < followCameraDefaults.restZoom - 1e-6) {
+      flushFrame();
+      const jump = lastJump(map);
+      const zoom = jump.zoom;
+      const step = zoom - previousZoom;
+      expect(step).toBeGreaterThanOrEqual(-1e-9);
+      expect(step).toBeLessThanOrEqual(
+        followCameraDefaults.handoffMaxZoomStep + 1e-9,
+      );
+      expect(zoom).toBeLessThanOrEqual(followCameraDefaults.restZoom + 1e-9);
+      // The same eased progress drives pitch, so a 45° tilt cannot jump-cut.
+      const pitchStep = jump.pitch - previousPitch;
+      expect(pitchStep).toBeGreaterThanOrEqual(-1e-9);
+      expect(pitchStep).toBeLessThanOrEqual(5 + 1e-9);
+      previousZoom = zoom;
+      previousPitch = jump.pitch;
+      frames += 1;
+      expect(frames).toBeLessThan(400);
+    }
+
+    const jump = lastJump(map);
+    expect(jump.zoom).toBeCloseTo(followCameraDefaults.restZoom, 6);
+    expect(jump.bearing).toBeCloseTo(90, 6);
+    expect(jump.pitch).toBeCloseTo(followCameraDefaults.restPitch, 6);
+  });
+
+  it("snaps into the navigation pose under reduced motion", () => {
+    const map = createMap({ zoom: 11.65, bearing: 0, pitch: 0 });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({
+      lat: 45,
+      lng: -60,
+      compassHeading: 90,
+      speedKmh: 0,
+      timestampMs: 0,
+    });
+    flushFrame();
+
+    const jump = lastJump(map);
+    expect(jump.zoom).toBeCloseTo(followCameraDefaults.restZoom, 6);
+    expect(jump.bearing).toBeCloseTo(90, 6);
   });
 });
 
@@ -309,6 +481,32 @@ describe("useFollowCamera / interaction suspension", () => {
     expect(lastJump(map).bearing).toBeCloseTo(80, 3);
   });
 
+  it("suspends on every user-gesture movement event", () => {
+    for (const type of [
+      "movestart",
+      "dragstart",
+      "zoomstart",
+      "rotatestart",
+      "pitchstart",
+      "boxzoomstart",
+      "move",
+      "moveend",
+    ]) {
+      const map = createMap();
+      getMapInstance.mockReturnValue(map);
+      const driver = useFollowCamera(nextInstanceId());
+
+      driver.start();
+      driver.setTarget({ lat: 45, lng: -60, bearing: 10, pitch: 0, zoom: 12 });
+      flushFrame();
+
+      map.fire(type, { originalEvent: {} });
+      expect(vi.getTimerCount(), `${type} should arm the idle timer`).toBe(1);
+
+      driver.stop();
+    }
+  });
+
   it("suspends on a user event, freezes the camera and resumes to the latest pose", () => {
     const map = createMap();
     getMapInstance.mockReturnValue(map);
@@ -400,7 +598,199 @@ describe("useFollowCamera / interaction suspension", () => {
     expect(persistMapView).toHaveBeenCalledTimes(1);
   });
 
-  it("recomputes the follow fit on resize and detaches listeners on destroy", () => {
+  it("suspends on pointerdown without arming the idle timer", () => {
+    const map = createMap({ dom: true });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({ lat: 45, lng: -60, bearing: 10, pitch: 0, zoom: 12 });
+    flushFrame();
+    const jumpsBefore = map.jumpTo.mock.calls.length;
+    expect(rafCallbacks.size).toBeGreaterThan(0);
+
+    map.send("pointerdown", { button: 0, pointerId: 1, isPrimary: true });
+
+    // The loop is cancelled before MapLibre's gesture handlers run, and the
+    // idle timer waits for pointerup so it cannot fire mid-drag.
+    expect(rafCallbacks.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+
+    // New fixes while the pointer is held must not move the camera.
+    driver.setTarget({ lat: 46, lng: -61, bearing: 200, pitch: 0, zoom: 12 });
+    flushFrame();
+    expect(map.jumpTo.mock.calls.length).toBe(jumpsBefore);
+  });
+
+  it("resumes immediately on pointerup without movement", () => {
+    const map = createMap({ dom: true });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({ lat: 45, lng: -60, bearing: 10, pitch: 0, zoom: 12 });
+    flushFrame();
+
+    map.send("pointerdown", { button: 0, pointerId: 1, isPrimary: true });
+    map.send("pointerup", { button: 0, pointerId: 1, isPrimary: true });
+
+    expect(vi.getTimerCount()).toBe(0);
+    expect(rafCallbacks.size).toBeGreaterThan(0);
+
+    driver.setTarget({ lat: 45, lng: -60, bearing: 200, pitch: 0, zoom: 12 });
+    flushFrame();
+    expect(lastJump(map).bearing).toBeCloseTo(200, 3);
+  });
+
+  it("arms the idle timer on pointerup after movement and resumes after it", () => {
+    const map = createMap({ dom: true });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({ lat: 45, lng: -60, bearing: 10, pitch: 0, zoom: 12 });
+    flushFrame();
+
+    map.send("pointerdown", { button: 0, pointerId: 1, isPrimary: true });
+    // A user-originated movement event marks the gesture as camera-changing,
+    // but a held pointer never arms the timer.
+    map.fire("movestart", { originalEvent: {} });
+    expect(vi.getTimerCount()).toBe(0);
+
+    map.send("pointerup", { button: 0, pointerId: 1, isPrimary: true });
+    expect(vi.getTimerCount()).toBe(1);
+
+    driver.setTarget({ lat: 45, lng: -60, bearing: 200, pitch: 0, zoom: 12 });
+    vi.advanceTimersByTime(5000);
+    expect(vi.getTimerCount()).toBe(0);
+    flushFrame();
+    expect(lastJump(map).bearing).toBeCloseTo(200, 3);
+  });
+
+  it("suspends on wheel, camera keys and double click, resetting the timer", () => {
+    const map = createMap({ dom: true });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({ lat: 45, lng: -60, bearing: 10, pitch: 0, zoom: 12 });
+    flushFrame();
+
+    // Non-camera keys and modifier chords are browser shortcuts, not gestures.
+    map.send("keydown", { key: "a" });
+    map.send("keydown", { key: "ArrowLeft", metaKey: true });
+    expect(vi.getTimerCount()).toBe(0);
+
+    map.send("wheel", {});
+    expect(vi.getTimerCount()).toBe(1);
+    expect(rafCallbacks.size).toBe(0);
+
+    vi.advanceTimersByTime(4000);
+    map.send("keydown", { key: "ArrowLeft" });
+    vi.advanceTimersByTime(4000);
+    expect(vi.getTimerCount()).toBe(1);
+
+    map.send("dblclick", {});
+    vi.advanceTimersByTime(4000);
+    expect(vi.getTimerCount()).toBe(1);
+
+    vi.advanceTimersByTime(1000); // 5 s after the last gesture
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("re-suspends on a second pointerdown during the resume glide", () => {
+    reducedMotion = false;
+    const map = createMap({ dom: true });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({ lat: 45, lng: -60, bearing: 10, pitch: 0, zoom: 12 });
+    flushFrame();
+
+    map.fire("movestart", { originalEvent: {} });
+    vi.advanceTimersByTime(5000);
+    flushFrame();
+    expect(rafCallbacks.size).toBeGreaterThan(0);
+
+    map.send("pointerdown", { button: 0, pointerId: 1, isPrimary: true });
+    expect(rafCallbacks.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("removes every DOM listener on stop", () => {
+    const map = createMap({ dom: true });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+    const addSpy = vi.spyOn(map.containerEl, "addEventListener");
+    const removeSpy = vi.spyOn(map.containerEl, "removeEventListener");
+    const windowRemoveSpy = vi.spyOn(window, "removeEventListener");
+
+    driver.start();
+    driver.setTarget({ lat: 45, lng: -60, bearing: 10, pitch: 0, zoom: 12 });
+    flushFrame();
+
+    const types = addSpy.mock.calls.map(([type]) => type);
+    expect(types).toEqual(
+      expect.arrayContaining([
+        "pointerdown",
+        "pointerup",
+        "pointercancel",
+        "wheel",
+        "keydown",
+        "dblclick",
+        "touchstart",
+      ]),
+    );
+    expect(
+      addSpy.mock.calls.every(([, , options]) => options?.capture === true),
+    ).toBe(true);
+
+    driver.stop();
+
+    for (const type of types) {
+      expect(removeSpy).toHaveBeenCalledWith(
+        type,
+        expect.any(Function),
+        expect.objectContaining({ capture: true }),
+      );
+    }
+    // The window-level release fallback is removed too.
+    expect(windowRemoveSpy).toHaveBeenCalledWith(
+      "pointerup",
+      expect.any(Function),
+      expect.objectContaining({ capture: true }),
+    );
+
+    // A pointerdown after stop does nothing: the listeners are gone.
+    map.send("pointerdown", { button: 0, pointerId: 1, isPrimary: true });
+    expect(vi.getTimerCount()).toBe(0);
+    expect(rafCallbacks.size).toBe(0);
+  });
+
+  it("detaches DOM listeners and cancels cleanly on app destroy", () => {
+    const map = createMap({ dom: true });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({ lat: 45, lng: -60, bearing: 10, pitch: 0, zoom: 12 });
+    flushFrame();
+    const removeSpy = vi.spyOn(map.containerEl, "removeEventListener");
+
+    emitter.emit("destroy");
+
+    expect(driver.isActive.value).toBe(false);
+    expect(removeSpy).toHaveBeenCalledWith(
+      "pointerdown",
+      expect.any(Function),
+      expect.objectContaining({ capture: true }),
+    );
+    // Teardown never persists.
+    expect(persistMapView).not.toHaveBeenCalled();
+  });
+
+  it("recomputes the look-ahead on resize and detaches listeners on destroy", () => {
     const map = createMap({ width: 1000, height: 800 });
     getMapInstance.mockReturnValue(map);
     const driver = useFollowCamera(nextInstanceId());
@@ -410,22 +800,24 @@ describe("useFollowCamera / interaction suspension", () => {
       lat: 45,
       lng: -60,
       compassHeading: 0,
-      speedKmh: 0,
+      speedKmh: 100,
       timestampMs: 0,
     });
     flushFrame();
-    const zoomBefore = lastJump(map).zoom;
+    const before = lastJump(map);
 
-    // The viewport grows; a resize recomputes the horizon-fit baseline.
+    // The viewport grows; the navigation zoom is viewport-independent, but the
+    // look-ahead must be recomputed against the taller canvas.
     map.getCanvas.mockReturnValue({ clientWidth: 2000, clientHeight: 1600 });
     map.fire("resize", {});
     flushFrame();
-    const zoomAfter = lastJump(map).zoom;
-    expect(zoomAfter).toBeCloseTo(
-      followFitZoom({ widthPx: 2000, heightPx: 1600, latitude: 45 }),
+    const after = lastJump(map);
+    expect(after.zoom).toBeCloseTo(before.zoom, 6);
+    expect(after.zoom).toBeCloseTo(
+      followCameraDefaults.restZoom - followCameraDefaults.zoomPullBack,
       6,
     );
-    expect(zoomAfter).toBeGreaterThan(zoomBefore);
+    expect(after.center[1] - before.center[1]).toBeGreaterThan(0.001);
 
     // App destroy releases suppression and detaches the map listeners.
     emitter.emit("destroy");
