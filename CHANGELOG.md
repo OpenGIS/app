@@ -1,3 +1,19 @@
+# [3.15.0](https://github.com/OpenGIS/app/compare/v3.14.0...v3.15.0) (2026-10-18)
+
+
+### Bug Fixes
+
+* **locate:** stabilise and tune the follow camera ([d33b5d8](https://github.com/OpenGIS/app/commit/d33b5d8b4d4fa65124659919dccad2a51740222c))
+
+
+### Features
+
+* **i18n:** localise dates, metadata and errors ([c5e6931](https://github.com/OpenGIS/app/commit/c5e6931941cfc4b9ee53919b1fc46947da6546ad))
+* **i18n:** refresh locate and privacy copy ([11ae81d](https://github.com/OpenGIS/app/commit/11ae81db520453d2ef68367ed2784a1fef5aab33))
+* **locate:** add locked and unlocked chip icons ([9ac3e5a](https://github.com/OpenGIS/app/commit/9ac3e5a4beedc90dc754e21432664c8255cdeaa3))
+* **locate:** add speed-adaptive follow camera ([9aa1eff](https://github.com/OpenGIS/app/commit/9aa1eff292d822692e18bb4173a2b976d44f2bd4))
+* **locate:** suspend follow camera on user interaction ([98a7dfa](https://github.com/OpenGIS/app/commit/98a7dfa8851335804c30e7ea52864cc38d152bed))
+
 # [3.14.0](https://github.com/OpenGIS/app/compare/v3.13.0...v3.14.0) (2026-10-17)
 
 
