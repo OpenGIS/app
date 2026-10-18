@@ -1,3 +1,10 @@
+## [3.15.1](https://github.com/OpenGIS/app/compare/v3.15.0...v3.15.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **ci:** deploy and refresh heroes after a skipped e2e [skip e2e] ([c41dfdd](https://github.com/OpenGIS/app/commit/c41dfdd46f1a341d9f67c0e0f80e9295222d7810))
+
 # [3.15.0](https://github.com/OpenGIS/app/compare/v3.14.0...v3.15.0) (2026-10-18)
 
 
