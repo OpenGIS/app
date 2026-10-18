@@ -14,7 +14,7 @@
     "icons:build": "node scripts/icons.js",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=chromium",
     "test:matrix": "playwright test --project=screenshots",
     "test:matrix:update": "E2E_SCREENSHOTS_COMMIT=1 playwright test --project=screenshots",
     "watch:e2e": "node scripts/watch-e2e.js",

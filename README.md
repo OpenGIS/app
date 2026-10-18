@@ -93,7 +93,7 @@ The canonical loop, from first checkout to merge. Deep dives are linked inline:
 4. **Format** — `npm run format`. CI gates on `npm run format:check`.
 5. **Pre-push gate** — `npm run check` (Prettier check + unit tests) before pushing.
 6. **Commit and push** — Conventional Commits only (see [Contributing](#contributing)).
-7. **CI is the gate** — green `ci.yml` on your pushed commits means done: the unit suite, the commit-message check and the functional E2E suite. The screenshot matrix is deliberately outside the push path — verified on pull requests and healed on `master` on its own schedule; see [Screenshot matrix](#screenshot-matrix). The full local E2E run (`npm run test:e2e`) is an optional fallback — offline, or when the local GPU functional path is specifically wanted. See [CI](docs/13.ci.md).
+7. **CI is the gate** — green `ci.yml` on your pushed commits means done: the unit suite, the commit-message check and the functional E2E suite. The screenshot matrix is deliberately outside the push path — verified on pull requests and healed on `master` on its own schedule; see [Screenshot matrix](#screenshot-matrix). The full local E2E run (`npm run test:e2e` — the functional specs plus the README heroes; the matrix is a separate capture) is an optional fallback — offline, or when the local GPU functional path is specifically wanted. See [CI](docs/13.ci.md).
 
 ### Screenshot matrix
 
