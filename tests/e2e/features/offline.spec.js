@@ -4,6 +4,7 @@ import {
   expectNoConsoleErrors,
 } from "../helpers/console.js";
 import { projectionType } from "../helpers/mapProjection.js";
+import { isSwiftShaderRun } from "../helpers/determinism.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
@@ -12,6 +13,12 @@ import { DEMO } from "../../fixtures/demo.mjs";
  * Covers the Offline Maps side panel tab, region selection + estimate, the
  * real-network download flow, and deleting a downloaded region.
  */
+
+// SwiftShader quantises interaction and animation to multi-second frames, so a
+// pointer move or click queues behind frames and can starve the 30 s default;
+// the whole file needs a much larger backstop on the software path, while the
+// GPU path keeps the default. The download test raises its own budget below.
+test.setTimeout(isSwiftShaderRun() ? 120000 : 30000);
 
 // Assert a clean console for every test in this spec (see helpers/console.js).
 test.beforeEach(({ page }) => trackConsoleErrors(page));
@@ -126,7 +133,9 @@ const drawRegion = async (page) => {
   const y1 = box.y + box.height * 0.55;
   await page.mouse.move(x0, y0);
   await page.mouse.down();
-  await page.mouse.move(x1, y1, { steps: 8 });
+  // A couple of large steps still register the region gesture, whereas each
+  // extra step is another multi-second input dispatch under software rendering.
+  await page.mouse.move(x1, y1, { steps: 2 });
   await page.mouse.up();
 };
 

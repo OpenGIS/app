@@ -384,7 +384,14 @@ test.describe("Follow / Locate chase", () => {
     let maxPitchDelta = 0;
     let maxZoomDelta = 0;
     for (let i = 1; i < samples.length; i++) {
-      const dtSeconds = (samples[i].t - samples[i - 1].t) / 1000;
+      // The damped step is sized from the interval before it but measured over
+      // the interval after it, so an uneven frame inflates the quotient by
+      // dt_prev / dt_next. Dividing by the longer bracketing interval removes
+      // that inflation, upper-bounding the true step rate.
+      const dtOwn = (samples[i].t - samples[i - 1].t) / 1000;
+      const dtPrev =
+        i < 2 ? dtOwn : (samples[i - 1].t - samples[i - 2].t) / 1000;
+      const dtSeconds = Math.max(dtOwn, dtPrev);
       if (dtSeconds > 0) {
         maxBearingRate = Math.max(
           maxBearingRate,
