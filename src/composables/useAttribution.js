@@ -1,6 +1,7 @@
-import { inject, ref } from "vue";
+import { computed, inject, ref } from "vue";
 import { emitter } from "@/emitter.js";
 import { getMapInstance } from "@/composables/useMap";
+import { useUI } from "@/composables/useUI";
 import { buildAttribution } from "@/utils/attribution";
 
 // Module-level state — one attribution string per app context, shared by the
@@ -20,12 +21,16 @@ export const useAttribution = () => {
 
   const attributionHtml = ref("");
 
-  // Expanded on load, then collapsed on the first user drag — exact parity
-  // with MapLibre's built-in attribution control. It never expands again.
-  // Lives here (not in the chip) so App.vue can drive the root data attribute.
-  const collapsed = ref(false);
+  // Expanded on load; collapsed while the Info pane is open, because the pane's
+  // sticky footer already shows the attribution. Permanently collapsed after
+  // the first map drag — exact parity with MapLibre's built-in attribution
+  // control. Lives here (not in the chip) so App.vue can drive the root data
+  // attribute.
+  const { isInfoVisible } = useUI(instanceId);
+  const dragged = ref(false);
+  const collapsed = computed(() => dragged.value || isInfoVisible.value);
   const onDrag = () => {
-    collapsed.value = true;
+    dragged.value = true;
   };
 
   const update = () => {

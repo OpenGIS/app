@@ -517,10 +517,11 @@ $font-size-base: 0.9375rem; // 15 px
 
 // #6h  Attribution chip, disclosures & scale offset
 // ─────────────────────────────────────────────────────────────
-// The bottom-left attribution chip expands on load, then collapses to
-// an icon-only pill on the first map drag. Its links are decoration
-// only, and it keeps clear of the bottom-right corner whenever that
-// corner holds controls.
+// The bottom-left attribution chip is expanded while the Info pane is
+// closed and collapses to an icon-only pill while it is open (the pane
+// footer already carries the credits); the first map drag latches it
+// collapsed. Its links are decoration only, and it keeps clear of the
+// bottom-right corner whenever that corner holds controls.
 
 .ogis-attribution-chip {
   // Span the viewport minus the corner's own insets (0.75rem padding per

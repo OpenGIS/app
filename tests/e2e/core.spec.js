@@ -80,15 +80,77 @@ test.describe("Info pane / Pane separation", () => {
     await page.goto("/");
     await waitForMapReady(page);
 
-    // Desktop auto-opens the Info pane, so the first click closes it.
-    await expect(page.locator(".ogis-info-panel")).toBeVisible();
+    const chipText = page.locator(
+      "#attribution-button .ogis-attribution-chip__text",
+    );
 
+    // Desktop auto-opens the Info pane, whose sticky footer carries the full
+    // attribution, so the corner chip starts collapsed.
+    await expect(page.locator(".ogis-info-panel")).toBeVisible();
+    await expect(page.locator(".ogis-root")).toHaveAttribute(
+      "data-attrib-collapsed",
+      "true",
+    );
+    await expect(chipText).toHaveCount(0);
+
+    // The first click closes the pane. No drag has latched the chip, so it
+    // expands back to the credits pill.
     await page.locator("#attribution-button").click();
     await expect(page.locator(".ogis-info-panel")).toHaveCount(0);
     await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
+    await expect(page.locator(".ogis-root")).toHaveAttribute(
+      "data-attrib-collapsed",
+      "false",
+    );
+    await expect(chipText).toBeVisible();
 
+    // The second click reopens the pane, collapsing the chip again.
     await page.locator("#attribution-button").click();
     await expect(page.locator(".ogis-info-panel")).toBeVisible();
+    await expect(page.locator(".ogis-root")).toHaveAttribute(
+      "data-attrib-collapsed",
+      "true",
+    );
+    await expect(chipText).toHaveCount(0);
+  });
+
+  test("a map drag latches the attribution chip collapsed", async ({
+    page,
+  }) => {
+    await withViewStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const root = page.locator(".ogis-root");
+    const chipText = page.locator(
+      "#attribution-button .ogis-attribution-chip__text",
+    );
+
+    // Close the auto-opened Info pane: with no drag yet, the chip expands.
+    await expect(page.locator(".ogis-info-panel")).toBeVisible();
+    await page.locator("#attribution-button").click();
+    await expect(page.locator(".ogis-info-panel")).toHaveCount(0);
+    await expect(root).toHaveAttribute("data-attrib-collapsed", "false");
+
+    // Drag the map: the chip latches collapsed, like MapLibre's own control.
+    const canvas = page.locator(".ogis-map canvas");
+    const box = await canvas.boundingBox();
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 120, y, { steps: 10 });
+    await page.mouse.up();
+    await expect(root).toHaveAttribute("data-attrib-collapsed", "true");
+    await expect(chipText).toHaveCount(0);
+
+    // Opening and closing Info again must not un-latch the drag collapse.
+    await page.locator("#attribution-button").click();
+    await expect(page.locator(".ogis-info-panel")).toBeVisible();
+    await page.locator("#attribution-button").click();
+    await expect(page.locator(".ogis-info-panel")).toHaveCount(0);
+    await expect(root).toHaveAttribute("data-attrib-collapsed", "true");
+    await expect(chipText).toHaveCount(0);
   });
 
   test("visiting Info keeps the active menu tab", async ({ page }) => {

@@ -982,7 +982,9 @@ for (const vp of VIEWPORTS) {
       await capture(page, dir, "menu-open");
 
       // info-open — the Info pane, rendered without the tab strip. Close the
-      // menu first (the panel covers the chip on narrow screens).
+      // menu first (the panel covers the chip on narrow screens). The open pane
+      // renders the corner chip collapsed — its sticky footer already carries
+      // the attribution — so the capture shows the compact Info chip.
       await closePanel(page);
       await waitForLayoutSettled(page, testInfo);
       await page.locator("#attribution-button").click();
@@ -991,8 +993,8 @@ for (const vp of VIEWPORTS) {
       await normaliseCaptureState(page, testInfo);
       await capture(page, dir, "info-open");
 
-      // drag-collapsed — close the pane so the bottom-left chip is visible,
-      // then drag the map to collapse the attribution chip.
+      // drag-collapsed — close the pane so the bottom-left chip expands again,
+      // then drag the map to latch it collapsed permanently.
       await closePanel(page);
       await waitForLayoutSettled(page, testInfo);
       await dragMap(page);

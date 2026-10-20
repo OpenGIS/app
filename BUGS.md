@@ -6,7 +6,7 @@
 
 3/ The offline-region size estimate counts tiles only and ignores the glyph prefetch. The download prefetches every glyph range for every fontstack, so the "Est. size" figure understates the actual work — the download progress denominator is dominated by glyph requests, far exceeding the tile count.
 
-4/ as shown in the info-open screenshots, when the info panel is shown by default, the maplibre attribution is expanded and the the attribution is duplicated. instead, when the info panel is shown, the maplibre attribution should be collapsed, no need for drag end in this instance.
+4/ **[FIXED]** as shown in the info-open screenshots, when the info panel is shown by default, the maplibre attribution is expanded and the the attribution is duplicated. instead, when the info panel is shown, the maplibre attribution should be collapsed, no need for drag end in this instance. The chip's collapsed state is now derived from the pane's visibility (`collapsed = dragged || isInfoVisible`): it collapses whenever the Info pane is open — including the desktop auto-open at load, so the credits appear only once in the pane's sticky footer — and expands again when the pane closes. The first map drag still latches it collapsed permanently, matching MapLibre's built-in control.
 
 5/ On live loads, a glyph that arrives after MapLibre's symbol-placement pass can leave its label missing until the next interaction — MapLibre does not re-place symbols when a glyph becomes available. The E2E harness works around this by forcing a symbol re-placement after map-idle (`waitForMapPainted` in `tests/e2e/helpers/mapIdle.js`). An app-side fix — re-place symbols on glyph load — is a possible future improvement.
 
