@@ -9,6 +9,7 @@ import LocateConfirm from "@/components/modals/locate-confirm.vue";
 
 import { useMap } from "@/composables/useMap";
 import { useUI } from "@/composables/useUI";
+import { useActions } from "@/composables/useActions";
 import { useLocale } from "@/composables/useLocale";
 import { useAttribution } from "@/composables/useAttribution";
 import { useWakeLock } from "@/composables/useWakeLock";
@@ -39,11 +40,14 @@ const { collapsed: attributionCollapsed } = useAttribution();
 const {
   openInfo,
   togglePanelExpanded,
+  visiblePane,
   isPanelVisible,
   isPanelExpanded,
   isDesktop,
   isMobile,
 } = useUI();
+
+const { activeModes } = useActions();
 
 const handleMapClick = () => {
   // If Mobile Panel is visible and expanded, collapse it (minimize it)
@@ -69,6 +73,8 @@ onMounted(() => initWakeLock());
     ref="rootEl"
     class="ogis-root position-fixed top-0 start-0 w-100 h-100 overflow-hidden"
     :data-attrib-collapsed="attributionCollapsed ? 'true' : 'false'"
+    :data-modes="activeModes.length ? activeModes.join(' ') : null"
+    :data-pane="visiblePane ?? 'closed'"
   >
     <div style="display: none" v-html="iconSprite"></div>
 

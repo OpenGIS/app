@@ -5,6 +5,7 @@ import { useStorage } from "@/composables/useStorage";
 import { getMapInstance } from "@/composables/useMap";
 import { useOrientView } from "@/composables/useOrientView";
 import { useFollowCamera } from "@/composables/useFollowCamera";
+import { useActions } from "@/composables/useActions";
 import { deriveCourse, deriveSpeed } from "@/utils/follow";
 import { emitter } from "@/emitter.js";
 import { Position } from "@/classes/Position";
@@ -35,7 +36,7 @@ function smoothAngle(current, next, factor) {
  * Manages GPS tracking state, map markers, and the permission flow.
  * State is cached per app instance and shared across all callers.
  *
- * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, cycle: Function, confirmLocate: Function, stop: Function, retryOrientation: Function, retryPosition: Function }}
+ * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, cycle: Function, confirmLocate: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function }}
  */
 export const useLocate = (explicitInstanceId) => {
   const instanceId = explicitInstanceId ?? inject("ogisAppId", "app");
@@ -63,13 +64,15 @@ export const useLocate = (explicitInstanceId) => {
       orientationListener: null, // { eventName, handler }
       positionMarker: null,
       headingMarker: null,
+      followModeRegistered: false, // the follow mode is registered once per instance
     });
   }
 
   const c = locateCache.get(instanceId);
 
-  const { orientView } = useOrientView();
+  const { orientView } = useOrientView(instanceId);
   const followCamera = useFollowCamera(instanceId);
+  const actions = useActions(instanceId);
 
   // ─── Following ───────────────────────────────────────────────────────────
 
@@ -529,6 +532,33 @@ export const useLocate = (explicitInstanceId) => {
   };
 
   /**
+   * End following without tearing down tracking.
+   *
+   * The geolocation watcher, position, compass listener and markers stay
+   * intact — only the follow camera stops and the mode returns to `active`.
+   * A normal end persists the final pose; a hand-off (`persist: false`)
+   * releases camera suppression and lets the incoming action's camera move
+   * persist instead.
+   *
+   * @param {{ persist?: boolean }} [options]
+   */
+  const endFollowing = ({ persist = true } = {}) => {
+    if (c.mode.value !== "following") return;
+    c.mode.value = "active";
+    followCamera.stop({ persist });
+  };
+
+  // The follow mode owns the camera while following. Registered once; the
+  // locate cache lives for the app lifetime, so it is never unregistered.
+  if (!c.followModeRegistered) {
+    c.followModeRegistered = true;
+    actions.registerMode("follow", {
+      active: computed(() => c.mode.value === "following"),
+      stop: ({ handoff = false } = {}) => endFollowing({ persist: !handoff }),
+    });
+  }
+
+  /**
    * Re-request orientation (compass) permission and restart watching.
    * Must be called within a user-gesture handler so iOS Safari grants the
    * DeviceOrientationEvent permission.
@@ -566,6 +596,7 @@ export const useLocate = (explicitInstanceId) => {
     confirmLocate,
     requestPermission,
     stop,
+    endFollowing,
     retryOrientation,
     retryPosition,
   };

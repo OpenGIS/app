@@ -2,6 +2,7 @@
 // Provides a side panel for downloading a map region (tiles + glyphs) so it
 // works offline via the service worker map cache.
 import OfflinePanel from "./OfflinePanel.vue";
+import { useActions } from "@/composables/useActions";
 import { useGeoJSON } from "@/composables/useGeoJSON.js";
 import {
   estimateRegion,
@@ -26,6 +27,8 @@ export const OfflineFeature = {
 
     // GeoJSON renderer, used to draw a downloaded region's bounds on the map.
     const geoJSON = useGeoJSON(instanceId);
+
+    const actions = useActions(instanceId);
 
     // Current style sources, refreshed once the map is ready.
     let styleSources = [];
@@ -111,6 +114,7 @@ export const OfflineFeature = {
     // it, so the user can see what data they have downloaded.
     const showRegion = (region) => {
       if (!region.bounds) return;
+      actions.claimMap();
       const { west, south, east, north } = region.bounds;
       const ring = [
         [west, south],

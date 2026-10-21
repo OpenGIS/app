@@ -1,13 +1,16 @@
 <script setup>
 import { computed, inject, ref } from "vue";
-import { useMap, getMapInstance, fitCountryBounds } from "@/composables/useMap";
+import { useMap, getMapInstance } from "@/composables/useMap";
 import { useLocale } from "@/composables/useLocale";
 import { useAttribution } from "@/composables/useAttribution";
+import { useActions } from "@/composables/useActions";
 import { formatUrlHash } from "@/composables/useUrlHash";
+import { actions } from "@/actions";
 import Icon from "@/components/ui/icon.vue";
 
 const { mapView } = useMap();
 const { t } = useLocale();
+const { perform } = useActions();
 const instanceId = inject("ogisAppId", "app");
 
 // Attribution HTML comes from our trusted style (OpenGIS/outdoors style.json),
@@ -74,7 +77,17 @@ const onRandom = (e) => {
   // Defensive: before the map is ready, fall back to the href navigation.
   if (!map) return;
   e.preventDefault();
-  fitCountryBounds(map, "");
+  perform(actions.random);
+};
+
+const onImprove = (e) => {
+  // Let the browser handle modifier clicks (open in new tab, etc.).
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const map = getMapInstance(instanceId);
+  // Defensive: before the map is ready, fall back to the href navigation.
+  if (!map) return;
+  e.preventDefault();
+  perform(actions.improve);
 };
 </script>
 
@@ -114,6 +127,7 @@ const onRandom = (e) => {
           :href="osmNoteUrl ?? '#'"
           target="_blank"
           rel="noopener noreferrer"
+          @click="onImprove"
         >
           {{ t("panel.view.improve") }}
           <Icon width="16" height="16" fill="currentColor" name="pencil" />

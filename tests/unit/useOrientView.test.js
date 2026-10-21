@@ -151,6 +151,18 @@ describe("useOrientView / camera target", () => {
 
     expect(inject).toHaveBeenCalledWith("ogisAppId", "app");
   });
+
+  it("resolves an explicit instance id instead of the injected one", () => {
+    const map = createMap({ bearing: 90, pitch: 20 });
+    mockMapInstance = map;
+
+    const { orientView } = useOrientView("scoped");
+    expect(orientView()).toBe(true);
+
+    expect(getMapInstance).toHaveBeenCalledWith("scoped");
+    expect(inject).not.toHaveBeenCalled();
+    expect(map.easeTo).toHaveBeenCalledWith({ bearing: 0, pitch: 0 });
+  });
 });
 
 // ─── Location target ─────────────────────────────────────────────────────────

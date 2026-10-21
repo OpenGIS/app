@@ -1,6 +1,6 @@
 ---
-git_hash: "1ac4c2e76965e5755e7c7b8c4dae757283e4762a"
-modified: "2026-10-16"
+git_hash: "cbfa1d1f378867a83a383284a8b591ad3c5b4ebc"
+modified: "2026-10-21"
 ---
 
 # ogis.app — Docs
@@ -14,19 +14,19 @@ Developer documentation for the ogis.app codebase.
 
 ## Contents
 
-| Doc                                  | Purpose                                                                                                |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| [1. Terminology](./1.terminology.md) | Shared project language: demo area, fixture set, core and CI terms                                     |
-| [2. Setup](./2.setup.md)             | Dev server, build, URL parameters, iframe isolation                                                    |
-| [3. Instances](./3.instances.md)     | Instance ID, localStorage key format, iframe use case                                                  |
-| [4. Map](./4.map.md)                 | `useMap` API: lifecycle, readiness signals, view persistence, URL hash, globe, country focus           |
-| [5. UI](./5.ui.md)                   | `useUI` API: responsive breakpoints, panel, corner controls, wake lock                                 |
-| [6. GeoJSON](./6.geojson.md)         | `useGeoJSON` API: rendering features with styles                                                       |
-| [7. Locale](./7.locale.md)           | `useLocale` API: translations, language resolution                                                     |
-| [8. Theme](./8.theme.md)             | Bootstrap SCSS theme architecture and green palette                                                    |
-| [9. Testing](./9.testing.md)         | Unit and E2E strategy, rendering modes, fixtures, screenshot matrix                                    |
-| [10. Features](./10.features.md)     | Adding a core feature (internal plugin pattern)                                                        |
-| [11. Routes](./11.routes.md)         | GPX import, route rendering, offline navigation                                                        |
-| [12. Offline](./12.offline.md)       | Offline region download: service worker, tile enumeration, storage                                     |
-| [13. CI](./13.ci.md)                 | GitHub Actions: jobs, artefacts, screenshot-matrix verification, conventional commits, release, deploy |
-| [14. Icons](./14.icons.md)           | End-to-end icon pipeline: sources, generated bundle, `icons:build`, codepoints                         |
+| Doc                                  | Purpose                                                                                                         |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| [1. Terminology](./1.terminology.md) | Shared project language: demo area, fixture set, core and CI terms                                              |
+| [2. Setup](./2.setup.md)             | Dev server, build, URL parameters, iframe isolation                                                             |
+| [3. Instances](./3.instances.md)     | Instance ID, localStorage key format, iframe use case                                                           |
+| [4. Map](./4.map.md)                 | `useMap` API: lifecycle, readiness signals, view persistence, URL hash, globe, country focus                    |
+| [5. UI](./5.ui.md)                   | `useUI` and `useActions` APIs: responsive breakpoints, panel, corner controls, actions and map modes, wake lock |
+| [6. GeoJSON](./6.geojson.md)         | `useGeoJSON` API: rendering features with styles                                                                |
+| [7. Locale](./7.locale.md)           | `useLocale` API: translations, language resolution                                                              |
+| [8. Theme](./8.theme.md)             | Bootstrap SCSS theme architecture and green palette                                                             |
+| [9. Testing](./9.testing.md)         | Unit and E2E strategy, rendering modes, fixtures, screenshot matrix                                             |
+| [10. Features](./10.features.md)     | Adding a core feature (internal plugin pattern)                                                                 |
+| [11. Routes](./11.routes.md)         | GPX import, route rendering, offline navigation                                                                 |
+| [12. Offline](./12.offline.md)       | Offline region download: service worker, tile enumeration, storage                                              |
+| [13. CI](./13.ci.md)                 | GitHub Actions: jobs, artefacts, screenshot-matrix verification, conventional commits, release, deploy          |
+| [14. Icons](./14.icons.md)           | End-to-end icon pipeline: sources, generated bundle, `icons:build`, codepoints                                  |

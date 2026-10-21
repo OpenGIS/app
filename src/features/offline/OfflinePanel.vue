@@ -2,10 +2,12 @@
 <script setup>
 import { ref, computed, inject, onUnmounted, onMounted } from "vue";
 import { useUI } from "@/composables/useUI";
+import { useActions } from "@/composables/useActions";
 import { useLocale } from "@/composables/useLocale";
 import { useOrientView } from "@/composables/useOrientView";
 
-const { closePanel, openPanel, isDesktop } = useUI();
+const { openPanel, isDesktop } = useUI();
+const { claimMap, dismissPanel, registerMode } = useActions();
 const { t, locale, formatLocale } = useLocale();
 const { orientView, switchProjection } = useOrientView();
 
@@ -31,6 +33,7 @@ let upHandler = null;
 let downHandler = null;
 let cancelHandler = null;
 let restoreProjection = null;
+let unregisterDraw = null;
 
 const map = () => getMap();
 
@@ -74,11 +77,12 @@ const updateOverlay = (start, current) => {
 const startDraw = () => {
   const m = map();
   if (!m) return;
+  claimMap();
+  dismissPanel();
   bounds.value = null;
   estimateState.value = null;
   overlayStyle.value = { display: "none" };
   drawing.value = true;
-  if (!isDesktop.value) closePanel();
 
   // Use a flat 2D mercator projection for the duration of the drag (restored
   // when the draw stops) and reset rotation. Centre and zoom are untouched.
@@ -175,7 +179,18 @@ const stopDraw = (opts = {}) => {
   }
 };
 
-onUnmounted(stopDraw);
+onMounted(() => {
+  unregisterDraw = registerMode("draw", {
+    active: drawing,
+    stop: ({ handoff = false } = {}) => stopDraw({ reopen: !handoff }),
+  });
+});
+
+onUnmounted(() => {
+  unregisterDraw?.();
+  unregisterDraw = null;
+  stopDraw();
+});
 
 // --- Zoom range controls ---
 const minZoom = ref(10);

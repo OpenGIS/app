@@ -1,5 +1,6 @@
 // routes/index.js — GPX routes feature for ogis.app
-import { ref } from "vue";
+import { computed, ref } from "vue";
+import { useActions } from "@/composables/useActions";
 import { useGeoJSON } from "@/composables/useGeoJSON.js";
 import { totalDistance, formatDistance } from "@/utils/geo.js";
 import { parseGPX } from "./gpx.js";
@@ -20,6 +21,7 @@ export const RoutesFeature = {
     const error = ref(null);
     const { isMetric } = useSettings();
     const geoJSON = useGeoJSON(instanceId);
+    const actions = useActions(instanceId);
     const { t } = useLocale();
 
     let watchId = null;
@@ -85,9 +87,7 @@ export const RoutesFeature = {
       if (navigating.value === id) stopNavigation();
     };
 
-    const showOnMap = (id) => {
-      const route = routes.find((r) => r.id === id);
-      if (!route) return;
+    const fitRoute = (route) => {
       const coords = route.points.map((p) => [p.lng, p.lat]);
       const map = getMap();
       if (map && coords.length > 1) {
@@ -103,10 +103,20 @@ export const RoutesFeature = {
       }
     };
 
+    const showOnMap = (id) => {
+      const route = routes.find((r) => r.id === id);
+      if (!route) return;
+      actions.claimMap();
+      fitRoute(route);
+    };
+
     const startNavigation = (id) => {
       if (watchId !== null) return;
+      const route = routes.find((r) => r.id === id);
+      if (!route) return;
+      actions.claimMap({ except: "navigate" });
       navigating.value = id;
-      showOnMap(id);
+      fitRoute(route);
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
           geoJSON.setFeature({
@@ -123,6 +133,11 @@ export const RoutesFeature = {
         { enableHighAccuracy: true, maximumAge: 2000 },
       );
     };
+
+    const unregisterNavigate = actions.registerMode("navigate", {
+      active: computed(() => navigating.value !== null),
+      stop: () => stopNavigation(),
+    });
 
     // Crash recovery: render persisted routes after a reload.
     renderAll();
@@ -148,6 +163,7 @@ export const RoutesFeature = {
     });
 
     return () => {
+      unregisterNavigate();
       stopNavigation();
     };
   },

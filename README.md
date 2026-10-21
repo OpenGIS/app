@@ -23,6 +23,7 @@ ogis.app is a **Vue 3 + Vite** single-page application and an **installable PWA*
 
 - **Entry point** — [`src/main.js`](src/main.js) reads the URL parameters, creates the Vue app, installs the core features and mounts to `#app`.
 - **Features** — self-contained bundles registered from `src/main.js`; each is a plain object with an `install(ctx)` method that registers a side-panel tab and/or a corner control chip. See [Features](docs/10.features.md).
+- **Actions and modes** — camera-taking actions claim the map from sustained modes (following, offline draw, route navigation) so state is reconciled before the camera moves. See [UI actions and map modes](docs/5.ui.md#ui-actions-and-map-modes).
 - **Composables** — per-instance state lives in `src/composables/`, cached in a module-level `Map` keyed by the instance id (the `?id=` URL parameter). See [Instances](docs/3.instances.md).
 - **Offline** — the service worker caches the app shell and map resources; the Offline feature pre-warms its cache by fetching every tile and glyph URL for a region. See [Offline](docs/12.offline.md).
 

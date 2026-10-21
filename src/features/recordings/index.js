@@ -1,5 +1,6 @@
 // recordings/index.js — Recordings core feature for ogis.app
 import { reactive, ref, computed, watch } from "vue";
+import { useActions } from "@/composables/useActions";
 import { useGeoJSON } from "@/composables/useGeoJSON.js";
 import { useLocate } from "@/composables/useLocate.js";
 import { useUI } from "@/composables/useUI.js";
@@ -64,6 +65,7 @@ export const RecordingsFeature = {
     const stored = useStorage("recordings", { saved: [], active: null });
     const { isMetric } = useSettings();
     const { requestPermission } = useLocate(instanceId);
+    const actions = useActions(instanceId);
     const { t, formatLocale } = useLocale();
 
     const state = reactive({
@@ -237,6 +239,7 @@ export const RecordingsFeature = {
     };
 
     const showOnMap = (recording) => {
+      actions.claimMap();
       const coords = recording.points.map((p) => [p.lng, p.lat]);
       geoJSON.setFeature({
         type: "Feature",
