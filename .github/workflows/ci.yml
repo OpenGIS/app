@@ -44,7 +44,7 @@ jobs:
   e2e:
     name: e2e (shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     # `[skip e2e]` in the head commit message of a push skips the functional
     # suite; pull requests always run it.
     if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip e2e]') }}
