@@ -1,20 +1,7 @@
 import { inject } from "vue";
 import { getMapInstance } from "@/composables/useMap.js";
 import { emitter } from "@/emitter.js";
-
-// Bright, visually distinct colours for auto-assignment
-const BRIGHT_COLORS = [
-  "#e74c3c",
-  "#3498db",
-  "#2ecc71",
-  "#e67e22",
-  "#9b59b6",
-  "#1abc9c",
-  "#e91e63",
-  "#f1c40f",
-  "#00bcd4",
-  "#ff5722",
-];
+import { BRIGHT_COLORS } from "@/utils/track/colors.js";
 
 const SOURCE_ID = "ogis-geojson";
 const LAYER_IDS = {
@@ -22,7 +9,9 @@ const LAYER_IDS = {
   polygonOutline: "ogis-geojson-polygon-outline",
   line: "ogis-geojson-line",
   point: "ogis-geojson-point",
+  direction: "ogis-geojson-direction",
 };
+const DIRECTION_IMAGE_ID = "ogis-geojson-direction-arrow";
 
 const LINE_TYPES = new Set(["LineString", "MultiLineString"]);
 const POINT_TYPES = new Set(["Point", "MultiPoint"]);
@@ -38,6 +27,35 @@ function getGeometryCategory(geometry) {
 
 function randomBrightColor() {
   return BRIGHT_COLORS[Math.floor(Math.random() * BRIGHT_COLORS.length)];
+}
+
+function createDirectionArrowImage() {
+  if (typeof document === "undefined") return null;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 64;
+
+  const ctx = canvas.getContext?.("2d");
+  if (!ctx || typeof ctx.getImageData !== "function") return null;
+
+  ctx.lineWidth = 3;
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(0,0,0,0.45)";
+  ctx.fillStyle = "white";
+
+  ctx.beginPath();
+  ctx.moveTo(32, 19);
+  ctx.lineTo(52, 37);
+  ctx.lineTo(44, 45);
+  ctx.lineTo(32, 34);
+  ctx.lineTo(20, 45);
+  ctx.lineTo(12, 37);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  return ctx.getImageData(0, 0, 64, 64);
 }
 
 // Module-level cache: instanceId -> manager
@@ -190,6 +208,66 @@ function createManager(instanceId) {
       },
     });
 
+    // Direction chevrons for line features that opt in
+    let directionImageReady = Boolean(
+      mapInstance.hasImage?.(DIRECTION_IMAGE_ID),
+    );
+    if (!directionImageReady && typeof mapInstance.addImage === "function") {
+      const image = createDirectionArrowImage();
+      if (image) {
+        mapInstance.addImage(DIRECTION_IMAGE_ID, image, { pixelRatio: 2 });
+        directionImageReady = true;
+      }
+    }
+
+    if (directionImageReady) {
+      const directionLayer = {
+        id: LAYER_IDS.direction,
+        type: "symbol",
+        source: SOURCE_ID,
+        filter: [
+          "all",
+          [
+            "match",
+            ["geometry-type"],
+            ["LineString", "MultiLineString"],
+            true,
+            false,
+          ],
+          ["==", ["get", "ogis.direction"], true],
+        ],
+        layout: {
+          "symbol-placement": "line",
+          "symbol-spacing": 110,
+          "icon-image": DIRECTION_IMAGE_ID,
+          "icon-size": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            8,
+            0.35,
+            12,
+            0.5,
+            16,
+            0.75,
+            20,
+            0.9,
+          ],
+          "icon-rotate": 90,
+          "icon-rotation-alignment": "map",
+          "icon-pitch-alignment": "map",
+          "icon-keep-upright": false,
+          "icon-allow-overlap": false,
+          "icon-ignore-placement": false,
+        },
+        paint: {
+          "icon-opacity": 0.7,
+        },
+      };
+
+      mapInstance.addLayer(directionLayer);
+    }
+
     // Apply any features that were set before the map was ready
     updateSource();
   };
@@ -197,9 +275,9 @@ function createManager(instanceId) {
   const cleanup = () => {
     if (!map) return;
     for (const layerId of Object.values(LAYER_IDS).reverse()) {
-      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getLayer?.(layerId)) map.removeLayer(layerId);
     }
-    if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
+    if (map.getSource?.(SOURCE_ID)) map.removeSource(SOURCE_ID);
     map = null;
   };
 
@@ -230,6 +308,7 @@ function createManager(instanceId) {
    * | `ogis.width` | Line | 3 |
    * | `ogis.radius` | Point | 6 |
    * | `ogis.fillOpacity` | Polygon | 0.4 |
+   * | `ogis.direction` | Line | off (`true` shows direction chevrons) |
    *
    * @param {import('geojson').Feature} feature
    */

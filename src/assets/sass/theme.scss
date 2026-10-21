@@ -244,6 +244,44 @@ $font-size-base: 0.9375rem; // 15 px
   font-size: 0.875rem;
 }
 
+// Track colour swatch — a small, non-shrinking dot beside a track name.
+.ogis-track-swatch {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+// Allow the name flex item to shrink so text-truncate can take effect.
+.ogis-track-name {
+  min-width: 0;
+}
+
+// Inline share format menu — a borderless summary that opens its options.
+.ogis-share-menu {
+  position: relative;
+
+  > summary {
+    list-style: none;
+    cursor: pointer;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &::marker {
+      content: "";
+    }
+  }
+}
+
+.ogis-share-menu__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
 // #6g  Layout and structural styles
 // ─────────────────────────────────────────────────────────────
 // Required structural styles. Not tied to the palette — do not
@@ -322,6 +360,13 @@ $font-size-base: 0.9375rem; // 15 px
   right: 0;
 }
 
+.ogis-corner--tc {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
 .ogis-corner--br {
   bottom: 0;
   right: 0;
@@ -380,16 +425,23 @@ $font-size-base: 0.9375rem; // 15 px
   pointer-events: none;
 }
 
-// Menu-chip status dot — set via useUI's generic `menuBadge` signal. Kept
+// Menu-chip status — the generic `menuBadge` dot sits in the chip's top-right
+// corner. Navigation status lives in its own top-centre control. Kept
 // feature-agnostic here: the caller supplies the state, core owns the styling.
-.ogis-menu-badge {
+.ogis-menu-status {
   position: absolute;
-  top: 11px;
-  right: 11px;
+  top: 5px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.ogis-menu-badge {
+  flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  pointer-events: none;
 
   &[data-state="recording"] {
     background-color: var(--bs-red);
@@ -400,6 +452,217 @@ $font-size-base: 0.9375rem; // 15 px
     background-color: var(--bs-orange);
     opacity: 0.7;
   }
+}
+
+// Navigation connector — a screen-space overlay line from the locate marker to
+// the nearest off-route point. It sits above the map but below the corner
+// controls so terrain and 3D buildings can never occlude it.
+.ogis-nav-connector {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1029;
+
+  polyline {
+    fill: none;
+    stroke: var(--bs-primary);
+    stroke-width: 3;
+    stroke-opacity: 0.9;
+    stroke-dasharray: 6 6;
+    stroke-linecap: butt;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+}
+
+// Navigation status control — a full-size, non-interactive readout in the
+// top-centre corner. It reuses the chip controls' frosted-glass language.
+// Three temporary shapes are selectable via `data-variant`; `card` is the
+// default. The max width leaves room for the menu and locate chips on narrow
+// screens (2 × 5.5rem of edge clearance).
+.ogis-nav-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-sizing: border-box;
+  max-width: calc(100vw - 11rem);
+  padding: 0.9rem 1rem 0.9rem 0.85rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
+  color: var(--bs-secondary-color);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+
+  &[data-state="locating"] {
+    opacity: 0.65;
+  }
+}
+
+.ogis-nav-control__icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(var(--bs-primary-rgb), 0.16);
+  color: var(--bs-primary);
+
+  svg {
+    display: block;
+    width: 24px;
+    height: 24px;
+    transform-origin: center;
+  }
+}
+
+.ogis-nav-control__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.ogis-nav-control__value {
+  min-width: 0;
+  color: var(--bs-body-color);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ogis-nav-control__caption {
+  flex: 0 0 auto;
+  margin-top: 0.2rem;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+// Card — wide rounded readout, the default.
+.ogis-nav-control[data-variant="card"] {
+  min-height: 70px;
+  border-radius: 18px;
+}
+
+// Chip — compact circular badge.
+.ogis-nav-control[data-variant="chip"] {
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border-radius: 50%;
+  text-align: center;
+
+  .ogis-nav-control__icon {
+    width: 26px;
+    height: 26px;
+    background: none;
+
+    svg {
+      width: 26px;
+      height: 26px;
+    }
+  }
+
+  .ogis-nav-control__body {
+    align-items: center;
+    max-width: 64px;
+  }
+
+  .ogis-nav-control__value {
+    max-width: 64px;
+    font-size: 0.6875rem;
+  }
+
+  .ogis-nav-control__caption {
+    margin-top: 0;
+    font-size: 0.5rem;
+    letter-spacing: 0.02em;
+  }
+}
+
+// Pill — low inline strip with the distance and caption side by side.
+.ogis-nav-control[data-variant="pill"] {
+  gap: 0.45rem;
+  min-height: 46px;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+
+  .ogis-nav-control__icon {
+    width: 18px;
+    height: 18px;
+    background: none;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  .ogis-nav-control__body {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.35rem;
+  }
+
+  .ogis-nav-control__value {
+    font-size: 0.8125rem;
+    line-height: 1;
+  }
+
+  .ogis-nav-control__caption {
+    margin-top: 0;
+    font-size: 0.5rem;
+  }
+}
+
+.ogis-nav-control[data-state="on-route"] .ogis-nav-control__icon {
+  color: #198754;
+}
+
+.ogis-nav-control[data-variant="card"][data-state="on-route"]
+  .ogis-nav-control__icon {
+  background: rgba(25, 135, 84, 0.14);
+}
+
+[data-bs-theme="dark"] .ogis-nav-control {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(10, 18, 10, 0.82);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+[data-bs-theme="dark"]
+  .ogis-nav-control[data-variant="card"]
+  .ogis-nav-control__icon {
+  background: rgba(var(--bs-primary-rgb), 0.22);
+}
+
+[data-bs-theme="dark"]
+  .ogis-nav-control[data-state="on-route"]
+  .ogis-nav-control__icon {
+  color: #75b798;
+}
+
+[data-bs-theme="dark"]
+  .ogis-nav-control[data-variant="card"][data-state="on-route"]
+  .ogis-nav-control__icon {
+  background: rgba(25, 135, 84, 0.24);
 }
 
 // Chip variant — round glass button for the map-corner controls.

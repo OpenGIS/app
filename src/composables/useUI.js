@@ -14,6 +14,9 @@ function createState() {
     // Generic status signal for the menu chip. Features set it to surface an
     // at-a-glance indicator while the panel is closed (e.g. "recording").
     menuBadge: ref(null),
+    // Multipurpose navigation indicator for the menu chip. Features set it to
+    // surface the current navigation state while the panel is closed.
+    menuNavigation: ref(null),
   };
 }
 
@@ -104,6 +107,10 @@ export const useUI = (explicitInstanceId) => {
     s.menuBadge.value = value;
   };
 
+  const setMenuNavigation = (value) => {
+    s.menuNavigation.value = value;
+  };
+
   return {
     // State
     width: s.width,
@@ -111,6 +118,7 @@ export const useUI = (explicitInstanceId) => {
     isPanelExpanded: s.isPanelExpanded,
     activePanel: s.activePanel,
     menuBadge: s.menuBadge,
+    menuNavigation: s.menuNavigation,
 
     // Computed
     isDesktop,
@@ -130,5 +138,6 @@ export const useUI = (explicitInstanceId) => {
     setPanelExpanded,
     setActivePanel,
     setMenuBadge,
+    setMenuNavigation,
   };
 };

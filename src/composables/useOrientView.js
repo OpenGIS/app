@@ -25,13 +25,15 @@ const ANGLE_EPSILON_DEG = 0.01;
  * durations for reduced-motion users, and never use `maxDuration`, which would
  * make the flight instant.
  *
+ * @param {string} [explicitInstanceId] - App instance ID; resolved via
+ *   `inject('ogisAppId')` when omitted.
  * @returns {{
  *   orientView: (options?: { target?: { lat: number, lng: number } }) => boolean,
  *   switchProjection: (type?: string) => () => void,
  * }}
  */
-export const useOrientView = () => {
-  const instanceId = inject("ogisAppId", "app");
+export const useOrientView = (explicitInstanceId) => {
+  const instanceId = explicitInstanceId ?? inject("ogisAppId", "app");
 
   /**
    * Scoped projection switch. Resolves the map the same way `orientView`

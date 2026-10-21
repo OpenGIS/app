@@ -3,6 +3,7 @@
 import { inject, computed } from "vue";
 import { useSettings } from "@/composables/useSettings.js";
 import { useLocale } from "@/composables/useLocale";
+import { documentDistance } from "@/utils/track/index.js";
 import { formatDuration, formatDistance } from "./index.js";
 
 const { isMetric } = useSettings();
@@ -17,18 +18,32 @@ const {
   resume,
   discard,
   save,
+  shareRecording,
+  toggleVisibility,
+  isVisible,
   deleteRecording,
-  downloadGPX,
-  showOnMap,
 } = inject("recordings");
 
 const isActive = computed(() => state.isRecording || state.isPaused);
 
 const sortedRecordings = computed(() =>
   [...state.saved].sort(
-    (a, b) => b.timestamp - a.timestamp || Number(b.id) - Number(a.id),
+    (a, b) =>
+      (b.createdAt ?? 0) - (a.createdAt ?? 0) ||
+      String(b.id).localeCompare(String(a.id)),
   ),
 );
+
+const onShare = async (event, recording, format) => {
+  event.currentTarget.closest("details")?.removeAttribute("open");
+  await shareRecording(recording, format);
+};
+
+const confirmDelete = (recording) => {
+  const date = new Date(recording.createdAt).toLocaleString(formatLocale.value);
+  if (!window.confirm(t("panel.recordings.confirmDelete", { date }))) return;
+  deleteRecording(recording.id);
+};
 </script>
 
 <template>
@@ -89,26 +104,58 @@ const sortedRecordings = computed(() =>
     </p>
 
     <div v-for="rec in sortedRecordings" :key="rec.id" class="border-top py-2">
-      <div class="small text-body-secondary">
-        {{ new Date(rec.timestamp).toLocaleString(formatLocale) }}
+      <div class="d-flex align-items-center gap-2 small text-body-secondary">
+        <span
+          class="ogis-track-swatch"
+          :style="{ backgroundColor: rec.color }"
+        ></span>
+        <span>{{
+          new Date(rec.createdAt).toLocaleString(formatLocale.value)
+        }}</span>
       </div>
       <div class="d-flex justify-content-between small">
-        <span>{{ formatDuration(rec.duration) }}</span>
-        <span>{{ formatDistance(rec.distance, isMetric, locale.value) }}</span>
+        <span>{{ formatDuration(rec.duration ?? 0) }}</span>
+        <span>
+          {{ formatDistance(documentDistance(rec), isMetric, locale.value) }}
+        </span>
       </div>
-      <div class="d-flex gap-1 mt-1">
-        <button class="btn btn-sm btn-outline-primary" @click="showOnMap(rec)">
-          {{ t("panel.recordings.show") }}
-        </button>
+      <div class="d-flex flex-wrap gap-1 mt-1">
         <button
-          class="btn btn-sm btn-outline-secondary"
-          @click="downloadGPX(rec)"
+          class="btn btn-sm"
+          :class="isVisible(rec.id) ? 'btn-primary' : 'btn-outline-primary'"
+          :aria-pressed="isVisible(rec.id)"
+          @click="toggleVisibility(rec)"
         >
-          {{ t("panel.recordings.gpx") }}
+          {{
+            isVisible(rec.id)
+              ? t("panel.recordings.hide")
+              : t("panel.recordings.show")
+          }}
         </button>
+
+        <details class="ogis-share-menu">
+          <summary class="btn btn-sm btn-outline-secondary">
+            {{ t("panel.recordings.share") }}
+          </summary>
+          <div class="ogis-share-menu__items">
+            <button
+              class="btn btn-sm btn-outline-secondary"
+              @click="onShare($event, rec, 'gpx')"
+            >
+              GPX
+            </button>
+            <button
+              class="btn btn-sm btn-outline-secondary"
+              @click="onShare($event, rec, 'geojson')"
+            >
+              GeoJSON
+            </button>
+          </div>
+        </details>
+
         <button
           class="btn btn-sm btn-outline-danger"
-          @click="deleteRecording(rec.id)"
+          @click="confirmDelete(rec)"
         >
           {{ t("panel.recordings.delete") }}
         </button>

@@ -5,6 +5,7 @@ import { useLocale } from "@/composables/useLocale";
 import IconButton from "@/components/ui/icon-button.vue";
 import LocateButton from "@/components/ui/controls/locate.vue";
 import AttributionControl from "@/components/ui/controls/attribution.vue";
+import NavigationControl from "@/features/routes/NavigationControl.vue";
 import { getMapInstance } from "@/composables/useMap";
 
 const instanceId = inject("ogisAppId", "app");
@@ -18,6 +19,7 @@ const {
   isMenuVisible,
   isDesktop,
   menuBadge,
+  menuNavigation,
 } = useUI();
 const { t } = useLocale();
 
@@ -60,17 +62,20 @@ const handleCustomClick = (btn) => {
         chip
         icon="layout-sidebar-inset"
         :label="t('nav.menu')"
+        :title="t('nav.menu')"
+        :aria-label="t('nav.menu')"
         :icon-size="29"
         :active="isMenuVisible"
         @click="togglePanel()"
       >
-        <span
-          v-if="menuBadge"
-          class="ogis-menu-badge"
-          :data-state="menuBadge"
-          aria-hidden="true"
-        ></span>
+        <span v-if="menuBadge" class="ogis-menu-status" aria-hidden="true">
+          <span class="ogis-menu-badge" :data-state="menuBadge"></span>
+        </span>
       </IconButton>
+    </div>
+
+    <div v-if="menuNavigation" class="ogis-corner ogis-corner--tc">
+      <NavigationControl :navigation="menuNavigation" />
     </div>
 
     <div class="ogis-corner ogis-corner--tr">

@@ -62,3 +62,34 @@ export function formatDistance(metres, isMetric = true, locale = "en") {
     ? formatUnit(Number(miles.toFixed(2)), "mile", locale, 2)
     : formatUnit(Math.round(feet), "foot", locale, 0);
 }
+
+/** Metres in one mile. */
+const METRES_PER_MILE = 1609.344;
+
+/**
+ * Format metres as a compact localised distance — one significant unit, with
+ * fewer decimals at longer ranges so the string stays short enough for the
+ * menu chip. Non-finite and negative values render as an empty string.
+ */
+export function formatCompactDistance(metres, isMetric = true, locale = "en") {
+  if (!Number.isFinite(metres) || metres < 0) return "";
+
+  if (isMetric) {
+    if (metres < 1000) {
+      return formatUnit(Math.round(metres), "meter", locale, 0);
+    }
+    const kilometres = metres / 1000;
+    return formatUnit(
+      kilometres,
+      "kilometer",
+      locale,
+      kilometres >= 100 ? 0 : 1,
+    );
+  }
+
+  const miles = metres / METRES_PER_MILE;
+  if (miles < 0.1) {
+    return formatUnit(Math.round(metres * 3.28084), "foot", locale, 0);
+  }
+  return formatUnit(miles, "mile", locale, miles >= 100 ? 0 : 1);
+}

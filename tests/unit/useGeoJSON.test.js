@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -23,11 +23,41 @@ let emitterCallbacks = {};
 const mockMap = {
   addSource: vi.fn(),
   addLayer: vi.fn(),
+  addImage: vi.fn(),
+  hasImage: vi.fn(() => false),
   getSource: vi.fn(),
   getLayer: vi.fn(),
   removeLayer: vi.fn(),
   removeSource: vi.fn(),
 };
+
+const mockImageData = {
+  data: new Uint8ClampedArray(4),
+  width: 64,
+  height: 64,
+};
+
+const mockCanvasContext = {
+  beginPath: vi.fn(),
+  moveTo: vi.fn(),
+  lineTo: vi.fn(),
+  closePath: vi.fn(),
+  fill: vi.fn(),
+  stroke: vi.fn(),
+  getImageData: vi.fn(() => mockImageData),
+};
+
+beforeEach(() => {
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+    mockCanvasContext,
+  );
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  mockMap.hasImage.mockReturnValue(false);
+  mockMap.getLayer.mockReset();
+});
 
 const mockSetData = vi.fn();
 mockMap.getSource.mockImplementation(() => ({ setData: mockSetData }));
@@ -107,7 +137,7 @@ const polygonFeature = (id = "poly-1") => ({
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe("useGeoJSON / map lifecycle", () => {
-  it("creates source and four layers on map:ready", async () => {
+  it("creates source and five layers on map:ready", async () => {
     const geoJSON = await freshUseGeoJSON();
     simulateMapReady(geoJSON);
 
@@ -115,12 +145,18 @@ describe("useGeoJSON / map lifecycle", () => {
       "ogis-geojson",
       expect.objectContaining({ type: "geojson" }),
     );
-    expect(mockMap.addLayer).toHaveBeenCalledTimes(4);
+    expect(mockMap.addLayer).toHaveBeenCalledTimes(5);
     const layerIds = mockMap.addLayer.mock.calls.map((c) => c[0].id);
     expect(layerIds).toContain("ogis-geojson-polygon-fill");
     expect(layerIds).toContain("ogis-geojson-polygon-outline");
     expect(layerIds).toContain("ogis-geojson-line");
     expect(layerIds).toContain("ogis-geojson-point");
+    expect(layerIds).toContain("ogis-geojson-direction");
+
+    const directionCall = mockMap.addLayer.mock.calls.find(
+      (c) => c[0].id === "ogis-geojson-direction",
+    );
+    expect(directionCall).toHaveLength(1);
   });
 
   it("queues features set before map:ready and flushes on setup", async () => {
@@ -150,7 +186,7 @@ describe("useGeoJSON / map lifecycle", () => {
     useGeoJSON();
 
     expect(mockMap.addSource).toHaveBeenCalled();
-    expect(mockMap.addLayer).toHaveBeenCalledTimes(4);
+    expect(mockMap.addLayer).toHaveBeenCalledTimes(5);
   });
 
   it("cleans up layers and source on destroy", async () => {
@@ -165,7 +201,8 @@ describe("useGeoJSON / map lifecycle", () => {
 
     emitterCallbacks["destroy"]?.();
 
-    expect(mockMap.removeLayer).toHaveBeenCalledTimes(4);
+    expect(mockMap.removeLayer).toHaveBeenCalledTimes(5);
+    expect(mockMap.removeLayer).toHaveBeenCalledWith("ogis-geojson-direction");
     expect(mockMap.removeSource).toHaveBeenCalledWith("ogis-geojson");
   });
 });
@@ -596,6 +633,64 @@ describe("useGeoJSON / layer configuration", () => {
       (c) => c[0].id === "ogis-geojson-point",
     )[0];
     expect(pointLayer.paint["circle-stroke-color"]).toBe("white");
+  });
+
+  it("registers the direction arrow image", async () => {
+    const geoJSON = await freshUseGeoJSON();
+    simulateMapReady(geoJSON);
+
+    expect(mockMap.addImage).toHaveBeenCalledWith(
+      "ogis-geojson-direction-arrow",
+      mockImageData,
+      { pixelRatio: 2 },
+    );
+  });
+
+  it("direction layer renders chevrons for opted-in lines", async () => {
+    const geoJSON = await freshUseGeoJSON();
+    simulateMapReady(geoJSON);
+
+    const directionLayer = mockMap.addLayer.mock.calls.find(
+      (c) => c[0].id === "ogis-geojson-direction",
+    )[0];
+
+    expect(directionLayer.type).toBe("symbol");
+    expect(directionLayer.source).toBe("ogis-geojson");
+    expect(directionLayer.filter).toEqual([
+      "all",
+      [
+        "match",
+        ["geometry-type"],
+        ["LineString", "MultiLineString"],
+        true,
+        false,
+      ],
+      ["==", ["get", "ogis.direction"], true],
+    ]);
+    expect(directionLayer.layout["symbol-placement"]).toBe("line");
+    expect(directionLayer.layout["symbol-spacing"]).toBe(110);
+    expect(directionLayer.layout["icon-image"]).toBe(
+      "ogis-geojson-direction-arrow",
+    );
+    expect(directionLayer.layout["icon-rotate"]).toBe(90);
+    expect(directionLayer.layout["icon-rotation-alignment"]).toBe("map");
+    expect(directionLayer.layout["icon-pitch-alignment"]).toBe("map");
+    expect(directionLayer.layout["icon-keep-upright"]).toBe(false);
+    expect(directionLayer.layout["icon-allow-overlap"]).toBe(false);
+    expect(directionLayer.layout["icon-ignore-placement"]).toBe(false);
+    expect(directionLayer.paint["icon-opacity"]).toBe(0.7);
+    expect(mockMap.addLayer.mock.calls.at(-1)[0].id).toBe(
+      "ogis-geojson-direction",
+    );
+  });
+
+  it("does not add the direction image when it is already registered", async () => {
+    const geoJSON = await freshUseGeoJSON();
+    mockMap.hasImage.mockReturnValue(true);
+    simulateMapReady(geoJSON);
+
+    expect(mockMap.addImage).not.toHaveBeenCalled();
+    expect(mockMap.addLayer).toHaveBeenCalledTimes(5);
   });
 });
 

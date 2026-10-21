@@ -23,6 +23,7 @@ ogis.app is a **Vue 3 + Vite** single-page application and an **installable PWA*
 
 - **Entry point** — [`src/main.js`](src/main.js) reads the URL parameters, creates the Vue app, installs the core features and mounts to `#app`.
 - **Features** — self-contained bundles registered from `src/main.js`; each is a plain object with an `install(ctx)` method that registers a side-panel tab and/or a corner control chip. See [Features](docs/10.features.md).
+- **Tracks** — routes, recordings and waypoint documents share a versioned `v: 2` model in [`src/utils/track/`](src/utils/track/) for import, export, distance and legacy migration; GeoJSON is a render/export projection. See [Tracks](docs/15.tracks.md).
 - **Composables** — per-instance state lives in `src/composables/`, cached in a module-level `Map` keyed by the instance id (the `?id=` URL parameter). See [Instances](docs/3.instances.md).
 - **Offline** — the service worker caches the app shell and map resources; the Offline feature pre-warms its cache by fetching every tile and glyph URL for a region. See [Offline](docs/12.offline.md).
 
@@ -34,8 +35,9 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 - Globe view on first load
 - Corner controls for menu and locate, plus a merged Info panel (share links, app info, privacy)
 - GPS locate with compass heading
-- Record GPS tracks and export as GPX
-- Import GPX routes and navigate offline
+- Record GPS tracks and share them as GPX or GeoJSON
+- Import GPX and GeoJSON routes and waypoints, then navigate offline in follow mode — the top-centre navigation card shows a direction arrow with the distance back to the route, or `On route` when you are on it, with a green dashed on-map connector to the nearest point on the route when you are off route within 1 km
+- Show or hide each saved route or recording independently, with direction chevrons on the map
 - Download map regions for offline use (via a service worker)
 - Multilingual — follows your device language
 - Shareable camera views

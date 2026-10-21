@@ -1,6 +1,6 @@
 ---
-git_hash: "1ac4c2e76965e5755e7c7b8c4dae757283e4762a"
-modified: "2026-10-16"
+git_hash: "360e73f31ba071e3f924962e25e4778c776ce9e1"
+modified: "2026-10-20"
 ---
 
 # ogis.app — Docs
@@ -21,12 +21,13 @@ Developer documentation for the ogis.app codebase.
 | [3. Instances](./3.instances.md)     | Instance ID, localStorage key format, iframe use case                                                  |
 | [4. Map](./4.map.md)                 | `useMap` API: lifecycle, readiness signals, view persistence, URL hash, globe, country focus           |
 | [5. UI](./5.ui.md)                   | `useUI` API: responsive breakpoints, panel, corner controls, wake lock                                 |
-| [6. GeoJSON](./6.geojson.md)         | `useGeoJSON` API: rendering features with styles                                                       |
+| [6. GeoJSON](./6.geojson.md)         | `useGeoJSON` API: rendering features with styles and direction chevrons                                |
 | [7. Locale](./7.locale.md)           | `useLocale` API: translations, language resolution                                                     |
 | [8. Theme](./8.theme.md)             | Bootstrap SCSS theme architecture and green palette                                                    |
 | [9. Testing](./9.testing.md)         | Unit and E2E strategy, rendering modes, fixtures, screenshot matrix                                    |
 | [10. Features](./10.features.md)     | Adding a core feature (internal plugin pattern)                                                        |
-| [11. Routes](./11.routes.md)         | GPX import, route rendering, offline navigation                                                        |
+| [11. Routes](./11.routes.md)         | GPX/GeoJSON import, route and waypoint rendering, visibility, follow-mode navigation                   |
 | [12. Offline](./12.offline.md)       | Offline region download: service worker, tile enumeration, storage                                     |
 | [13. CI](./13.ci.md)                 | GitHub Actions: jobs, artefacts, screenshot-matrix verification, conventional commits, release, deploy |
 | [14. Icons](./14.icons.md)           | End-to-end icon pipeline: sources, generated bundle, `icons:build`, codepoints                         |
+| [15. Tracks](./15.tracks.md)         | Canonical v2 track model: segments, waypoints, import/export, migration, caveats                       |

@@ -11,7 +11,8 @@ import { DEMO } from "../../fixtures/demo.mjs";
  *
  * Covers the start control inside the Recordings panel, the menu-chip status
  * badge, the permission flow, the recording lifecycle (start, pause, resume,
- * save, discard), saved list management, and GPX export.
+ * save, discard), saved list management, legacy migration, confirmed deletion,
+ * independent Show/Hide toggles, and GPX/GeoJSON share downloads.
  */
 
 // Reload and panel interactions settle slowly under SwiftShader/load —
@@ -58,6 +59,61 @@ const grantGeolocation = (
     .context()
     .grantPermissions(["geolocation"])
     .then(() => page.context().setGeolocation(coords));
+
+/** Force the share fallback so downloads are deterministic in every browser. */
+const withoutWebShare = (page) =>
+  page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", {
+      value: undefined,
+      configurable: true,
+    });
+  });
+
+/** Open the Recordings panel via its side panel nav tab. */
+const openRecordingsPanel = async (page) => {
+  if (!(await page.locator(".panel-nav").isVisible())) {
+    await page.locator("#menu-button").click();
+    await page.locator(".panel-nav").waitFor();
+  }
+  await page
+    .locator(".panel-nav")
+    .getByRole("button", { name: "Recordings", exact: true })
+    .click();
+  await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
+};
+
+/** Register a native-confirm handler and capture the message it carried. */
+const handleConfirm = (page, action, messages) => {
+  page.once("dialog", async (dialog) => {
+    messages.push(dialog.message());
+    await dialog[action]();
+  });
+};
+
+/** Read the persisted recordings storage object. */
+const storedRecordings = (page) =>
+  page.evaluate(() =>
+    JSON.parse(localStorage.getItem("ogis_recordings_app") || "{}"),
+  );
+
+/**
+ * Read the sorted ids of features currently held by the app's GeoJSON source,
+ * optionally scoped to an id prefix.
+ */
+const mapFeatureIds = (page, prefix = "") =>
+  page.evaluate(async (idPrefix) => {
+    const { getMapInstance } = await import("/src/composables/useMap.js");
+    const map = getMapInstance("app");
+    const data = map?.getSource("ogis-geojson")?.serialize()?.data;
+    const features =
+      data && typeof data === "object" && Array.isArray(data.features)
+        ? data.features
+        : [];
+    return features
+      .map((feature) => String(feature.id))
+      .filter((id) => id.startsWith(idPrefix))
+      .sort();
+  }, prefix);
 
 // ─── Recordings / Panel entry point ──────────────────────────────────────────
 
@@ -261,11 +317,15 @@ test.describe("Recordings / Save and Discard", () => {
     await page.getByRole("button", { name: "Pause" }).click();
     await page.getByRole("button", { name: "Save" }).click();
 
-    // Verify saved to storage
+    // Verify saved to storage in the v2 document shape.
     const stored = await page.evaluate(() =>
       JSON.parse(localStorage.getItem("ogis_recordings_app") || "{}"),
     );
     expect(stored.saved).toHaveLength(1);
+    expect(stored.saved[0]).toMatchObject({ v: 2, kind: "recording" });
+    expect(stored.saved[0].createdAt).toEqual(expect.any(Number));
+    expect(stored.saved[0].segments).toHaveLength(1);
+    expect(stored.saved[0].segments[0].points.length).toBeGreaterThan(0);
 
     // Reload and check it's still there
     await page.reload();
@@ -278,11 +338,13 @@ test.describe("Recordings / Save and Discard", () => {
 // ─── Recordings / Saved list management ──────────────────────────────────────
 
 test.describe("Recordings / Saved list management", () => {
-  /** Seed one saved recording directly into localStorage. */
+  // A fixed legacy timestamp: the migration must derive `createdAt` from it.
+  const SAVED_AT = Date.UTC(2025, 0, 15, 9, 30, 0);
+
+  /** Seed one legacy (pre-v2) saved recording directly into localStorage. */
   const withOneSavedRecording = (page) =>
     page.addInitScript(
-      ({ center, points }) => {
-        const now = Date.now();
+      ({ center, points, savedAt }) => {
         localStorage.setItem(
           "ogis_locate_app",
           JSON.stringify({ permissionGranted: true }),
@@ -299,13 +361,13 @@ test.describe("Recordings / Saved list management", () => {
             saved: [
               {
                 id: "test-rec-1",
-                timestamp: now,
+                timestamp: savedAt,
                 duration: 120000,
                 distance: 500,
                 points: points.map((point, index) => ({
                   lat: point.lat,
                   lng: point.lng,
-                  t: now - (points.length - 1 - index) * 120000,
+                  t: savedAt - (points.length - 1 - index) * 120000,
                 })),
               },
             ],
@@ -313,44 +375,162 @@ test.describe("Recordings / Saved list management", () => {
           }),
         );
       },
-      { center: DEMO.center, points: [DEMO.route[0], DEMO.route.at(-1)] },
+      {
+        center: DEMO.center,
+        points: [DEMO.route[0], DEMO.route.at(-1)],
+        savedAt: SAVED_AT,
+      },
     );
 
   test.beforeEach(async ({ page }) => {
+    await withoutWebShare(page);
     await withOneSavedRecording(page);
     await page.goto("/");
     await waitForMapReady(page);
-    // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
-    if (!(await page.locator(".panel-nav").isVisible())) {
-      await page.locator("#menu-button").click();
-      await page.locator(".panel-nav").waitFor();
-    }
-    await page
-      .locator(".panel-nav")
-      .getByRole("button", { name: "Recordings" })
-      .click();
-    await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
+    await openRecordingsPanel(page);
   });
 
   test("saved recording is listed in the panel", async ({ page }) => {
-    await expect(page.locator(".border-top")).toBeVisible();
-    await expect(page.getByRole("button", { name: "GPX" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Show" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Delete" })).toBeVisible();
+    const row = page.locator(".border-top");
+    await expect(row).toBeVisible();
+    await expect(row.locator(".ogis-track-swatch")).toBeVisible();
+    await expect(
+      row.getByRole("button", { name: "Show", exact: true }),
+    ).toHaveAttribute("aria-pressed", "false");
+    await expect(row.locator("summary")).toContainText("Share");
+    await expect(
+      row.getByRole("button", { name: "GPX", exact: true }),
+    ).toBeHidden();
+    await expect(
+      row.getByRole("button", { name: "GeoJSON", exact: true }),
+    ).toBeHidden();
+    await expect(
+      row.getByRole("button", { name: "Delete", exact: true }),
+    ).toBeVisible();
   });
 
-  test("Delete button removes the recording from the list", async ({
+  test("legacy saved recording migrates to the v2 document shape", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Delete" }).click();
-    await expect(page.locator(".border-top")).toHaveCount(0);
-    await expect(page.getByText("No recordings yet.")).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const stored = JSON.parse(
+            localStorage.getItem("ogis_recordings_app") || "{}",
+          );
+          const [recording] = stored.saved ?? [];
+          if (!recording) return null;
+          return {
+            v: recording.v,
+            kind: recording.kind,
+            createdAt: recording.createdAt,
+            segments: recording.segments?.length,
+            points: recording.segments?.[0]?.points?.length,
+            waypoints: recording.waypoints?.length,
+            source: recording.source?.format,
+            color: /^#[0-9a-f]{6}$/i.test(recording.color ?? ""),
+            hasLegacyTimestamp: "timestamp" in recording,
+          };
+        }),
+      )
+      .toEqual({
+        v: 2,
+        kind: "recording",
+        createdAt: SAVED_AT,
+        segments: 1,
+        points: 2,
+        waypoints: 0,
+        source: "legacy",
+        color: true,
+        hasLegacyTimestamp: false,
+      });
   });
 
-  test("Show button displays the track on the map", async ({ page }) => {
-    await page.getByRole("button", { name: "Show" }).click();
-    // The GeoJSON line layer should be present on the map canvas
-    await expect(page.locator(".ogis-map canvas")).toBeVisible();
+  test("cancelling Delete keeps the recording and its map feature", async ({
+    page,
+  }) => {
+    const row = page.locator(".border-top");
+    await row.getByRole("button", { name: "Show", exact: true }).click();
+    await expect
+      .poll(() => mapFeatureIds(page, "recordings-saved-"))
+      .toEqual(["recordings-saved-test-rec-1"]);
+
+    const messages = [];
+    handleConfirm(page, "dismiss", messages);
+    await row.getByRole("button", { name: "Delete", exact: true }).click();
+
+    await expect.poll(() => messages.length).toBe(1);
+    expect(messages[0]).toContain("Delete the recording from");
+    await expect(row).toBeVisible();
+    await expect
+      .poll(() => mapFeatureIds(page, "recordings-saved-"))
+      .toEqual(["recordings-saved-test-rec-1"]);
+    expect((await storedRecordings(page)).saved).toHaveLength(1);
+  });
+
+  test("accepting Delete removes the recording and its map feature", async ({
+    page,
+  }) => {
+    const row = page.locator(".border-top");
+    await row.getByRole("button", { name: "Show", exact: true }).click();
+    await expect
+      .poll(() => mapFeatureIds(page, "recordings-saved-"))
+      .toEqual(["recordings-saved-test-rec-1"]);
+
+    const messages = [];
+    handleConfirm(page, "accept", messages);
+    await row.getByRole("button", { name: "Delete", exact: true }).click();
+
+    await expect.poll(() => messages.length).toBe(1);
+    await expect(page.locator(".border-top")).toHaveCount(0);
+    await expect(page.getByText("No recordings yet.")).toBeVisible();
+    await expect
+      .poll(() => mapFeatureIds(page, "recordings-saved-"))
+      .toEqual([]);
+    expect((await storedRecordings(page)).saved).toEqual([]);
+  });
+
+  test("Show displays the track and Hide removes it", async ({ page }) => {
+    const row = page.locator(".border-top");
+    await row.getByRole("button", { name: "Show", exact: true }).click();
+
+    const hide = row.getByRole("button", { name: "Hide", exact: true });
+    await expect(hide).toBeVisible();
+    await expect(hide).toHaveAttribute("aria-pressed", "true");
+    await expect(hide).toHaveClass(/btn-primary/);
+    await expect
+      .poll(() => mapFeatureIds(page, "recordings-saved-"))
+      .toEqual(["recordings-saved-test-rec-1"]);
+
+    await hide.click();
+    await expect(
+      row.getByRole("button", { name: "Show", exact: true }),
+    ).toHaveAttribute("aria-pressed", "false");
+    await expect
+      .poll(() => mapFeatureIds(page, "recordings-saved-"))
+      .toEqual([]);
+  });
+
+  test("Share downloads the recording as GPX and GeoJSON", async ({ page }) => {
+    const row = page.locator(".border-top");
+    const summary = row.locator("summary");
+
+    await summary.click();
+    const [gpxDownload] = await Promise.all([
+      page.waitForEvent("download"),
+      row.getByRole("button", { name: "GPX", exact: true }).click(),
+    ]);
+    expect(gpxDownload.suggestedFilename()).toMatch(/\.gpx$/);
+    await expect(
+      row.getByRole("button", { name: "GPX", exact: true }),
+    ).toBeHidden();
+
+    await summary.click();
+    const [geoJSONDownload] = await Promise.all([
+      page.waitForEvent("download"),
+      row.getByRole("button", { name: "GeoJSON", exact: true }).click(),
+    ]);
+    expect(geoJSONDownload.suggestedFilename()).toMatch(/\.geojson$/);
   });
 });
 
@@ -427,7 +607,7 @@ test.describe("Recordings / Saved list order", () => {
     await expect(items).toHaveCount(2);
 
     // Format the expected labels in the page's own locale, matching the
-    // component's `new Date(rec.timestamp).toLocaleString(formatLocale)`
+    // component's `new Date(rec.createdAt).toLocaleString(formatLocale)`
     // rendering. Playwright pins en-CA, so the page locale and the computed
     // formatLocale agree.
     const [newerLabel, olderLabel] = await page.evaluate(
@@ -439,67 +619,47 @@ test.describe("Recordings / Saved list order", () => {
     await expect(items.nth(0)).toContainText(newerLabel);
     await expect(items.nth(1)).toContainText(olderLabel);
   });
-});
 
-// ─── Recordings / GPX export ──────────────────────────────────────────────────
+  test("saved recordings are shown and hidden independently", async ({
+    page,
+  }) => {
+    const items = page.locator(".border-top");
+    await expect(items).toHaveCount(2);
+    const newerRow = items.nth(0);
+    const olderRow = items.nth(1);
 
-test.describe("Recordings / GPX export", () => {
-  const withOneSavedRecording = (page) =>
-    page.addInitScript(
-      ({ center, points }) => {
-        const now = Date.now();
-        localStorage.setItem(
-          "ogis_locate_app",
-          JSON.stringify({ permissionGranted: true }),
-        );
-        localStorage.setItem(
-          "ogis_view_app",
-          JSON.stringify({
-            mapView: { center, zoom: 14 },
-          }),
-        );
-        localStorage.setItem(
-          "ogis_recordings_app",
-          JSON.stringify({
-            saved: [
-              {
-                id: "gpx-test-rec",
-                timestamp: now,
-                duration: 60000,
-                distance: 200,
-                points: points.map((point, index) => ({
-                  lat: point.lat,
-                  lng: point.lng,
-                  t: now - (points.length - 1 - index) * 60000,
-                })),
-              },
-            ],
-            active: null,
-          }),
-        );
-      },
-      { center: DEMO.center, points: [DEMO.route[0], DEMO.route.at(-1)] },
-    );
+    await newerRow.getByRole("button", { name: "Show", exact: true }).click();
+    await expect
+      .poll(() => mapFeatureIds(page, "recordings-saved-"))
+      .toEqual(["recordings-saved-test-rec-2"]);
+    await expect(
+      newerRow.getByRole("button", { name: "Hide", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      olderRow.getByRole("button", { name: "Show", exact: true }),
+    ).toHaveAttribute("aria-pressed", "false");
 
-  test("GPX button triggers a file download", async ({ page }) => {
-    await withOneSavedRecording(page);
-    await page.goto("/");
-    await waitForMapReady(page);
-    // Desktop auto-opens the Info pane; open the menu pane so the tab strip renders.
-    if (!(await page.locator(".panel-nav").isVisible())) {
-      await page.locator("#menu-button").click();
-      await page.locator(".panel-nav").waitFor();
-    }
-    await page
-      .locator(".panel-nav")
-      .getByRole("button", { name: "Recordings" })
-      .click();
+    await olderRow.getByRole("button", { name: "Show", exact: true }).click();
+    await expect
+      .poll(() => mapFeatureIds(page, "recordings-saved-"))
+      .toEqual(
+        ["recordings-saved-test-rec-1", "recordings-saved-test-rec-2"].sort(),
+      );
 
-    const [download] = await Promise.all([
-      page.waitForEvent("download"),
-      page.getByRole("button", { name: "GPX" }).click(),
-    ]);
+    await newerRow.getByRole("button", { name: "Hide", exact: true }).click();
+    await expect
+      .poll(() => mapFeatureIds(page, "recordings-saved-"))
+      .toEqual(["recordings-saved-test-rec-1"]);
+    await expect(
+      olderRow.getByRole("button", { name: "Hide", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
 
-    expect(download.suggestedFilename()).toMatch(/\.gpx$/);
+    await olderRow.getByRole("button", { name: "Hide", exact: true }).click();
+    await expect
+      .poll(() => mapFeatureIds(page, "recordings-saved-"))
+      .toEqual([]);
+    await expect(
+      olderRow.getByRole("button", { name: "Show", exact: true }),
+    ).toHaveAttribute("aria-pressed", "false");
   });
 });

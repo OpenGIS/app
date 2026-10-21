@@ -683,25 +683,6 @@ const capture = async (page, dir, name) => {
 };
 
 /**
- * Pin the auto-assigned line colour for capture.
- *
- * `useGeoJSON` picks a random bright palette colour for any feature that
- * declares no `ogis.color` — and the route feature deliberately declares only
- * width/opacity (`src/features/routes/index.js`). A seeded `Math.random` cannot
- * make that choice reproducible: MapLibre draws a worker message id from
- * `Math.random()` (its `sendAsync`), so the PRNG advances a timing-dependent
- * number of times before the route is imported. Across sessions the route line
- * therefore rendered orange in one run and green in the next — a whole-map
- * colour diff. Setting the line default through the composable's public API
- * before the import fixes the colour.
- */
-const pinLineColor = (page) =>
-  page.evaluate(async () => {
-    const mod = await import("/src/composables/useGeoJSON.js");
-    mod.useGeoJSON("app").setDefaults({ line: { color: "#e74c3c" } });
-  });
-
-/**
  * Stabilise the GPU-composited "glass" surfaces for capture.
  *
  * The corner-control chips and the Info panel footer use
@@ -725,11 +706,11 @@ const stabilizeCaptureRendering = (page) =>
 /**
  * Seed `Math.random` with a fixed PRNG before the app boots.
  *
- * `useGeoJSON` auto-assigns a colour from a bright palette when a feature
- * declares none, so the imported GPX route line changes colour every run.
- * `importGPX` also derives its route id from `Math.random`. A deterministic
- * sequence makes both reproducible; nothing in the app depends on randomness
- * for correctness.
+ * Imported track documents derive their id from `Math.random`, and `useGeoJSON`
+ * auto-assigns a palette colour to any feature that declares none. A
+ * deterministic sequence keeps both reproducible; route colours are persisted
+ * on the document, but the id still feeds the deterministic colour fallback.
+ * Nothing in the app depends on randomness for correctness.
  */
 const seedDeterministicRandom = (page) =>
   page.addInitScript(() => {
@@ -1174,7 +1155,6 @@ test.describe("Feature states — desktop landscape", () => {
     // The panel resize changes the map container width; `showOnMap` fits bounds
     // to that container, so wait for the resize before the fit runs.
     await waitForLayoutSettled(page, testInfo);
-    await pinLineColor(page);
     await page
       .locator('.ogis-panel input[type="file"]')
       .setInputFiles("tests/fixtures/route.gpx");
@@ -1190,12 +1170,30 @@ test.describe("Feature states — desktop landscape", () => {
     await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "feature-routes");
 
-    // Start navigation — the panel reports the active navigation banner.
+    // Start navigation from just off the route: the panel closes, locate enters
+    // Following, and the top-centre control carries the off-route distance,
+    // while the SVG connector marks the nearest route point.
+    const routeStart = DEMO.route[0];
+    await page.context().setGeolocation({
+      latitude: routeStart.lat + 30 / 111_320,
+      longitude: routeStart.lng,
+    });
     await page
       .locator(".ogis-panel")
       .getByRole("button", { name: "Navigate", exact: true })
       .click();
-    await expect(page.getByText(/Navigation active/)).toBeVisible();
+    await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
+    await expect(page.locator("#locate-button")).toContainText("Following", {
+      timeout: 60000,
+    });
+    await expect(
+      page.locator('.ogis-nav-control[data-state="off-route"]'),
+    ).toBeVisible({ timeout: 60000 });
+    await expect(page.locator(".ogis-nav-control__value")).toHaveText(/\d+ m/);
+    await expect(page.locator(".ogis-nav-connector polyline")).toHaveCount(1);
+    // The follow camera glides in from the route-fit view; wait for the
+    // camera and tile settle before capturing.
+    await waitForMapIdle(page, testInfo);
     await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "feature-route-navigating");
   });
@@ -1265,8 +1263,10 @@ test.describe("Feature states — desktop landscape", () => {
   });
 
   test("feature saved recording @screenshots", async ({ page }, testInfo) => {
-    // Seed one saved recording so the panel lists it with its actions. The
-    // displayed timestamp is pinned so the rendered date never drifts.
+    // Seed one legacy saved recording so the panel lists it with its actions;
+    // the app migrates it to v2 on load. The displayed timestamp is pinned so
+    // the rendered date never drifts. Only Show is clicked, so no native
+    // confirm dialog needs handling here.
     await page.addInitScript(
       ({ center, recording }) => {
         localStorage.setItem(
@@ -1378,7 +1378,9 @@ test.describe("Secondary UI states — desktop landscape", () => {
     await expect(
       page
         .locator(".ogis-panel")
-        .getByText("No routes yet. Import a GPX file to get started."),
+        .getByText(
+          "No routes yet. Import a GPX or GeoJSON file to get started.",
+        ),
     ).toBeVisible();
     await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "routes-empty");

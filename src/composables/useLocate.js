@@ -21,6 +21,14 @@ const HEADING_SMOOTH = 0.15;
 // course (or the last held course) is used instead.
 const MOVING_SPEED_MPS = 0.5;
 
+// Far navigations can take ~20 s for tiles and terrain to settle, and MapLibre
+// may never emit the `idle` event that normally re-syncs the markers. Retry on
+// a bounded loop after each `moveend` until the map reports itself settled.
+// Far camera jumps can leave the map unloaded for far longer on slow tile
+// networks (~50-60 s observed), so the window is deliberately generous.
+const MARKER_RETRY_INTERVAL_MS = 750;
+const MARKER_RETRY_TIMEOUT_MS = 120000;
+
 /** Interpolate between two angles (degrees) handling the 0°/360° wrap. */
 function smoothAngle(current, next, factor) {
   let diff = next - current;
@@ -35,7 +43,7 @@ function smoothAngle(current, next, factor) {
  * Manages GPS tracking state, map markers, and the permission flow.
  * State is cached per app instance and shared across all callers.
  *
- * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, cycle: Function, confirmLocate: Function, stop: Function, retryOrientation: Function, retryPosition: Function }}
+ * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, retryOrientation: Function, retryPosition: Function }}
  */
 export const useLocate = (explicitInstanceId) => {
   const instanceId = explicitInstanceId ?? inject("ogisAppId", "app");
@@ -63,12 +71,18 @@ export const useLocate = (explicitInstanceId) => {
       orientationListener: null, // { eventName, handler }
       positionMarker: null,
       headingMarker: null,
+      idleMap: null, // map instance with the bound idle listener
+      idleHandler: null, // bound idle handler, used to detach it
+      moveendMap: null, // map instance with the bound moveend listener
+      moveendHandler: null, // bound moveend handler, used to detach it
+      retryTimerId: null, // interval handle for the post-move marker re-sync
+      retryDeadline: 0, // epoch ms when the retry loop gives up (0 = inactive)
     });
   }
 
   const c = locateCache.get(instanceId);
 
-  const { orientView } = useOrientView();
+  const { orientView } = useOrientView(instanceId);
   const followCamera = useFollowCamera(instanceId);
 
   // ─── Following ───────────────────────────────────────────────────────────
@@ -122,6 +136,101 @@ export const useLocate = (explicitInstanceId) => {
     return el;
   };
 
+  /** Detach the map idle listener bound for marker recovery, if any. */
+  const clearIdleListener = () => {
+    if (c.idleMap && c.idleHandler) {
+      c.idleMap.off("idle", c.idleHandler);
+    }
+    c.idleMap = null;
+    c.idleHandler = null;
+  };
+
+  /** Stop the bounded marker re-sync loop, if one is running. */
+  const clearMarkerRetry = () => {
+    if (c.retryTimerId !== null) {
+      clearInterval(c.retryTimerId);
+      c.retryTimerId = null;
+    }
+    c.retryDeadline = 0;
+  };
+
+  /** Detach the map moveend listener bound for marker recovery, if any. */
+  const clearMoveendListener = () => {
+    if (c.moveendMap && c.moveendHandler) {
+      c.moveendMap.off("moveend", c.moveendHandler);
+    }
+    c.moveendMap = null;
+    c.moveendHandler = null;
+    clearMarkerRetry();
+  };
+
+  /** Detach every marker sync listener and stop its retry loop. */
+  const detachMarkerSync = () => {
+    clearIdleListener();
+    clearMoveendListener();
+    clearMarkerRetry();
+  };
+
+  /**
+   * Re-sync the markers after each move, then poll until the map settles.
+   *
+   * A far navigation may never emit `idle`, and a single sync at `moveend` can
+   * land before tiles and terrain finish loading. The interval is cleared by a
+   * new `moveend` (which restarts the window), on teardown, or at the deadline.
+   */
+  const startMarkerRetry = (map) => {
+    clearMarkerRetry();
+    c.retryDeadline = Date.now() + MARKER_RETRY_TIMEOUT_MS;
+    c.retryTimerId = setInterval(() => {
+      syncMarkers();
+      if (map.loaded() && !map.isMoving()) {
+        clearMarkerRetry();
+      } else if (Date.now() >= c.retryDeadline) {
+        clearMarkerRetry();
+      }
+    }, MARKER_RETRY_INTERVAL_MS);
+  };
+
+  /**
+   * Bind a single moveend listener per map instance to re-sync the markers.
+   *
+   * Unlike the idle listener this fires even when a far navigation never
+   * reaches idle, so it both syncs once immediately and arms startMarkerRetry.
+   */
+  const ensureMoveendListener = (map = getMapInstance(instanceId)) => {
+    if (!map || c.moveendMap === map) return;
+    clearMoveendListener();
+    c.moveendMap = map;
+    c.moveendHandler = () => {
+      // Arm the retry first: an immediate sync can throw (MapLibre's terrain
+      // DEM RangeError), and the retry must still recover the markers.
+      startMarkerRetry(map);
+      try {
+        syncMarkers();
+      } catch {
+        // The retry loop will try again.
+      }
+    };
+    map.on("moveend", c.moveendHandler);
+  };
+
+  /**
+   * Bind a single idle listener per map instance to re-sync the markers.
+   *
+   * At far-away positions MapLibre's ScaleControl move handler can throw a
+   * terrain DEM RangeError ("Out of range source coordinates for DEM data").
+   * That aborts the map's move dispatch before Marker._update runs, leaving a
+   * static fix's HTML marker stuck at a stale, off-screen projection with no
+   * further move event to correct it. Re-syncing once tiles settle recovers it.
+   */
+  const ensureIdleListener = (map = getMapInstance(instanceId)) => {
+    if (!map || c.idleMap === map) return;
+    clearIdleListener();
+    c.idleMap = map;
+    c.idleHandler = () => syncMarkers();
+    map.on("idle", c.idleHandler);
+  };
+
   /**
    * Sync both markers to the current position and compass heading.
    * Called after every position or orientation update.
@@ -172,9 +281,14 @@ export const useLocate = (explicitInstanceId) => {
         c.positionMarker.setLngLat(lngLat);
       }
     }
+
+    // A marker now exists, so arm the recovery re-sync for missed move events.
+    ensureIdleListener(map);
+    ensureMoveendListener(map);
   };
 
   const removeMarkers = () => {
+    detachMarkerSync();
     c.positionMarker?.remove();
     c.positionMarker = null;
     c.headingMarker?.remove();
@@ -454,6 +568,29 @@ export const useLocate = (explicitInstanceId) => {
   // ─── Public actions ───────────────────────────────────────────────────────
 
   /**
+   * Switch from active to following, taking the camera over immediately.
+   *
+   * Drops the one-shot orientation flight so a late fix cannot restart it
+   * mid-follow, starts the follow camera and feeds it the last known fix.
+   */
+  const enterFollowing = () => {
+    c.mode.value = "following";
+    c.needsInitialOrient = false;
+    clearOrientRetry();
+    followCamera.start();
+    const position = c.position.value;
+    if (position) {
+      feedFollowCamera(
+        position.lat,
+        position.lng,
+        c.lastSpeedMps,
+        c.lastCourseDeg,
+        performance.now(),
+      );
+    }
+  };
+
+  /**
    * Cycle through states: inactive → active → following → inactive.
    * In the error state, re-opens the error modal instead.
    * On first use (no stored grant), shows the confirmation modal.
@@ -467,24 +604,52 @@ export const useLocate = (explicitInstanceId) => {
     if (c.mode.value === null) {
       requestPermission(startWatching);
     } else if (c.mode.value === "active") {
-      c.mode.value = "following";
-      // Following owns the camera from the click: drop the one-shot
-      // orientation flight so a late fix cannot restart it mid-follow.
-      c.needsInitialOrient = false;
-      clearOrientRetry();
-      followCamera.start();
-      const position = c.position.value;
-      if (position) {
-        feedFollowCamera(
-          position.lat,
-          position.lng,
-          c.lastSpeedMps,
-          c.lastCourseDeg,
-          performance.now(),
-        );
-      }
+      enterFollowing();
     } else if (c.mode.value === "following") {
       stop();
+    }
+  };
+
+  /**
+   * Start following from any state, for programmatic callers.
+   *
+   * Already following: reported as started. Error: re-opens the error modal
+   * without starting. Active: follows straight away. Inactive: requests
+   * permission first, then starts watching and follows once a fix is tracked.
+   * `onStarted` runs only when following actually began, so a cancelled
+   * permission prompt, an unavailable geolocation API or a geolocation error
+   * leaves the caller's state untouched.
+   *
+   * @param {Object} [options]
+   * @param {Function} [options.onStarted] - Called once following has started.
+   */
+  const startFollowing = ({ onStarted } = {}) => {
+    if (c.mode.value === "following") {
+      onStarted?.();
+      return;
+    }
+
+    if (c.mode.value === "error") {
+      c.showErrorModal.value = true;
+      return;
+    }
+
+    if (c.mode.value === "active") {
+      enterFollowing();
+      onStarted?.();
+      return;
+    }
+
+    if (c.mode.value === null) {
+      requestPermission(() => {
+        // startWatching() sets the mode synchronously (active, or error when
+        // geolocation is unavailable), before it awaits orientation permission.
+        startWatching();
+        if (c.mode.value === "active") enterFollowing();
+        if (c.mode.value === "active" || c.mode.value === "following") {
+          onStarted?.();
+        }
+      });
     }
   };
 
@@ -563,6 +728,7 @@ export const useLocate = (explicitInstanceId) => {
     showConfirmModal: c.showConfirmModal,
     showErrorModal: c.showErrorModal,
     cycle,
+    startFollowing,
     confirmLocate,
     requestPermission,
     stop,

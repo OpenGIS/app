@@ -3,41 +3,24 @@ import { reactive, ref, computed, watch } from "vue";
 import { useGeoJSON } from "@/composables/useGeoJSON.js";
 import { useLocate } from "@/composables/useLocate.js";
 import { useUI } from "@/composables/useUI.js";
+import { totalDistance, formatDuration, formatDistance } from "@/utils/geo.js";
+import { shareFile } from "@/utils/share.js";
+import { assignTrackColors } from "@/utils/track/colors.js";
 import {
-  haversine,
-  totalDistance,
-  formatDuration,
-  formatDistance,
-} from "@/utils/geo.js";
+  createTrackId,
+  documentBounds,
+  lineGeometry,
+  migrateActiveRecording,
+  migrateRecording,
+  normalisePoint,
+  toGPX,
+  toGeoJSON,
+  trackFilename,
+  trackMime,
+} from "@/utils/track/index.js";
 import RecordingsPanel from "./RecordingsPanel.vue";
 
 export { formatDuration, formatDistance };
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Convert a saved recording to a GPX XML string. */
-function toGPX(recording, name) {
-  const pts = recording.points
-    .map(
-      (p) =>
-        `      <trkpt lat="${p.lat}" lon="${p.lng}">` +
-        `<time>${new Date(p.t).toISOString()}</time></trkpt>`,
-    )
-    .join("\n");
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<gpx version="1.1" creator="ogis.app">',
-    "  <trk>",
-    `    <name>${name}</name>`,
-    "    <trkseg>",
-    pts,
-    "    </trkseg>",
-    "  </trk>",
-    "</gpx>",
-  ].join("\n");
-}
 
 // ---------------------------------------------------------------------------
 // Map layer constants
@@ -46,6 +29,9 @@ function toGPX(recording, name) {
 const COLOR_ACTIVE = "#39d353"; // app green
 const COLOR_PAUSED = "#6c757d"; // Bootstrap secondary grey
 const TRACK_ID = "recordings-active-track";
+
+const lineFeatureId = (id) => `recordings-saved-${id}`;
+const waypointFeatureId = (id, index) => `recordings-waypoint-${id}-${index}`;
 
 // ---------------------------------------------------------------------------
 // Feature
@@ -62,6 +48,12 @@ export const RecordingsFeature = {
     useLocale,
   }) {
     const stored = useStorage("recordings", { saved: [], active: null });
+    stored.saved = (stored.saved ?? []).map((recording) =>
+      migrateRecording(recording),
+    );
+    stored.active = migrateActiveRecording(stored.active);
+    assignTrackColors(stored.saved);
+
     const { isMetric } = useSettings();
     const { requestPermission } = useLocate(instanceId);
     const { t, formatLocale } = useLocale();
@@ -69,13 +61,14 @@ export const RecordingsFeature = {
     const state = reactive({
       isRecording: false,
       isPaused: false,
-      points: stored.active?.points ?? [],
-      startTime: stored.active?.startTime ?? null,
+      points: stored.active?.segments?.[0]?.points ?? [],
+      startTime: stored.active?.createdAt ?? null,
       saved: stored.saved,
     });
 
     const elapsed = ref(0);
     const distance = computed(() => totalDistance(state.points));
+    const visible = reactive(new Set());
 
     let watchId = null;
     let timerId = null;
@@ -83,19 +76,20 @@ export const RecordingsFeature = {
     const geoJSON = useGeoJSON(instanceId);
 
     const updateLine = () => {
-      const coords = state.points.map((p) => [p.lng, p.lat]);
-      if (coords.length < 2) {
+      const geometry = lineGeometry({ segments: [{ points: state.points }] });
+      if (!geometry) {
         geoJSON.removeFeature(TRACK_ID);
         return;
       }
       geoJSON.setFeature({
         type: "Feature",
         id: TRACK_ID,
-        geometry: { type: "LineString", coordinates: coords },
+        geometry,
         properties: {
           "ogis.color": state.isPaused ? COLOR_PAUSED : COLOR_ACTIVE,
           "ogis.width": 3,
           "ogis.opacity": 0.85,
+          "ogis.direction": true,
         },
       });
     };
@@ -103,7 +97,16 @@ export const RecordingsFeature = {
     const persist = () => {
       const active =
         state.isRecording || state.isPaused
-          ? { points: state.points, startTime: state.startTime }
+          ? {
+              v: 2,
+              kind: "recording",
+              name: null,
+              gpxType: null,
+              createdAt: state.startTime,
+              source: { format: "gps" },
+              segments: [{ points: state.points }],
+              waypoints: [],
+            }
           : null;
       stored.saved = state.saved;
       stored.active = active;
@@ -185,85 +188,115 @@ export const RecordingsFeature = {
 
     const save = () => {
       if (state.points.length === 0) return;
-      state.saved.push({
-        id: Date.now().toString(),
-        timestamp: state.startTime,
-        points: [...state.points],
-        distance: totalDistance(state.points),
+      const recording = {
+        v: 2,
+        id: createTrackId(),
+        kind: "recording",
+        name: null,
+        gpxType: null,
+        createdAt: state.startTime,
+        source: { format: "gps" },
+        segments: [{ points: state.points.map((point) => ({ ...point })) }],
+        waypoints: [],
         duration: Date.now() - state.startTime,
-      });
+      };
+      assignTrackColors([...state.saved, recording]);
+      state.saved.push(recording);
       discard();
     };
 
+    const renderRecording = (recording) => {
+      const geometry = lineGeometry(recording);
+      if (geometry) {
+        geoJSON.setFeature({
+          type: "Feature",
+          id: lineFeatureId(recording.id),
+          geometry,
+          properties: {
+            "ogis.color": recording.color,
+            "ogis.width": 3,
+            "ogis.opacity": 0.85,
+            "ogis.direction": true,
+          },
+        });
+      }
+
+      (recording.waypoints ?? []).forEach((waypoint, index) => {
+        const point = normalisePoint(waypoint);
+        if (!point) return;
+        const coordinates = [point.lng, point.lat];
+        if (point.ele !== undefined) coordinates.push(point.ele);
+        geoJSON.setFeature({
+          type: "Feature",
+          id: waypointFeatureId(recording.id, index),
+          geometry: { type: "Point", coordinates },
+          properties: {
+            "ogis.color": recording.color,
+            "ogis.radius": 5,
+          },
+        });
+      });
+    };
+
+    const removeRecordingFeatures = (recording) => {
+      geoJSON.removeFeature(lineFeatureId(recording.id));
+      (recording.waypoints ?? []).forEach((_waypoint, index) => {
+        geoJSON.removeFeature(waypointFeatureId(recording.id, index));
+      });
+    };
+
+    const isVisible = (id) => visible.has(id);
+
+    const showOnMap = (recording) => {
+      if (!recording) return;
+
+      renderRecording(recording);
+      visible.add(recording.id);
+
+      const bounds = documentBounds(recording);
+      const map = getMap();
+      if (map && bounds) map.fitBounds(bounds, { padding: 40 });
+    };
+
+    const hideOnMap = (id) => {
+      const recording = state.saved.find((item) => item.id === id);
+      if (!recording) return;
+
+      removeRecordingFeatures(recording);
+      visible.delete(id);
+    };
+
+    const toggleVisibility = (recording) => {
+      if (visible.has(recording.id)) hideOnMap(recording.id);
+      else showOnMap(recording);
+    };
+
     const deleteRecording = (id) => {
-      state.saved = state.saved.filter((r) => r.id !== id);
+      const index = state.saved.findIndex((item) => item.id === id);
+      if (index === -1) return;
+
+      const [recording] = state.saved.splice(index, 1);
+      removeRecordingFeatures(recording);
+      visible.delete(id);
       persist();
     };
 
-    const downloadGPX = async (recording) => {
-      const filename = `recording-${recording.id}.gpx`;
+    const shareRecording = async (recording, format) => {
       const name = t("panel.recordings.exportName", {
-        date: new Date(recording.timestamp).toLocaleString(formatLocale.value),
+        date: new Date(recording.createdAt).toLocaleString(formatLocale.value),
       });
-      const blob = new Blob([toGPX(recording, name)], {
-        type: "application/gpx+xml",
-      });
+      const content =
+        format === "gpx"
+          ? toGPX(recording, { name })
+          : JSON.stringify(toGeoJSON(recording, { name }), null, 2);
+      const blob = new Blob([content], { type: trackMime(format) });
+      const filename = trackFilename(recording, format, { name });
 
-      // Web Share API: best on mobile — triggers the native share sheet (iOS Save to Files, Android, etc.)
-      if (navigator.share) {
-        const file = new File([blob], filename, {
-          type: "application/gpx+xml",
-        });
-        if (!navigator.canShare || navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({ files: [file] });
-            return;
-          } catch (err) {
-            if (err.name === "AbortError") return; // user cancelled share sheet
-            // share failed for another reason — fall through to anchor download
-          }
-        }
-      }
-
-      // Fallback: anchor download (desktop browsers)
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    };
-
-    const showOnMap = (recording) => {
-      const coords = recording.points.map((p) => [p.lng, p.lat]);
-      geoJSON.setFeature({
-        type: "Feature",
-        id: TRACK_ID,
-        geometry: { type: "LineString", coordinates: coords },
-        properties: {
-          "ogis.color": COLOR_ACTIVE,
-          "ogis.width": 3,
-          "ogis.opacity": 0.85,
-        },
-      });
-      const map = getMap();
-      if (map && coords.length > 1) {
-        const lngs = coords.map((c) => c[0]);
-        const lats = coords.map((c) => c[1]);
-        map.fitBounds(
-          [
-            [Math.min(...lngs), Math.min(...lats)],
-            [Math.max(...lngs), Math.max(...lats)],
-          ],
-          { padding: 40 },
-        );
-      }
+      await shareFile(blob, filename, { title: name });
     };
 
     // Crash recovery: restore paused line if the app was closed mid-recording.
-    if (stored.active?.points?.length >= 2) {
+    if (stored.active?.segments?.[0]?.points?.length >= 2) {
       state.isPaused = true;
       updateLine();
     }
@@ -291,9 +324,12 @@ export const RecordingsFeature = {
       resume,
       discard,
       save,
-      deleteRecording,
-      downloadGPX,
+      shareRecording,
+      toggleVisibility,
+      isVisible,
+      hideOnMap,
       showOnMap,
+      deleteRecording,
     });
 
     addPanel({

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDistance } from "@/utils/geo";
+import { formatCompactDistance, formatDistance } from "@/utils/geo";
 
 // U+202F (narrow no-break space) is the separator Intl emits before the unit
 // symbol in French.
@@ -66,5 +66,59 @@ describe("formatDistance", () => {
 
   it("never groups thousands", () => {
     expect(formatDistance(1005000, true)).toBe("1005.00 km");
+  });
+});
+
+describe("formatCompactDistance", () => {
+  describe("English — compact metric and imperial strings", () => {
+    it.each([
+      [0, true, "0 m"],
+      [5, true, "5 m"],
+      [340.5, true, "341 m"],
+      [999, true, "999 m"],
+      [1000, true, "1.0 km"],
+      [1500, true, "1.5 km"],
+      [99900, true, "99.9 km"],
+      [100000, true, "100 km"],
+      [123456, true, "123 km"],
+      [1005000, true, "1005 km"],
+      [0, false, "0 ft"],
+      [5, false, "16 ft"],
+      [160, false, "525 ft"],
+      [160.9344, false, "0.1 mi"],
+      [1000, false, "0.6 mi"],
+      [1609.344, false, "1.0 mi"],
+      [160934.4, false, "100 mi"],
+      [241402, false, "150 mi"],
+    ])("formats %s m (metric: %s) as %s", (metres, isMetric, expected) => {
+      expect(formatCompactDistance(metres, isMetric)).toBe(expected);
+    });
+  });
+
+  describe("French — localised separators and unit symbols", () => {
+    it.each([
+      [340, true, `340${NNBSP}m`],
+      [1500, true, `1,5${NNBSP}km`],
+      [120000, true, `120${NNBSP}km`],
+      [100, false, `328${NNBSP}pi`],
+      [1609.344, false, `1,0${NNBSP}mi`],
+    ])("formats %s m (metric: %s) as %s", (metres, isMetric, expected) => {
+      expect(formatCompactDistance(metres, isMetric, "fr")).toBe(expected);
+    });
+  });
+
+  it("defaults to English metric", () => {
+    expect(formatCompactDistance(1000)).toBe("1.0 km");
+  });
+
+  it("returns an empty string for invalid input", () => {
+    expect(formatCompactDistance(-1)).toBe("");
+    expect(formatCompactDistance(Number.NaN)).toBe("");
+    expect(formatCompactDistance(Number.POSITIVE_INFINITY)).toBe("");
+    expect(formatCompactDistance(Number.NEGATIVE_INFINITY, false)).toBe("");
+  });
+
+  it("never groups thousands", () => {
+    expect(formatCompactDistance(1005000, true)).toBe("1005 km");
   });
 });

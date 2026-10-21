@@ -127,6 +127,53 @@ describe("useUI / Panel", () => {
   });
 });
 
+describe("useUI / Menu status", () => {
+  const navigation = {
+    state: "off-route",
+    label: "1.2 km",
+    title: "1.2 km off route",
+    bearingDeg: 42,
+  };
+
+  it("defaults menuNavigation to null and clears it back to null", async () => {
+    const ui = await freshUseUI();
+    expect(ui.menuNavigation.value).toBe(null);
+
+    ui.setMenuNavigation(navigation);
+    expect(ui.menuNavigation.value).toBe(navigation);
+
+    ui.setMenuNavigation(null);
+    expect(ui.menuNavigation.value).toBe(null);
+  });
+
+  it("keeps menuNavigation isolated per instance", async () => {
+    injectReturn = "nav-a";
+    const uiA = await freshUseUI();
+
+    injectReturn = "nav-b";
+    const { useUI } = await import("../../src/composables/useUI.js");
+    const uiB = useUI();
+
+    uiA.setMenuNavigation(navigation);
+
+    expect(uiA.menuNavigation.value).toBe(navigation);
+    expect(uiB.menuNavigation.value).toBe(null);
+  });
+
+  it("leaves the record menuBadge independent of menuNavigation", async () => {
+    const ui = await freshUseUI();
+
+    ui.setMenuBadge("recording");
+    ui.setMenuNavigation(navigation);
+
+    expect(ui.menuBadge.value).toBe("recording");
+    expect(ui.menuNavigation.value).toBe(navigation);
+
+    ui.setMenuNavigation(null);
+    expect(ui.menuBadge.value).toBe("recording");
+  });
+});
+
 describe("useUI / Pane separation", () => {
   it("toggleInfo opens the info pane without changing the menu tab", async () => {
     const ui = await freshUseUI();

@@ -67,9 +67,9 @@ describe("vendored icon sprite", () => {
     );
   });
 
-  it("defines 56 symbols with unique ids", () => {
-    expect(symbolIds).toHaveLength(56);
-    expect(new Set(symbolIds).size).toBe(56);
+  it("defines 57 symbols with unique ids", () => {
+    expect(symbolIds).toHaveLength(57);
+    expect(new Set(symbolIds).size).toBe(57);
   });
 });
 
@@ -89,8 +89,8 @@ describe("generated icon output consistency", () => {
     expect(orphans).toEqual(["logo"]);
   });
 
-  it("has 57 generated codepoint entries", () => {
-    expect(Object.keys(generatedCodepoints)).toHaveLength(57);
+  it("has 58 generated codepoint entries", () => {
+    expect(Object.keys(generatedCodepoints)).toHaveLength(58);
   });
 
   it("matches the source codepoints file exactly", () => {

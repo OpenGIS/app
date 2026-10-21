@@ -1,7 +1,7 @@
 @font-face {
     font-family: "ogis-icons";
-    src: url("./ogis-icons.woff2?be717dea45f173534927dae6a16a8dcb") format("woff2"),
-url("./ogis-icons.woff?be717dea45f173534927dae6a16a8dcb") format("woff");
+    src: url("./ogis-icons.woff2?10bf63cc4bf8a36dc45edc1bf6c58504") format("woff2"),
+url("./ogis-icons.woff?10bf63cc4bf8a36dc45edc1bf6c58504") format("woff");
 }
 
 i[class^="oi-"]:before, i[class*=" oi-"]:before {
@@ -185,4 +185,7 @@ i[class^="oi-"]:before, i[class*=" oi-"]:before {
 }
 .oi-position-unlocked:before {
     content: "\f139";
+}
+.oi-nav-arrow:before {
+    content: "\f13a";
 }
