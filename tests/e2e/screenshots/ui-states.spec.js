@@ -1479,6 +1479,55 @@ test.describe("Secondary UI states — desktop landscape", () => {
     await capture(page, FEATURE_DIR, "locate-following");
   });
 
+  test("secondary follow with info pane @screenshots", async ({
+    page,
+  }, testInfo) => {
+    await withGrantedStorage(page);
+    await grantGeolocation(page);
+    await page.goto(`/${BASE_HASH}`);
+    await stabilizeCaptureRendering(page);
+    await waitForMapIdle(page, testInfo);
+    await closePanel(page);
+    await waitForLayoutSettled(page, testInfo);
+
+    // First activation → Located, second → Following. The first fix starts the
+    // one-shot orientation flight to the fitted horizon-disc zoom; wait for it
+    // to settle before the second click, otherwise that click's easeTo would
+    // interrupt the flight and freeze a timing-dependent intermediate zoom.
+    await page.locator("#locate-button").click();
+    await expect(page.locator("#locate-button")).toContainText("Located", {
+      timeout: 5000,
+    });
+    await waitForOrientHash(page);
+    await page.locator("#locate-button").click();
+    await expect(page.locator("#locate-button")).toContainText("Following", {
+      timeout: 60000,
+    });
+    // The hand-off glides from the wide orientation view into the close
+    // third-person navigation pose; wait for it to settle so the capture is
+    // deterministic.
+    await waitForMapIdle(page, testInfo);
+
+    // Opening the Info pane narrows the map, so the follow camera re-frames on
+    // resize; settle the layout and the map again before capturing.
+    await page.locator("#attribution-button").click();
+    await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
+    await waitForLayoutSettled(page, testInfo);
+    await waitForMapIdle(page, testInfo);
+
+    await expect(page.locator(".ogis-root")).toHaveAttribute(
+      "data-modes",
+      /follow/,
+    );
+    await expect(page.locator(".ogis-root")).toHaveAttribute(
+      "data-pane",
+      "info",
+    );
+
+    await normaliseCaptureState(page, testInfo);
+    await capture(page, FEATURE_DIR, "follow-info-open");
+  });
+
   test("secondary locate error chip @screenshots", async ({
     page,
   }, testInfo) => {

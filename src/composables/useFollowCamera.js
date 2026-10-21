@@ -114,7 +114,9 @@ const exceedsEpsilon = (pose, applied) =>
  *
  * State is cached per app instance and shared across all callers. While active
  * it suppresses controller-driven view persistence (see `useMap`), then
- * persists the final camera exactly once on `stop()`.
+ * persists the final camera exactly once on a full `stop()`. A hand-off
+ * (`stop({ persist: false })`) releases suppression without persisting, so the
+ * incoming action's camera move persists instead.
  *
  * @param {string} [explicitInstanceId] - App instance ID; resolved via
  *   `inject('ogisAppId')` when omitted.
@@ -793,11 +795,15 @@ export const useFollowCamera = (explicitInstanceId) => {
   };
 
   /**
-   * Stop the loop, release suppression and persist the final camera exactly
-   * once. Cancels any suspended idle timer or resume glide first, so a pending
-   * timer can never move the camera after stop. Idempotent.
+   * Stop the loop and release suppression. A full stop persists the final
+   * camera exactly once; a hand-off (`persist: false`) releases suppression
+   * without persisting, letting the incoming action's camera move persist
+   * instead. Cancels any suspended idle timer or resume glide first, so a
+   * pending timer can never move the camera after stop. Idempotent.
+   *
+   * @param {{ persist?: boolean }} [options]
    */
-  const stop = () => {
+  const stop = ({ persist = true } = {}) => {
     if (!c.isActive.value) return;
     cancelLoop();
     clearIdleTimer();
@@ -806,7 +812,7 @@ export const useFollowCamera = (explicitInstanceId) => {
     c.suspended = false;
     disarmCleanup();
     setMapViewSuppressed(instanceId, false);
-    persistMapView(instanceId);
+    if (persist) persistMapView(instanceId);
     c.isActive.value = false;
     c.raw = null;
     c.target = null;

@@ -1,5 +1,6 @@
 // routes/index.js — GPX & GeoJSON routes feature for ogis.app
 import { computed, reactive, ref, watch, watchEffect } from "vue";
+import { useActions } from "@/composables/useActions";
 import { useGeoJSON } from "@/composables/useGeoJSON.js";
 import { useLocate } from "@/composables/useLocate.js";
 import { useUI } from "@/composables/useUI.js";
@@ -46,6 +47,7 @@ export const RoutesFeature = {
     const { isMetric } = useSettings();
     const geoJSON = useGeoJSON(instanceId);
     const locate = useLocate(instanceId);
+    const actions = useActions(instanceId);
     const { closePanel, setMenuNavigation } = useUI(instanceId);
     const { t, locale } = useLocale();
 
@@ -144,6 +146,7 @@ export const RoutesFeature = {
     const showOnMap = (id) => {
       const route = routes.find((item) => item.id === id);
       if (!route) return;
+      actions.claimMap();
 
       renderRoute(route);
       visible.add(id);
@@ -155,10 +158,15 @@ export const RoutesFeature = {
       }
     };
 
-    const stopNavigation = ({ stopFollow = true } = {}) => {
+    const stopNavigation = ({ stopFollow = true, handoff = false } = {}) => {
       navigating.value = null;
       setMenuNavigation(null);
-      if (stopFollow && followOwned && locate.mode.value === "following") {
+      if (
+        !handoff &&
+        stopFollow &&
+        followOwned &&
+        locate.mode.value === "following"
+      ) {
         locate.stop();
       }
       followOwned = false;
@@ -216,6 +224,7 @@ export const RoutesFeature = {
       if (navigating.value && navigating.value !== id) return;
 
       const alreadyFollowing = locate.mode.value === "following";
+      actions.claimMap({ except: "navigate" });
       locate.startFollowing({
         onStarted: () => {
           followOwned = !alreadyFollowing;
@@ -299,6 +308,11 @@ export const RoutesFeature = {
       await shareFile(blob, filename, { title: name });
     };
 
+    const unregisterNavigate = actions.registerMode("navigate", {
+      active: computed(() => navigating.value !== null),
+      stop: stopNavigation,
+    });
+
     provide("routes", {
       routes,
       navigating,
@@ -325,6 +339,7 @@ export const RoutesFeature = {
 
     return () => {
       stopNavigationIndicator();
+      unregisterNavigate();
       stopNavigation();
       unbindMapBearing();
       setMenuNavigation(null);

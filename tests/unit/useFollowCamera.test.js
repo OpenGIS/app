@@ -447,6 +447,58 @@ describe("useFollowCamera / lifecycle", () => {
     driver.stop();
     expect(setMapViewSuppressed).toHaveBeenLastCalledWith(id, false);
   });
+
+  it("a default stop releases suppression, persists once and clears isActive", () => {
+    const id = nextInstanceId();
+    const map = createMap();
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(id);
+
+    driver.start();
+    driver.setTarget({ lat: 45, lng: -60, bearing: 10, pitch: 0, zoom: 12 });
+    flushFrame();
+
+    driver.stop();
+
+    expect(driver.isActive.value).toBe(false);
+    expect(setMapViewSuppressed).toHaveBeenLastCalledWith(id, false);
+    expect(persistMapView).toHaveBeenCalledTimes(1);
+    expect(persistMapView).toHaveBeenCalledWith(id);
+  });
+
+  it("a hand-off stop releases suppression without persisting", () => {
+    const id = nextInstanceId();
+    const map = createMap();
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(id);
+
+    driver.start();
+    driver.setTarget({ lat: 45, lng: -60, bearing: 10, pitch: 0, zoom: 12 });
+    flushFrame();
+
+    driver.stop({ persist: false });
+
+    expect(driver.isActive.value).toBe(false);
+    expect(setMapViewSuppressed).toHaveBeenLastCalledWith(id, false);
+    expect(persistMapView).not.toHaveBeenCalled();
+  });
+
+  it("a repeated stop persists only once", () => {
+    const id = nextInstanceId();
+    const map = createMap();
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(id);
+
+    driver.start();
+    driver.setTarget({ lat: 45, lng: -60, bearing: 10, pitch: 0, zoom: 12 });
+    flushFrame();
+
+    driver.stop();
+    driver.stop();
+
+    expect(persistMapView).toHaveBeenCalledTimes(1);
+    expect(persistMapView).toHaveBeenCalledWith(id);
+  });
 });
 
 // ─── Interaction suspension and idle resume ──────────────────────────────────
