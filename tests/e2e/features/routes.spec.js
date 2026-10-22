@@ -5,6 +5,7 @@ import {
 } from "../helpers/console.js";
 import { waitForMapReady } from "../helpers/panel";
 import { waitForMapIdle } from "../helpers/mapIdle.js";
+import { isSwiftShaderRun } from "../helpers/determinism.js";
 import { emitFix, installGeolocationMock } from "../helpers/locate.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 import { readFileSync } from "node:fs";
@@ -177,6 +178,10 @@ const handleConfirm = (page, action, messages) => {
 
 // ─── Navigation fixtures ────────────────────────────────────────────────────
 
+// Camera hops and follow glides need more than the default element budget, and
+// SwiftShader's software-rendered frames stretch them further still.
+const NAV_TIMEOUT = isSwiftShaderRun() ? 120000 : 60000;
+
 // The GPX fixture is the opening of the demo track, so its first coordinate is
 // the demo route's first point. Derive every navigation fix from it rather than
 // hardcoding unrelated coordinates.
@@ -250,7 +255,9 @@ const showRoute = async (page) => {
   await expect(
     row.getByRole("button", { name: "Hide", exact: true }),
   ).toBeVisible();
-  await expect.poll(() => mapFeatureIds(page, "routes-route-")).toHaveLength(1);
+  await expect
+    .poll(() => mapFeatureIds(page, "routes-route-"), { timeout: NAV_TIMEOUT })
+    .toHaveLength(1);
 };
 
 /**
@@ -652,8 +659,10 @@ test.describe("Routes / Share", () => {
 // ─── Routes / Navigate ───────────────────────────────────────────────────────
 
 test.describe("Routes / Navigate", () => {
-  // Camera hops and follow glides need more than the default element budget.
-  const NAV_TIMEOUT = 60000;
+  // The navigation flow drives camera transitions and follow glides; under
+  // SwiftShader a single click action can stall for tens of seconds, so the
+  // whole block gets a budget sized for the software renderer.
+  test.setTimeout(isSwiftShaderRun() ? 180000 : 60000);
 
   test.beforeEach(async ({ page }) => {
     trackConsoleErrors(page);
@@ -696,7 +705,9 @@ test.describe("Routes / Navigate", () => {
     const geoRow = routeRow(page, "Geo Route");
     await geoRow.getByRole("button", { name: "Show", exact: true }).click();
     await expect
-      .poll(() => mapFeatureIds(page, "routes-route-"))
+      .poll(() => mapFeatureIds(page, "routes-route-"), {
+        timeout: NAV_TIMEOUT,
+      })
       .toHaveLength(2);
 
     await startNavigation(page);
@@ -734,7 +745,9 @@ test.describe("Routes / Navigate", () => {
 
     // Navigation must not remove the route it is following.
     await expect
-      .poll(() => mapFeatureIds(page, "routes-route-"))
+      .poll(() => mapFeatureIds(page, "routes-route-"), {
+        timeout: NAV_TIMEOUT,
+      })
       .toHaveLength(1);
 
     // Reopening the panel shows Stop in place of Navigate.
@@ -916,7 +929,11 @@ test.describe("Routes / Navigate", () => {
     await expect(navControl(page)).toHaveCount(0);
     await expect(navConnector(page)).toHaveCount(0);
     await expect(locateLabel(page)).toHaveText("Locate");
-    await expect.poll(() => mapFeatureIds(page, "routes-route-")).toEqual([]);
+    await expect
+      .poll(() => mapFeatureIds(page, "routes-route-"), {
+        timeout: NAV_TIMEOUT,
+      })
+      .toEqual([]);
     await expect(
       routeRow(page, "Test Loop").getByRole("button", {
         name: "Navigate",
@@ -940,7 +957,7 @@ test.describe("Routes / Navigate", () => {
       .getByRole("button", { name: "Delete", exact: true })
       .click();
 
-    await expect.poll(() => messages.length).toBe(1);
+    await expect.poll(() => messages.length, { timeout: NAV_TIMEOUT }).toBe(1);
     await expect(routeRow(page, "Test Loop")).toHaveCount(0);
     await expect(navControl(page)).toHaveCount(0);
     await expect(navConnector(page)).toHaveCount(0);
@@ -964,7 +981,9 @@ test.describe("Routes / Navigate", () => {
     await expect(navControl(page)).toHaveCount(0);
     await expect(navConnector(page)).toHaveCount(0);
     await expect
-      .poll(() => mapFeatureIds(page, "routes-route-"))
+      .poll(() => mapFeatureIds(page, "routes-route-"), {
+        timeout: NAV_TIMEOUT,
+      })
       .toHaveLength(1);
   });
 
@@ -976,7 +995,7 @@ test.describe("Routes / Navigate", () => {
     await startNavigation(page);
 
     const watcherCount = () => page.evaluate(() => window.__geo.count());
-    await expect.poll(watcherCount).toBe(1);
+    await expect.poll(watcherCount, { timeout: NAV_TIMEOUT }).toBe(1);
 
     // Drive a fix through the stub so the indicator is genuinely live.
     await emitFix(page, { lat: OFF_ROUTE_FIX.lat, lng: OFF_ROUTE_FIX.lng });
@@ -984,7 +1003,7 @@ test.describe("Routes / Navigate", () => {
 
     await stopNavigationFromPanel(page);
 
-    await expect.poll(watcherCount).toBe(0);
+    await expect.poll(watcherCount, { timeout: NAV_TIMEOUT }).toBe(0);
     await expect(locateLabel(page)).toHaveText("Locate");
   });
 
