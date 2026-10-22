@@ -42,7 +42,7 @@ jobs:
           CI: "1"
 
   e2e:
-    name: e2e (shard ${{ matrix.shard }}/3)
+    name: e2e (shard ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     # `[skip e2e]` in the head commit message of a push skips the functional
@@ -51,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -60,7 +60,7 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e -- --grep-invert @screenshots --shard=${{ matrix.shard }}/3
+      - run: npm run test:e2e -- --grep-invert @screenshots --shard=${{ matrix.shard }}/4
         env:
           CI: "1"
       - uses: actions/upload-artifact@v4
