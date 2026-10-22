@@ -1,3 +1,17 @@
+# [3.16.0](https://github.com/OpenGIS/app/compare/v3.15.1...v3.16.0) (2026-10-22)
+
+
+### Bug Fixes
+
+* **attribution:** collapse chip while the info pane is open ([360e73f](https://github.com/OpenGIS/app/commit/360e73f31ba071e3f924962e25e4778c776ce9e1))
+* **map:** end follow mode before map actions ([39b8c3d](https://github.com/OpenGIS/app/commit/39b8c3d53104cc2a7ea6336789553c6074fcfa80))
+
+
+### Features
+
+* **actions:** add map actions and modes ([8e1081f](https://github.com/OpenGIS/app/commit/8e1081f42a7ba53935ed3ac64038adc1ba4cfd23))
+* **routes:** add track model and follow-mode navigation ([e13ee04](https://github.com/OpenGIS/app/commit/e13ee04b7b8a9e3952506ef8e375cec57d60f83c))
+
 ## [3.15.1](https://github.com/OpenGIS/app/compare/v3.15.0...v3.15.1) (2026-10-18)
 
 
