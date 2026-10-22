@@ -31,6 +31,10 @@ import { isSwiftShaderRun } from "../helpers/determinism.js";
 // larger backstop; the GPU path keeps the tight budget.
 const ACTION_TIMEOUT = 30000;
 const FOLLOW_TIMEOUT = 60000;
+// The follow hand-off glide caps zoom movement per rendered frame, so a
+// software renderer stretches it well beyond its nominal 1.6 s. Allow 120 s on
+// SwiftShader; the GPU path keeps the tight ACTION_TIMEOUT.
+const HANDOFF_TIMEOUT = isSwiftShaderRun() ? 120000 : ACTION_TIMEOUT;
 
 test.setTimeout(isSwiftShaderRun() ? 360000 : 120000);
 
@@ -99,8 +103,11 @@ const readPose = (page) =>
  * The follow hand-off ends with an eased glide. Its last fractions of a degree
  * decide the six-decimal centre in the OSM note URL, so the pose must be fully
  * settled before it is captured and compared with the click-time URL.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {number} [timeout] - Settle ceiling; defaults to ACTION_TIMEOUT.
  */
-const waitForStablePose = async (page) => {
+const waitForStablePose = async (page, timeout = ACTION_TIMEOUT) => {
   let previous = await readPose(page);
   await expect
     .poll(
@@ -115,7 +122,7 @@ const waitForStablePose = async (page) => {
         previous = next;
         return delta;
       },
-      { timeout: ACTION_TIMEOUT },
+      { timeout },
     )
     .toBeLessThan(1e-9);
   return previous;
@@ -549,14 +556,16 @@ test.describe("Map actions / Random while following / desktop", () => {
     const root = page.locator(".ogis-root");
     const panel = page.locator(".ogis-panel");
 
-    // The hand-off glide settles at the follow rest pitch.
+    // The hand-off glide settles at the follow rest pitch. Poll the pitch
+    // first so an as-yet-unmoved pose cannot read as "stable"; then wait for
+    // the centre and zoom to settle before capturing the live view.
     await expect
       .poll(async () => Math.abs((await readPose(page)).pitch - 45), {
-        timeout: ACTION_TIMEOUT,
+        timeout: HANDOFF_TIMEOUT,
       })
       .toBeLessThan(1);
 
-    const pose = await waitForStablePose(page);
+    const pose = await waitForStablePose(page, HANDOFF_TIMEOUT);
 
     await page.getByRole("link", { name: "Improve" }).click();
 

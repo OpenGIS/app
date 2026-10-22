@@ -4,6 +4,7 @@ import {
   expectNoConsoleErrors,
 } from "./helpers/console.js";
 import { waitForMapReady, openMenuPanel } from "./helpers/panel";
+import { isSwiftShaderRun } from "./helpers/determinism.js";
 import { COUNTRY_BOUNDS } from "../../src/utils/countries.js";
 import { DEMO } from "../fixtures/demo.mjs";
 
@@ -13,10 +14,11 @@ import { DEMO } from "../fixtures/demo.mjs";
  */
 
 // Chip-click interactions (Info / attribution chips) settle slowly under
-// SwiftShader/load — stability checks can take tens of seconds. The default
-// 30 s test budget intermittently fails these tests on slower machines — raise
-// the file budget; assertions are unchanged.
-test.setTimeout(120000);
+// SwiftShader/load — stability checks can take tens of seconds. A 120 s budget
+// still ran out on the pinned SwiftShader path while a single drag round-trip
+// stalled, so allow 300 s there for headroom on slower CI runners; the GPU path
+// keeps the tighter budget. Assertions are unchanged.
+test.setTimeout(isSwiftShaderRun() ? 300000 : 120000);
 
 // Assert a clean console for every test in this spec (see helpers/console.js).
 test.beforeEach(({ page }) => trackConsoleErrors(page));
@@ -139,7 +141,20 @@ test.describe("Info pane / Pane separation", () => {
     const y = box.y + box.height / 2;
     await page.mouse.move(x, y);
     await page.mouse.down();
-    await page.mouse.move(x + 120, y, { steps: 10 });
+    // One 120 px move is a complete drag and keeps the synchronous input cost
+    // low enough for SwiftShader. On a slow renderer the press and move can be
+    // coalesced into a click, so yield a rendered frame to register the press
+    // and another before release to let MapLibre dispatch `drag`.
+    const settleFrame = () =>
+      page.evaluate(
+        () =>
+          new Promise((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(resolve)),
+          ),
+      );
+    await settleFrame();
+    await page.mouse.move(x + 120, y);
+    await settleFrame();
     await page.mouse.up();
     await expect(root).toHaveAttribute("data-attrib-collapsed", "true");
     await expect(chipText).toHaveCount(0);
