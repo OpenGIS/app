@@ -82,6 +82,7 @@ git clone https://github.com/OpenGIS/app.git
 npm install
 npm run dev     # http://localhost:5174
 npm run build   # production build to dist/
+npm run preview # build, then serve the production build at http://127.0.0.1:4173
 ```
 
 E2E runs on a fresh machine also need the Chromium build: `npx playwright install chromium`.

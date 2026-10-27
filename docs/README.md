@@ -1,6 +1,6 @@
 ---
-git_hash: "8e1081f42a7ba53935ed3ac64038adc1ba4cfd23"
-modified: "2026-10-21"
+git_hash: "c6eddcbc479770cb5e0502915d8eb62846f79950"
+modified: "2026-10-27"
 ---
 
 # ogis.app — Docs
@@ -17,7 +17,7 @@ Developer documentation for the ogis.app codebase.
 | Doc                                  | Purpose                                                                                                                          |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | [1. Terminology](./1.terminology.md) | Shared project language: demo area, fixture set, core and CI terms                                                               |
-| [2. Setup](./2.setup.md)             | Dev server, build, URL parameters, iframe isolation                                                                              |
+| [2. Setup](./2.setup.md)             | Dev server, production preview, build, URL parameters, iframe isolation                                                          |
 | [3. Instances](./3.instances.md)     | Instance ID, localStorage key format, iframe use case                                                                            |
 | [4. Map](./4.map.md)                 | `useMap` API: lifecycle, readiness signals, view persistence, URL hash, globe, country focus, view orientation and follow camera |
 | [5. UI](./5.ui.md)                   | `useUI` and `useActions` APIs: responsive breakpoints, panel, corner controls, actions and map modes, wake lock                  |

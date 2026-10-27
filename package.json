@@ -28,7 +28,7 @@
     "format": "prettier --write . --ignore-path .gitignore --ignore-path .prettierignore --ignore-path \"$HOME/.config/prettier/ignore\"",
     "format:check": "prettier --check . --ignore-path .gitignore --ignore-path .prettierignore --ignore-path \"$HOME/.config/prettier/ignore\"",
     "check": "npm run format:check && npm test",
-    "preview": "vite preview"
+    "preview": "vite build && vite preview"
   },
   "dependencies": {
     "@tmcw/togeojson": "^7.1.3",

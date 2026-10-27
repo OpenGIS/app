@@ -32,4 +32,10 @@ export default defineConfig({
     strictPort: true,
     open: "/index.html",
   },
+
+  preview: {
+    host: "127.0.0.1",
+    port: 4173,
+    strictPort: true,
+  },
 });
