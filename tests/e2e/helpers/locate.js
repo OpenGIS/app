@@ -32,6 +32,31 @@ export const withGrantedLocateStorage = (page) =>
     );
   });
 
+/**
+ * Simulate Apple WebKit's inaccurate geolocation permission reporting.
+ *
+ * Safari can report `prompt` after the user has already granted access, so this
+ * stubs an Apple vendor string and a permission query that always resolves
+ * `prompt`. Must be installed before the document boots.
+ */
+export const withAppleWebKitPromptPermission = (page) =>
+  page.addInitScript(() => {
+    Object.defineProperty(navigator, "vendor", {
+      configurable: true,
+      get: () => "Apple Computer, Inc.",
+    });
+    if (!navigator.permissions) {
+      Object.defineProperty(navigator, "permissions", {
+        configurable: true,
+        value: {},
+      });
+    }
+    Object.defineProperty(navigator.permissions, "query", {
+      configurable: true,
+      value: async () => ({ state: "prompt" }),
+    });
+  });
+
 /** Escape a literal string so it can be matched exactly inside a RegExp. */
 export const escapeRegExp = (value) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

@@ -13,6 +13,7 @@ import {
   installGeolocationMock,
   orientHash,
   waitForCameraSettle,
+  withAppleWebKitPromptPermission,
   withGrantedLocateStorage as withGrantedStorage,
   withNoLocateStorage,
 } from "../helpers/locate.js";
@@ -374,6 +375,58 @@ test.describe("Locate / Active and Following states", () => {
 
     await btn.click();
     await expect(marker).toHaveCount(0, { timeout: LOCATE_TIMEOUT });
+  });
+});
+
+// ─── Locate / Transient timeout ─────────────────────────────────────────────
+
+test.describe("Locate / Transient timeout", () => {
+  test("a timeout after the first fix keeps following alive", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await withGrantedStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    const fix = { lat: FIX.latitude, lng: FIX.longitude };
+
+    // Start tracking and follow through the normal button cycle.
+    await btn.click();
+    await emitFix(page, fix);
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+
+    await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
+    await btn.click();
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).toHaveAttribute("aria-pressed", "true");
+    await expect
+      .poll(() => readActiveModes(page), { timeout: RESTORE_TIMEOUT })
+      .toContain("follow");
+
+    // Let the debounced follow-mode write land before the error arrives.
+    await expect
+      .poll(async () => (await readLocateStorage(page))?.mode ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe("following");
+
+    await emitGeoError(page, 3);
+
+    // Any teardown-triggered write is debounced; give it time to land.
+    await page.waitForTimeout(600);
+
+    await expect(btn).toContainText("Following");
+    await expect(btn).toHaveAttribute("aria-pressed", "true");
+    expect(await readActiveModes(page)).toContain("follow");
+
+    const stored = await readLocateStorage(page);
+    expect(stored?.mode).toBe("following");
+    expect(stored?.lastFix).not.toBeNull();
+
+    // The watcher was kept rather than torn down and restarted.
+    expect(await page.evaluate(() => window.__geo.count())).toBe(1);
   });
 });
 
@@ -955,6 +1008,36 @@ test.describe("Locate / Restore", () => {
         timeout: RESTORE_TIMEOUT,
       })
       .toBeGreaterThan(0);
+  });
+
+  test("restores a following session when Apple WebKit reports a prompt", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    // No grant: Apple WebKit reports `prompt` even after the user granted.
+    await withAppleWebKitPromptPermission(page);
+    await withLocateState(page, {
+      permissionGranted: true,
+      mode: "following",
+      lastFix: { ...RESTORE_FIX, at: Date.now() },
+    });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect(btn).toHaveAttribute("aria-pressed", "true");
+    await expect
+      .poll(() => readActiveModes(page), { timeout: RESTORE_TIMEOUT })
+      .toContain("follow");
+
+    // The persisted session survives: the restore was not declined and cleared.
+    const stored = await readLocateStorage(page);
+    expect(stored.mode).toBe("following");
+    expect(stored.lastFix).not.toBeNull();
   });
 
   test("does not auto-resume without OS geolocation permission", async ({

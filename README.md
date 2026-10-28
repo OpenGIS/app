@@ -22,7 +22,7 @@ Both heroes are live, intentionally non-deterministic captures — a random-coun
 ogis.app is a **Vue 3 + Vite** single-page application and an **installable PWA** ([`public/manifest.json`](public/manifest.json), `display: standalone`) — the map is [MapLibre GL JS](https://maplibre.org/) with a Bootstrap SCSS theme, and a hand-rolled service worker ([`public/sw.js`](public/sw.js), no Workbox) provides the app shell and offline map support. The backend features (account, maps, collections) are disabled in the current SPA front-end only mode.
 
 - **Entry point** — [`src/main.js`](src/main.js) reads the URL parameters, creates the Vue app, installs the core features and mounts to `#app`.
-- **Resilience** — persisted stores use a versioned envelope with hydration and quarantine; boot failures are contained and a static fallback covers a failed module load, while map recovery surfaces style and WebGL failures. See [State and resilience](docs/16.state-and-resilience.md).
+- **Resilience** — persisted stores use a versioned envelope with hydration and quarantine; boot failures are contained, a static fallback covers a failed module load, locate and route-navigation sessions restore on reload where browser permission and stored data allow, recordings restore paused, and map recovery surfaces style and WebGL failures. See [State and resilience](docs/16.state-and-resilience.md).
 - **Features** — self-contained bundles registered from `src/main.js`; each is a plain object with an `install(ctx)` method that registers a side-panel tab and/or a corner control chip. See [Features](docs/10.features.md).
 - **Tracks** — routes, recordings and waypoint documents share a versioned `v: 2` model in [`src/utils/track/`](src/utils/track/) for import, export, distance and legacy migration; GeoJSON is a render/export projection. See [Tracks](docs/15.tracks.md).
 - **Actions and modes** — camera-taking actions claim the map from sustained modes (following, offline draw, route navigation) so state is reconciled before the camera moves. See [UI actions and map modes](docs/5.ui.md#ui-actions-and-map-modes).
@@ -55,6 +55,7 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 - Location permissions are required for GPS/Compass features. Some users have a deny-all approach to browser permissions and changing them varies between browsers and devices.
 - The app does not work in the background or when the device is locked — a common limitation of web apps.
 - The app requires an initial connection to load assets and map tiles, even though it works offline thereafter.
+- Session restore is best-effort and partial: normal reload, close and reopen work, but a hard kill or force-quit can lose the most recent state change; UI/panel state, map projection, theme, units, locale and saved-recording visibility are not restored.
 
 ## Planned Changes
 

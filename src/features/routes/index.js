@@ -300,9 +300,10 @@ export const RoutesFeature = {
     /**
      * Resume persisted navigation once locate has settled.
      *
-     * Runs after mount and never prompts. Visibility is restored first and is
-     * left untouched by any navigation failure, so a denied geolocation restore
-     * only clears navigation. Every failure is silent.
+     * Runs after mount and never opens the app's permission explainer.
+     * Visibility is restored first and is left untouched by any navigation
+     * failure, so a denied geolocation restore only clears navigation. Every
+     * failure is silent.
      */
     const restoreNavigation = async () => {
       const storedRouteId = navigation.routeId;

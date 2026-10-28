@@ -2,6 +2,7 @@ import { ref, computed, inject } from "vue";
 import maplibregl from "maplibre-gl";
 import { magvar } from "magvar";
 import { usePersistedState } from "@/resilience/persistedState";
+import { canRestoreLocate } from "@/resilience/locateRestore";
 import { hydrateLocate } from "@/resilience/hydrators/locate";
 import { getMapInstance } from "@/composables/useMap";
 import { useOrientView } from "@/composables/useOrientView";
@@ -93,6 +94,7 @@ export const useLocate = (explicitInstanceId) => {
       retryDeadline: 0, // epoch ms when the retry loop gives up (0 = inactive)
       followModeRegistered: false, // the follow mode is registered once per instance
       restoring: false, // true until a restore succeeds, fails or the user acts
+      gotFix: false, // true once this session has accepted a fix
       restoreScheduled: false, // auto-restore is scheduled once per instance
       restoreComplete: null, // Promise resolved when the scheduled restore ends
     });
@@ -466,6 +468,8 @@ export const useLocate = (explicitInstanceId) => {
     // Ignore fixes that arrive after the user has stopped tracking.
     if (c.mode.value === null || c.mode.value === "error") return;
 
+    c.gotFix = true;
+
     // The first accepted fix completes a silent restore.
     c.restoring = false;
 
@@ -550,6 +554,9 @@ export const useLocate = (explicitInstanceId) => {
    */
   const onError = (err, gen) => {
     if (gen !== c.generation) return;
+    // A timeout after a fix is transient: the watch is still usable, so keep
+    // the session, camera and persisted state intact.
+    if (err.code === 3 && c.gotFix) return;
     c.generation++; // bump so any other in-flight callback is discarded
     clearOrientRetry();
     c.needsInitialOrient = false;
@@ -623,6 +630,7 @@ export const useLocate = (explicitInstanceId) => {
       return;
     }
     const gen = ++c.generation;
+    c.gotFix = false;
     setMode("active");
     c.needsInitialOrient = true;
     resetDerivation();
@@ -855,9 +863,12 @@ export const useLocate = (explicitInstanceId) => {
   /**
    * Restore a persisted locate session exactly once per instance.
    *
-   * Restoration never prompts: it only proceeds when both a stored restorable
-   * mode/fix and an OS-level `granted` permission agree. Everything is silent
-   * on failure so a crash cannot surface an error modal on boot.
+   * Restoration never opens the app's permission explainer or blocks mount:
+   * it proceeds only when a stored restorable mode/fix and the OS permission
+   * agree. Apple WebKit may report `prompt` after a grant, so there a fix no
+   * older than 24 hours also qualifies; WebKit may still show its own native
+   * prompt if the grant has lapsed. Everything is silent on failure so a
+   * crash cannot surface an error modal on boot.
    */
   const restorePersistedSession = async () => {
     let restoreStarted = false;
@@ -890,7 +901,9 @@ export const useLocate = (explicitInstanceId) => {
       // The user may have acted while the permission query was pending.
       if (c.mode.value !== null) return;
 
-      if (permissionState !== "granted") {
+      // Strict on engines that report permission accurately. Apple WebKit can
+      // report `prompt` after a grant, so a recent fix may still restore there.
+      if (!canRestoreLocate({ permissionState, fixAt: storedFix.at })) {
         clearPersistedRestore();
         return;
       }
