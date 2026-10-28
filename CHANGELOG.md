@@ -1,3 +1,15 @@
+# [3.17.0](https://github.com/OpenGIS/app/compare/v3.16.0...v3.17.0) (2026-10-28)
+
+
+### Bug Fixes
+
+* **preview:** build first and pin the preview port ([02cb70d](https://github.com/OpenGIS/app/commit/02cb70d82bf0584a5e370bdc28db76f0a131b835))
+
+
+### Features
+
+* **resilience:** add crash-safe state and recovery ([fbe8de6](https://github.com/OpenGIS/app/commit/fbe8de6e856e80bd691084b335104ea08788ddec))
+
 # [3.16.0](https://github.com/OpenGIS/app/compare/v3.15.1...v3.16.0) (2026-10-22)
 
 
