@@ -130,13 +130,17 @@ export const installGeolocationMock = (page) =>
         for (const watcher of watchers.values()) watcher.error({ code });
       },
       count: () => watchers.size,
+      lastOptions() {
+        const latest = [...watchers.values()].pop();
+        return latest ? (latest.options ?? null) : null;
+      },
     };
     Object.defineProperty(navigator, "geolocation", {
       configurable: true,
       value: {
-        watchPosition(success, error) {
+        watchPosition(success, error, options) {
           const id = nextId++;
-          watchers.set(id, { success, error });
+          watchers.set(id, { success, error, options });
           return id;
         },
         clearWatch(id) {

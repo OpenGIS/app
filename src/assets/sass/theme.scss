@@ -314,6 +314,25 @@ $font-size-base: 0.9375rem; // 15 px
   width: calc(100% - var(--ogis-panel-width, 340px));
 }
 
+// Quiet failure surface for an unusable map. Hidden entirely on the healthy
+// path (the component only renders it in the error state). It sits above the
+// map but below the corner controls and side panels.
+.ogis-map-status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1020;
+  width: min(24rem, calc(100% - 2rem));
+  padding: 1rem 1.25rem;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  background-color: var(--bs-body-bg, #fff);
+  color: var(--bs-body-color, #212529);
+  border: var(--bs-border-width, 1px) solid var(--bs-border-color, #dee2e6);
+  border-radius: var(--bs-border-radius-lg, 0.5rem);
+  box-shadow: var(--bs-box-shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+}
+
 // #6a  Corner controls overlay
 // ─────────────────────────────────────────────────────────────
 // A full-size, click-through overlay hosting the four map-corner

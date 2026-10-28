@@ -6,7 +6,8 @@ import cspWorkerUrl from "maplibre-gl/dist/maplibre-gl-csp-worker.js?url";
 // mangle variable names referenced inside the serialised worker blob.
 maplibregl.setWorkerUrl(cspWorkerUrl);
 import { inject, onMounted, onUnmounted, ref, watch } from "vue";
-import { useStorage } from "@/composables/useStorage";
+import { usePersistedState } from "@/resilience/persistedState";
+import { hydrateView } from "@/resilience/hydrators/view";
 import { parseUrlHash, updateUrlHash } from "@/composables/useUrlHash";
 import { useSettings } from "@/composables/useSettings";
 import { useLocale, navigatorLanguages } from "@/composables/useLocale";
@@ -18,6 +19,11 @@ import {
   countryCodeFromTimeZone,
 } from "@/utils/countries.js";
 import { emitter } from "@/emitter.js";
+import { reportError } from "@/resilience/errors";
+import {
+  isStyleRequestError,
+  resolveStyleTimeout,
+} from "@/resilience/mapRecovery";
 import {
   mapDefaults,
   globeProjection,
@@ -26,6 +32,92 @@ import {
 
 // Module-level state — one map instance per app context.
 const mapCache = new Map();
+
+/**
+ * Apply a view received from another tab without starting an echo loop.
+ *
+ * A published map is only moved when no controller owns the camera, and the
+ * programmatic jump's own `moveend` is suppressed so it neither writes back to
+ * storage nor emits `view:change`. `state:sync` remains the cross-tab signal.
+ *
+ * @param {string} instanceId - App instance ID.
+ */
+function applyExternalView(instanceId) {
+  const cached = mapCache.get(instanceId);
+  if (!cached || !cached.mapInstance || cached.suppressPersist) return;
+
+  const mapView = cached.state?.mapView;
+  const center = mapView?.center;
+  const zoom = mapView?.zoom;
+
+  if (
+    !center ||
+    !Number.isFinite(center.lat) ||
+    !Number.isFinite(center.lng) ||
+    center.lat < -90 ||
+    center.lat > 90 ||
+    !Number.isFinite(zoom)
+  ) {
+    return;
+  }
+
+  const pitch = Number.isFinite(mapView.pitch) ? mapView.pitch : 0;
+  const bearing = Number.isFinite(mapView.bearing) ? mapView.bearing : 0;
+  const map = cached.mapInstance;
+
+  // Capture the pre-suppression value so release() can restore it exactly.
+  const previousSuppressPersist = cached.suppressPersist;
+  let released = false;
+  let fallbackTimer = null;
+
+  // Idempotent: the synchronous moveend handler and the fallback timer both
+  // call it, so whichever runs first wins and the other is a no-op. This also
+  // prevents a stale once-listener from surviving a jump that never emitted
+  // moveend and later releasing suppression during a follow session.
+  const release = () => {
+    if (released) return;
+    released = true;
+    if (fallbackTimer !== null) {
+      clearTimeout(fallbackTimer);
+      fallbackTimer = null;
+    }
+    try {
+      map.off("moveend", release);
+    } catch {
+      // The map may already have been removed.
+    }
+    cached.suppressPersist = previousSuppressPersist;
+  };
+
+  // MapLibre's jumpTo usually fires moveend synchronously; registering the
+  // release first keeps the existing moveend handler from persisting this
+  // jump. The fallback timer covers a jump that produces no moveend (e.g. the
+  // external view equals the current view).
+  cached.suppressPersist = true;
+  map.on("moveend", release);
+  fallbackTimer = setTimeout(release, 0);
+
+  try {
+    map.jumpTo({
+      center: [center.lng, center.lat],
+      zoom,
+      pitch,
+      bearing,
+    });
+  } catch (error) {
+    release();
+    return;
+  }
+
+  cached.mapView.value = {
+    lat: center.lat,
+    lng: center.lng,
+    zoom,
+    pitch,
+    bearing,
+  };
+  updateUrlHash(zoom, center.lat, center.lng, pitch, bearing);
+}
 
 function throttle(fn, delay) {
   let lastCall = 0;
@@ -36,6 +128,27 @@ function throttle(fn, delay) {
       fn(...args);
     }
   };
+}
+
+/**
+ * Whether a constructor failure means WebGL itself is unavailable.
+ *
+ * MapLibre 5 no longer exposes `supported()`, so an unsupported canvas is
+ * reported by the constructor as a WebGL initialisation error. Treating that
+ * specific failure as "unsupported" keeps the user-facing message accurate
+ * while any other constructor throw remains an "init" failure.
+ *
+ * @param {*} error
+ * @returns {boolean}
+ */
+function isWebGlUnavailable(error) {
+  try {
+    return /failed to initialize webgl/i.test(
+      String(error?.message ?? error ?? ""),
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -109,17 +222,40 @@ export const useMap = (containerRef = null, options = {}) => {
   const instanceId = inject("ogisAppId", "app");
 
   if (!mapCache.has(instanceId)) {
-    mapCache.set(instanceId, {
-      state: useStorage(
-        "view",
-        {
+    const persistedView = usePersistedState(
+      "view",
+      {
+        version: 1,
+        defaults: {
           mapView: { center: null, zoom: null, pitch: 0, bearing: 0 },
         },
-        instanceId,
-      ),
+        hydrate: hydrateView,
+        crossTab: true,
+        debounce: 300,
+        onSync() {
+          applyExternalView(instanceId);
+        },
+      },
+      instanceId,
+    );
+
+    mapCache.set(instanceId, {
+      state: persistedView.state,
       mapInstance: null,
       scaleControl: null,
       mapView: ref(null),
+      // User-facing map lifecycle state. `loading` is the initial state; the
+      // failure surface renders only when this becomes `error`.
+      mapStatus: ref("loading"),
+      mapError: ref(null),
+      // Internal guards — the style-load initialiser runs once, while
+      // `styleLoaded`/`mapReady` drive recovery decisions.
+      styleLoaded: false,
+      mapReady: false,
+      initialized: false,
+      // Cleanup hooks installed during mount.
+      stopStyleWatchdog: null,
+      removeContextListeners: null,
       // Suppresses controller-driven persistence while a composable owns the
       // camera (e.g. the follow camera). User-originated moves are unaffected.
       suppressPersist: false,
@@ -148,244 +284,368 @@ export const useMap = (containerRef = null, options = {}) => {
     });
 
     onMounted(() => {
-      const map = new maplibregl.Map({
-        container: containerRef.value,
-        ...mapDefaults,
-        // E2E capture runs need symbols fully opaque from their first rendered
-        // frame: MapLibre's label-collision fade is time-based, and a capture
-        // taken after the map stops rendering can freeze a mid-fade frame with
-        // its labels culled (the symbol shader discards anything below 0.1
-        // opacity). Fades are entrance-only, so steady-state rendering — and
-        // production — are unchanged. See docs/9.testing.md.
-        ...(import.meta.env.VITE_E2E_FIXTURES === "1"
-          ? { fadeDuration: 0 }
-          : {}),
-        ...options,
+      const setMapState = (state) => {
+        cached.mapStatus.value = state;
+        if (!containerRef.value) return;
+        containerRef.value.dataset.mapState = state;
+        if (state === "ready") {
+          containerRef.value.dataset.mapReady = "true";
+        } else {
+          delete containerRef.value.dataset.mapReady;
+        }
+      };
+
+      const fail = (code) => {
+        cached.stopStyleWatchdog?.();
+        cached.mapError.value = { code };
+        setMapState("error");
+      };
+
+      // Publish the loading state as soon as construction begins. It is also
+      // the initial reactive state, so the healthy path renders no overlay.
+      setMapState("loading");
+
+      // Prefer MapLibre's own capability check when the installed version
+      // exposes one. MapLibre 5 removed it, so an unavailable context is
+      // classified from the constructor failure below instead.
+      let supported = true;
+      if (typeof maplibregl.supported === "function") {
+        try {
+          supported = maplibregl.supported() !== false;
+        } catch {
+          supported = false;
+        }
+      }
+      if (!supported) {
+        fail("unsupported");
+        return;
+      }
+
+      const styleUrl = options.style ?? mapDefaults.style;
+
+      let map;
+      try {
+        map = new maplibregl.Map({
+          container: containerRef.value,
+          ...mapDefaults,
+          // E2E capture runs need symbols fully opaque from their first rendered
+          // frame: MapLibre's label-collision fade is time-based, and a capture
+          // taken after the map stops rendering can freeze a mid-fade frame with
+          // its labels culled (the symbol shader discards anything below 0.1
+          // opacity). Fades are entrance-only, so steady-state rendering — and
+          // production — are unchanged. See docs/9.testing.md.
+          ...(import.meta.env.VITE_E2E_FIXTURES === "1"
+            ? { fadeDuration: 0 }
+            : {}),
+          ...options,
+        });
+      } catch (error) {
+        if (isWebGlUnavailable(error)) {
+          fail("unsupported");
+          return;
+        }
+        fail("init");
+        reportError(error, { source: "map-init" });
+        return;
+      }
+
+      // Fast-fail only when the style document itself cannot be fetched.
+      // Routine source, tile, glyph and sprite errors are expected and are
+      // deliberately ignored — they must never raise the overlay.
+      map.on("error", (event) => {
+        if (cached.styleLoaded || cached.mapStatus.value !== "loading") return;
+        if (!isStyleRequestError(event, styleUrl)) return;
+        fail("style");
       });
 
+      // A style that never arrives must not leave the app loading forever.
+      const styleTimeout = resolveStyleTimeout(
+        typeof window !== "undefined"
+          ? window.__ogisMapStyleTimeoutMs
+          : undefined,
+      );
+      const startStyleWatchdog = () => {
+        cached.stopStyleWatchdog?.();
+        const watchdog = setTimeout(() => {
+          cached.stopStyleWatchdog = null;
+          if (cached.styleLoaded || cached.mapStatus.value !== "loading") {
+            return;
+          }
+          fail("style");
+        }, styleTimeout);
+        cached.stopStyleWatchdog = () => {
+          clearTimeout(watchdog);
+          cached.stopStyleWatchdog = null;
+        };
+      };
+      startStyleWatchdog();
+
+      // WebGL context loss is reported by MapLibre through a canvas event.
+      // The app mirrors it into the map status so the overlay can explain the
+      // interruption while the browser attempts a restore.
+      const canvas = map.getCanvas();
+      const onContextLost = (event) => {
+        event?.preventDefault?.();
+        fail("contextLost");
+      };
+      const onContextRestored = () => {
+        if (cached.mapReady) {
+          cached.mapError.value = null;
+          setMapState("ready");
+          return;
+        }
+        // The map had not reached ready yet, so let its normal style load
+        // continue once the context has been restored.
+        cached.mapError.value = null;
+        setMapState("loading");
+        if (!cached.styleLoaded) startStyleWatchdog();
+      };
+      canvas.addEventListener("webglcontextlost", onContextLost);
+      canvas.addEventListener("webglcontextrestored", onContextRestored);
+      cached.removeContextListeners = () => {
+        canvas.removeEventListener("webglcontextlost", onContextLost);
+        canvas.removeEventListener("webglcontextrestored", onContextRestored);
+        cached.removeContextListeners = null;
+      };
+
       map.on("style.load", () => {
-        // Globe projection is always active — MapLibre transitions to
-        // mercator automatically at higher zoom levels.
-        map.setProjection(globeProjection);
+        // The initialiser is a one-shot: a restored WebGL context or a late
+        // style load must not replay it and duplicate listeners or controls.
+        if (cached.initialized) return;
+        cached.initialized = true;
+        cached.styleLoaded = true;
+        cached.stopStyleWatchdog?.();
 
-        // An explicit ?country=XX (or ?country=random) forces the focus and
-        // outranks both the URL hash and any stored view. Unknown or empty
-        // values are ignored, never treated as random. Parse it once, up front.
-        const countryParam = (
-          new URLSearchParams(window.location.search).get("country") ?? ""
-        )
-          .trim()
-          .toUpperCase();
-        const forcedCode =
-          countryParam === "RANDOM"
-            ? "" // empty string is countryCodeToBounds' random sentinel
-            : Object.hasOwn(COUNTRY_BOUNDS, countryParam) ||
-                Object.hasOwn(WRAP_OVERRIDES, countryParam)
-              ? countryParam
-              : null;
-        const isForced = forcedCode !== null;
+        try {
+          // Globe projection is always active — MapLibre transitions to
+          // mercator automatically at higher zoom levels.
+          map.setProjection(globeProjection);
 
-        // Determine initial view: a forced country supersedes everything; a URL
-        // hash otherwise takes priority over localStorage. A true cold start
-        // (neither present) is handled below, once the `moveend` listener is
-        // wired up so the country fit is persisted.
-        const hashView = parseUrlHash();
-        const hasStoredView = !!(
-          cached.state.mapView.center && cached.state.mapView.zoom
-        );
-        const isColdStart = !hashView && !hasStoredView;
+          // An explicit ?country=XX (or ?country=random) forces the focus and
+          // outranks both the URL hash and any stored view. Unknown or empty
+          // values are ignored, never treated as random. Parse it once, up front.
+          const countryParam = (
+            new URLSearchParams(window.location.search).get("country") ?? ""
+          )
+            .trim()
+            .toUpperCase();
+          const forcedCode =
+            countryParam === "RANDOM"
+              ? "" // empty string is countryCodeToBounds' random sentinel
+              : Object.hasOwn(COUNTRY_BOUNDS, countryParam) ||
+                  Object.hasOwn(WRAP_OVERRIDES, countryParam)
+                ? countryParam
+                : null;
+          const isForced = forcedCode !== null;
 
-        if (!isForced) {
-          if (hashView) {
-            map.jumpTo({
-              center: hashView.center,
-              zoom: hashView.zoom,
-              pitch: hashView.pitch,
-              bearing: hashView.bearing,
-            });
-          } else if (hasStoredView) {
-            map.jumpTo({
-              center: cached.state.mapView.center,
-              zoom: cached.state.mapView.zoom,
-              // Old stored views predate pitch/bearing — default them to 0.
-              pitch: cached.state.mapView.pitch ?? 0,
-              bearing: cached.state.mapView.bearing ?? 0,
-            });
+          // Determine initial view: a forced country supersedes everything; a URL
+          // hash otherwise takes priority over localStorage. A true cold start
+          // (neither present) is handled below, once the `moveend` listener is
+          // wired up so the country fit is persisted.
+          const hashView = parseUrlHash();
+          const hasStoredView = !!(
+            cached.state.mapView.center && cached.state.mapView.zoom
+          );
+          const isColdStart = !hashView && !hasStoredView;
+
+          if (!isForced) {
+            if (hashView) {
+              map.jumpTo({
+                center: hashView.center,
+                zoom: hashView.zoom,
+                pitch: hashView.pitch,
+                bearing: hashView.bearing,
+              });
+            } else if (hasStoredView) {
+              map.jumpTo({
+                center: cached.state.mapView.center,
+                zoom: cached.state.mapView.zoom,
+                // Old stored views predate pitch/bearing — default them to 0.
+                pitch: cached.state.mapView.pitch ?? 0,
+                bearing: cached.state.mapView.bearing ?? 0,
+              });
+            }
           }
-        }
 
-        // Update the reactive ref and URL hash from the current map state.
-        // Does NOT write localStorage — that only happens on user movement.
-        const refreshView = () => {
-          const c = map.getCenter();
-          const z = map.getZoom();
-          const pitch = map.getPitch();
-          const bearing = map.getBearing();
-          cached.mapView.value = {
-            lat: c.lat,
-            lng: c.lng,
-            zoom: z,
-            pitch,
-            bearing,
+          // Update the reactive ref and URL hash from the current map state.
+          // Does NOT write localStorage — that only happens on user movement.
+          const refreshView = () => {
+            const c = map.getCenter();
+            const z = map.getZoom();
+            const pitch = map.getPitch();
+            const bearing = map.getBearing();
+            cached.mapView.value = {
+              lat: c.lat,
+              lng: c.lng,
+              zoom: z,
+              pitch,
+              bearing,
+            };
+            updateUrlHash(z, c.lat, c.lng, pitch, bearing);
           };
-          updateUrlHash(z, c.lat, c.lng, pitch, bearing);
-        };
 
-        // Only populate mapView when there is a meaningful view to share
-        // (a URL hash or a previously persisted view). On a cold start — or a
-        // forced country — the fit below drives persistence through the
-        // `moveend` handler, so no stale pre-fit hash is written.
-        if (!isForced && (hashView || hasStoredView)) {
-          refreshView();
-        }
+          // Only populate mapView when there is a meaningful view to share
+          // (a URL hash or a previously persisted view). On a cold start — or a
+          // forced country — the fit below drives persistence through the
+          // `moveend` handler, so no stale pre-fit hash is written.
+          if (!isForced && (hashView || hasStoredView)) {
+            refreshView();
+          }
 
-        // On map movement: persist to localStorage, update ref, and update hash.
-        const persistView = () => {
-          const c = map.getCenter();
-          const z = map.getZoom();
-          const pitch = map.getPitch();
-          const bearing = map.getBearing();
-          cached.state.mapView.center = c;
-          cached.state.mapView.zoom = z;
-          cached.state.mapView.pitch = pitch;
-          cached.state.mapView.bearing = bearing;
-          cached.mapView.value = {
-            lat: c.lat,
-            lng: c.lng,
-            zoom: z,
-            pitch,
-            bearing,
+          // On map movement: persist to localStorage, update ref, and update hash.
+          const persistView = () => {
+            const c = map.getCenter();
+            const z = map.getZoom();
+            const pitch = map.getPitch();
+            const bearing = map.getBearing();
+            cached.state.mapView.center = c;
+            cached.state.mapView.zoom = z;
+            cached.state.mapView.pitch = pitch;
+            cached.state.mapView.bearing = bearing;
+            cached.mapView.value = {
+              lat: c.lat,
+              lng: c.lng,
+              zoom: z,
+              pitch,
+              bearing,
+            };
+            updateUrlHash(z, c.lat, c.lng, pitch, bearing);
+            emitter.emit("view:change", {
+              center: { lat: c.lat, lng: c.lng },
+              zoom: z,
+              pitch,
+              bearing,
+            });
           };
-          updateUrlHash(z, c.lat, c.lng, pitch, bearing);
-          emitter.emit("view:change", {
-            center: { lat: c.lat, lng: c.lng },
-            zoom: z,
-            pitch,
-            bearing,
+
+          // Gesture-driven moves are throttled to avoid a write per frame.
+          const throttledPersistView = throttle(persistView, 1000);
+
+          // Expose the one-shot persist path to `persistMapView` (see below).
+          cached.persistView = persistView;
+
+          map.on("moveend", (event) => {
+            // A programmatic camera move (flyTo/easeTo/jumpTo) carries no
+            // originalEvent. Its hash write must never be dropped by the
+            // throttle, otherwise the final view (e.g. the locate orientation
+            // flight) can be swallowed, leaving a stale hash.
+            if (event?.originalEvent) {
+              throttledPersistView();
+            } else if (!cached.suppressPersist) {
+              // While a controller owns the camera, programmatic moves must not
+              // write the hash/localStorage/view:change — the follow camera
+              // persists its final pose once on stop instead.
+              persistView();
+            }
           });
-        };
 
-        // Gesture-driven moves are throttled to avoid a write per frame.
-        const throttledPersistView = throttle(persistView, 1000);
+          cached.mapInstance = map;
 
-        // Expose the one-shot persist path to `persistMapView` (see below).
-        cached.persistView = persistView;
-
-        map.on("moveend", (event) => {
-          // A programmatic camera move (flyTo/easeTo/jumpTo) carries no
-          // originalEvent. Its hash write must never be dropped by the
-          // throttle, otherwise the final view (e.g. the locate orientation
-          // flight) can be swallowed, leaving a stale hash.
-          if (event?.originalEvent) {
-            throttledPersistView();
-          } else if (!cached.suppressPersist) {
-            // While a controller owns the camera, programmatic moves must not
-            // write the hash/localStorage/view:change — the follow camera
-            // persists its final pose once on stop instead.
-            persistView();
+          // Focus the map. A forced country (?country) wins outright; otherwise
+          // a cold start resolves the country by cascade: timezone → raw browser
+          // locale → random. Locale uses raw `navigatorLanguages` (not the app
+          // locale or ?locale=). The fit itself — including padding and the
+          // synchronous `duration: 0` that fires `moveend` — lives in
+          // `fitCountryBounds`, shared with the Info panel's Random action.
+          if (isForced || isColdStart) {
+            const code = isForced
+              ? forcedCode
+              : (countryCodeFromTimeZone() ??
+                countryCodeFromLocale(navigatorLanguages.value[0]) ??
+                "");
+            fitCountryBounds(map, code);
           }
-        });
 
-        cached.mapInstance = map;
+          // Expose a lightweight app-ready signal. This is the same point at
+          // which the app publishes the map instance and emits `map:ready`, so
+          // features are wired up and the map is usable. It deliberately does not
+          // wait for MapLibre's `load` event: that is render-bound (the first
+          // software render is ~26 s under SwiftShader), whereas `style.load` is
+          // cheap and is what features actually depend on.
+          cached.mapReady = true;
+          cached.mapError.value = null;
+          setMapState("ready");
 
-        // Focus the map. A forced country (?country) wins outright; otherwise
-        // a cold start resolves the country by cascade: timezone → raw browser
-        // locale → random. Locale uses raw `navigatorLanguages` (not the app
-        // locale or ?locale=). The fit itself — including padding and the
-        // synchronous `duration: 0` that fires `moveend` — lives in
-        // `fitCountryBounds`, shared with the Info panel's Random action.
-        if (isForced || isColdStart) {
-          const code = isForced
-            ? forcedCode
-            : (countryCodeFromTimeZone() ??
-              countryCodeFromLocale(navigatorLanguages.value[0]) ??
-              "");
-          fitCountryBounds(map, code);
-        }
+          // Expose idle state as a data attribute so screenshot tests can
+          // reliably wait for tiles to finish rendering before capturing.
+          //
+          // MapLibre's `idle` event is the primary trigger, but it is not
+          // guaranteed: when every tile a source needs is absent (the Esri
+          // satellite source is deliberately served a 404 in E2E), the tile
+          // manager can settle via an internal update after the render loop has
+          // already stopped, with no `idle` fired — leaving the attribute unset
+          // even though `map.loaded()` and `map.areTilesLoaded()` are true. So
+          // we also re-evaluate the settle predicate on the events that can
+          // precede a settle, and retry on animation frames until it holds.
+          const isMapSettled = () => {
+            try {
+              return !map.isMoving() && map.areTilesLoaded();
+            } catch {
+              // The map may be mid-removal when a retry frame lands.
+              return false;
+            }
+          };
+          const publishMapIdle = () => {
+            if (containerRef.value && isMapSettled()) {
+              containerRef.value.dataset.mapIdle = "true";
+            }
+          };
+          const clearMapIdle = () => {
+            if (containerRef.value) delete containerRef.value.dataset.mapIdle;
+          };
 
-        // Expose a lightweight app-ready signal. This is the same point at
-        // which the app publishes the map instance and emits `map:ready`, so
-        // features are wired up and the map is usable. It deliberately does not
-        // wait for MapLibre's `load` event: that is render-bound (the first
-        // software render is ~26 s under SwiftShader), whereas `style.load` is
-        // cheap and is what features actually depend on.
-        if (containerRef.value) containerRef.value.dataset.mapReady = "true";
-
-        // Expose idle state as a data attribute so screenshot tests can
-        // reliably wait for tiles to finish rendering before capturing.
-        //
-        // MapLibre's `idle` event is the primary trigger, but it is not
-        // guaranteed: when every tile a source needs is absent (the Esri
-        // satellite source is deliberately served a 404 in E2E), the tile
-        // manager can settle via an internal update after the render loop has
-        // already stopped, with no `idle` fired — leaving the attribute unset
-        // even though `map.loaded()` and `map.areTilesLoaded()` are true. So
-        // we also re-evaluate the settle predicate on the events that can
-        // precede a settle, and retry on animation frames until it holds.
-        const isMapSettled = () => {
-          try {
-            return !map.isMoving() && map.areTilesLoaded();
-          } catch {
-            // The map may be mid-removal when a retry frame lands.
-            return false;
-          }
-        };
-        const publishMapIdle = () => {
-          if (containerRef.value && isMapSettled()) {
-            containerRef.value.dataset.mapIdle = "true";
-          }
-        };
-        const clearMapIdle = () => {
-          if (containerRef.value) delete containerRef.value.dataset.mapIdle;
-        };
-
-        // A bounded retry loop catches the eventless settle without leaving a
-        // permanent animation-frame loop running if a source never finishes.
-        // It is re-armed (and its budget reset) by each map activity event.
-        const IDLE_RETRY_FRAMES = 600; // ~10 s at 60 fps
-        let idleRetryFrame = null;
-        let idleRetryLeft = 0;
-        let idleRetryStopped = false;
-        const retryMapIdle = () => {
-          idleRetryLeft = IDLE_RETRY_FRAMES;
-          if (idleRetryFrame !== null || idleRetryStopped) return;
-          const step = () => {
-            idleRetryFrame = null;
-            if (idleRetryStopped) return;
-            publishMapIdle();
-            if (isMapSettled() || --idleRetryLeft <= 0) return;
+          // A bounded retry loop catches the eventless settle without leaving a
+          // permanent animation-frame loop running if a source never finishes.
+          // It is re-armed (and its budget reset) by each map activity event.
+          const IDLE_RETRY_FRAMES = 600; // ~10 s at 60 fps
+          let idleRetryFrame = null;
+          let idleRetryLeft = 0;
+          let idleRetryStopped = false;
+          const retryMapIdle = () => {
+            idleRetryLeft = IDLE_RETRY_FRAMES;
+            if (idleRetryFrame !== null || idleRetryStopped) return;
+            const step = () => {
+              idleRetryFrame = null;
+              if (idleRetryStopped) return;
+              publishMapIdle();
+              if (isMapSettled() || --idleRetryLeft <= 0) return;
+              idleRetryFrame = requestAnimationFrame(step);
+            };
             idleRetryFrame = requestAnimationFrame(step);
           };
-          idleRetryFrame = requestAnimationFrame(step);
-        };
-        cached.cancelIdleRetry = () => {
-          idleRetryStopped = true;
-          if (idleRetryFrame !== null) cancelAnimationFrame(idleRetryFrame);
-          idleRetryFrame = null;
-        };
+          cached.cancelIdleRetry = () => {
+            idleRetryStopped = true;
+            if (idleRetryFrame !== null) cancelAnimationFrame(idleRetryFrame);
+            idleRetryFrame = null;
+          };
 
-        map.on("idle", publishMapIdle);
-        map.on("movestart", clearMapIdle);
-        map.on("zoomstart", clearMapIdle);
-        for (const ev of ["moveend", "zoomend", "sourcedata", "load"]) {
-          map.on(ev, retryMapIdle);
+          map.on("idle", publishMapIdle);
+          map.on("movestart", clearMapIdle);
+          map.on("zoomstart", clearMapIdle);
+          for (const ev of ["moveend", "zoomend", "sourcedata", "load"]) {
+            map.on(ev, retryMapIdle);
+          }
+          // Arm the retry immediately: the map may already be settling, or may
+          // settle without a further sourcedata/load event.
+          retryMapIdle();
+
+          // Apply the active language to map labels immediately after load.
+          applyMapLanguage(map, mapLanguageTag.value);
+
+          // Scale bar — unit follows the OS/browser region.
+          const scaleControl = new maplibregl.ScaleControl({
+            maxWidth: scaleMaxWidth,
+            unit: isMetric.value ? "metric" : "imperial",
+          });
+          map.addControl(scaleControl, "bottom-left");
+          cached.scaleControl = scaleControl;
+
+          emitter.emit("map:ready", { map, instanceId });
+        } catch (error) {
+          cached.mapReady = false;
+          fail("init");
+          reportError(error, { source: "map-style-load" });
         }
-        // Arm the retry immediately: the map may already be settling, or may
-        // settle without a further sourcedata/load event.
-        retryMapIdle();
-
-        // Apply the active language to map labels immediately after load.
-        applyMapLanguage(map, mapLanguageTag.value);
-
-        // Scale bar — unit follows the OS/browser region.
-        const scaleControl = new maplibregl.ScaleControl({
-          maxWidth: scaleMaxWidth,
-          unit: isMetric.value ? "metric" : "imperial",
-        });
-        map.addControl(scaleControl, "bottom-left");
-        cached.scaleControl = scaleControl;
-
-        emitter.emit("map:ready", { map, instanceId });
       });
     });
 
@@ -393,17 +653,40 @@ export const useMap = (containerRef = null, options = {}) => {
       emitter.emit("destroy");
       cached.cancelIdleRetry?.();
       cached.cancelIdleRetry = null;
+      cached.stopStyleWatchdog?.();
+      cached.stopStyleWatchdog = null;
+      cached.removeContextListeners?.();
       // Release any persistence suppression before the map goes away.
       cached.suppressPersist = false;
-      cached.mapInstance?.remove();
+      const map = cached.mapInstance;
+      if (map) {
+        try {
+          map.remove();
+        } catch (error) {
+          // Normal teardown is silent; a throw here is unexpected.
+          reportError(error, { source: "map-remove" });
+        }
+      }
       cached.mapInstance = null;
+      cached.mapReady = false;
+      cached.styleLoaded = false;
+      cached.initialized = false;
       mapCache.delete(instanceId);
     });
   }
 
+  // A full reload is the safe retry: calling `setStyle` in-app would rerun the
+  // large style-load initialiser and risk duplicate listeners and controls.
+  const retryMap = () => {
+    if (typeof window !== "undefined") window.location.reload();
+  };
+
   return {
     map: cached.mapInstance,
     mapView: cached.mapView,
+    mapStatus: cached.mapStatus,
+    mapError: cached.mapError,
+    retryMap,
   };
 };
 

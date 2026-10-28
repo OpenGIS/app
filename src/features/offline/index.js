@@ -4,6 +4,7 @@
 import OfflinePanel from "./OfflinePanel.vue";
 import { useActions } from "@/composables/useActions";
 import { useGeoJSON } from "@/composables/useGeoJSON.js";
+import { hydrateOfflineRegions } from "@/resilience/hydrators/offlineRegions.js";
 import {
   estimateRegion,
   downloadRegion,
@@ -23,7 +24,11 @@ export const OfflineFeature = {
     const { t } = useLocale();
 
     // Downloaded region metadata, persisted to localStorage.
-    const regions = useStorage("offline-regions", []);
+    const regions = useStorage("offline-regions", {
+      version: 1,
+      defaults: [],
+      hydrate: hydrateOfflineRegions,
+    }).state;
 
     // GeoJSON renderer, used to draw a downloaded region's bounds on the map.
     const geoJSON = useGeoJSON(instanceId);

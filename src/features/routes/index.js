@@ -10,7 +10,6 @@ import { assignTrackColors } from "@/utils/track/colors.js";
 import {
   documentBounds,
   lineGeometry,
-  migrateRoute,
   nearestPointOnTrack,
   normalisePoint,
   ON_ROUTE_METRES,
@@ -20,6 +19,8 @@ import {
   trackFilename,
   trackMime,
 } from "@/utils/track/index.js";
+import { hydrateNavigation } from "@/resilience/hydrators/navigation.js";
+import { hydrateRoutes } from "@/resilience/hydrators/routes.js";
 import RoutesPanel from "./RoutesPanel.vue";
 
 const lineFeatureId = (id) => `routes-route-${id}`;
@@ -36,10 +37,18 @@ export const RoutesFeature = {
     addPanel,
     useLocale,
   }) {
-    const routes = useStorage("routes", []);
-    const migrating = routes.map((route) => migrateRoute(route));
-    routes.splice(0, routes.length, ...migrating);
+    const routes = useStorage("routes", {
+      version: 1,
+      defaults: [],
+      hydrate: hydrateRoutes,
+    }).state;
     assignTrackColors(routes);
+
+    const navigation = useStorage("navigation", {
+      version: 1,
+      defaults: { routeId: null, visible: [], followOwned: false },
+      hydrate: hydrateNavigation,
+    }).state;
 
     const navigating = ref(null);
     const error = ref(null);
@@ -143,20 +152,56 @@ export const RoutesFeature = {
 
     const isVisible = (id) => visible.has(id);
 
-    const showOnMap = (id) => {
+    /** Mirror the current visible set into the navigation store. */
+    const persistVisibility = () => {
+      navigation.visible = [...visible];
+    };
+
+    /** Mirror the current navigation owner into the navigation store. */
+    const persistNavigation = () => {
+      navigation.routeId = navigating.value ?? null;
+      navigation.followOwned = navigating.value ? followOwned : false;
+    };
+
+    /** Clear persisted navigation without touching route visibility. */
+    const clearPersistedNavigation = () => {
+      navigation.routeId = null;
+      navigation.followOwned = false;
+    };
+
+    const showOnMap = (
+      id,
+      { fit = true, claim = true, persist = true } = {},
+    ) => {
+      if (visible.has(id)) return;
       const route = routes.find((item) => item.id === id);
       if (!route) return;
-      actions.claimMap();
+      if (claim) actions.claimMap();
 
       renderRoute(route);
       visible.add(id);
 
       const bounds = documentBounds(route);
       const map = getMap();
-      if (map && bounds && locate.mode.value !== "following") {
+      if (fit && map && bounds && locate.mode.value !== "following") {
         map.fitBounds(bounds, { padding: 40 });
       }
+
+      if (persist) persistVisibility();
     };
+
+    // Restore visibility without moving the camera, claiming the map or
+    // rewriting storage unless stale ids had to be dropped.
+    const storedVisible = Array.isArray(navigation.visible)
+      ? navigation.visible
+      : [];
+    const routeIds = new Set(routes.map((route) => route.id));
+    const restoredVisible = storedVisible.filter((id) => routeIds.has(id));
+
+    for (const id of restoredVisible) {
+      showOnMap(id, { fit: false, claim: false, persist: false });
+    }
+    if (restoredVisible.length !== storedVisible.length) persistVisibility();
 
     const stopNavigation = ({ stopFollow = true, handoff = false } = {}) => {
       navigating.value = null;
@@ -170,6 +215,7 @@ export const RoutesFeature = {
         locate.stop();
       }
       followOwned = false;
+      persistNavigation();
     };
 
     const hideOnMap = (id) => {
@@ -179,6 +225,7 @@ export const RoutesFeature = {
       removeRouteFeatures(route);
       visible.delete(id);
       if (navigating.value === id) stopNavigation();
+      persistVisibility();
     };
 
     const toggleVisibility = (id) => {
@@ -194,6 +241,7 @@ export const RoutesFeature = {
       removeRouteFeatures(route);
       visible.delete(id);
       if (navigating.value === id) stopNavigation();
+      persistVisibility();
     };
 
     const importTracks = async (files) => {
@@ -217,11 +265,24 @@ export const RoutesFeature = {
       return imported.length;
     };
 
-    const startNavigation = (id) => {
+    const startNavigation = (
+      id,
+      { restore = false, followOwned: restoredFollowOwned = false } = {},
+    ) => {
       const route = routes.find((item) => item.id === id);
-      if (!route) return;
-      if (!isVisible(id) || !lineGeometry(route)) return;
-      if (navigating.value && navigating.value !== id) return;
+      if (!route) return false;
+      if (!isVisible(id) || !lineGeometry(route)) return false;
+      if (navigating.value && navigating.value !== id) return false;
+
+      if (restore) {
+        if (locate.mode.value !== "following") return false;
+
+        followOwned = Boolean(restoredFollowOwned);
+        navigating.value = id;
+        persistNavigation();
+        setMenuNavigation(navigationState.value);
+        return true;
+      }
 
       const alreadyFollowing = locate.mode.value === "following";
       actions.claimMap({ except: "navigate" });
@@ -229,9 +290,52 @@ export const RoutesFeature = {
         onStarted: () => {
           followOwned = !alreadyFollowing;
           navigating.value = id;
+          persistNavigation();
           closePanel();
         },
       });
+      return true;
+    };
+
+    /**
+     * Resume persisted navigation once locate has settled.
+     *
+     * Runs after mount and never prompts. Visibility is restored first and is
+     * left untouched by any navigation failure, so a denied geolocation restore
+     * only clears navigation. Every failure is silent.
+     */
+    const restoreNavigation = async () => {
+      const storedRouteId = navigation.routeId;
+      if (!storedRouteId) return;
+
+      try {
+        const route = routes.find((item) => item.id === storedRouteId);
+        if (!route || !lineGeometry(route)) {
+          clearPersistedNavigation();
+          return;
+        }
+
+        showOnMap(storedRouteId, { fit: false, claim: false, persist: false });
+        persistVisibility();
+
+        await locate.restoreComplete;
+
+        // The user acted while the restore was pending; leave their state be.
+        if (navigating.value || navigation.routeId !== storedRouteId) return;
+
+        if (locate.mode.value !== "following") {
+          clearPersistedNavigation();
+          return;
+        }
+
+        const restored = startNavigation(storedRouteId, {
+          restore: true,
+          followOwned: navigation.followOwned,
+        });
+        if (!restored) clearPersistedNavigation();
+      } catch {
+        if (navigation.routeId === storedRouteId) clearPersistedNavigation();
+      }
     };
 
     const locatingState = () => ({
@@ -295,6 +399,10 @@ export const RoutesFeature = {
         stopNavigation({ stopFollow: false });
       }
     });
+
+    // Non-blocking: the app mounts immediately and navigation resumes only if
+    // the locate restore re-entered following.
+    restoreNavigation();
 
     const shareTrack = async (route, format) => {
       const name = route.name || t("panel.routes.defaultName");

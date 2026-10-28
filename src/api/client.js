@@ -13,11 +13,22 @@ const runtimeBaseUrl = (
 
 const apiBaseUrl = envBaseUrl || runtimeBaseUrl;
 
-if (!apiBaseUrl && !TEST_MODE) {
-  throw new Error(
-    "Missing API base URL. Set VITE_API_BASE_URL (or window.__OGIS_API_BASE_URL__) to your backend origin, e.g. https://api.example.com.",
-  );
-}
+const API_BASE_URL_ERROR =
+  "Missing API base URL. Set VITE_API_BASE_URL (or window.__OGIS_API_BASE_URL__) to your backend origin, e.g. https://api.example.com.";
+
+/**
+ * Resolve the API base URL, failing lazily when a request is actually made.
+ *
+ * Importing this module must never crash boot while the backend-dependent
+ * features are disabled. Test mode keeps its existing no-throw behaviour.
+ *
+ * @returns {string} The configured base URL.
+ */
+export const requireApiBaseUrl = () => {
+  if (apiBaseUrl) return apiBaseUrl;
+  if (TEST_MODE) return "";
+  throw new Error(API_BASE_URL_ERROR);
+};
 
 export const api = axios.create({
   baseURL: apiBaseUrl || "",
@@ -29,6 +40,11 @@ export const api = axios.create({
     "X-Requested-With": "XMLHttpRequest",
     Accept: "application/json",
   },
+});
+
+api.interceptors.request.use((config) => {
+  requireApiBaseUrl();
+  return config;
 });
 
 let csrfReady = false;

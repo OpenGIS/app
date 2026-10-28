@@ -1,7 +1,8 @@
 import { ref, computed, inject } from "vue";
 import maplibregl from "maplibre-gl";
 import { magvar } from "magvar";
-import { useStorage } from "@/composables/useStorage";
+import { usePersistedState } from "@/resilience/persistedState";
+import { hydrateLocate } from "@/resilience/hydrators/locate";
 import { getMapInstance } from "@/composables/useMap";
 import { useOrientView } from "@/composables/useOrientView";
 import { useFollowCamera } from "@/composables/useFollowCamera";
@@ -30,6 +31,10 @@ const MOVING_SPEED_MPS = 0.5;
 const MARKER_RETRY_INTERVAL_MS = 750;
 const MARKER_RETRY_TIMEOUT_MS = 120000;
 
+// Geolocation watch timeout, in milliseconds. Without one a restored session
+// can stay "Locating…" indefinitely when the device never produces a fix.
+const GEOLOCATION_TIMEOUT_MS = 15000;
+
 /** Interpolate between two angles (degrees) handling the 0°/360° wrap. */
 function smoothAngle(current, next, factor) {
   let diff = next - current;
@@ -44,14 +49,22 @@ function smoothAngle(current, next, factor) {
  * Manages GPS tracking state, map markers, and the permission flow.
  * State is cached per app instance and shared across all callers.
  *
- * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function }}
+ * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, restoreComplete: Promise<void>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function }}
  */
 export const useLocate = (explicitInstanceId) => {
   const instanceId = explicitInstanceId ?? inject("ogisAppId", "app");
 
   if (!locateCache.has(instanceId)) {
     locateCache.set(instanceId, {
-      storage: useStorage("locate", { permissionGranted: false }, instanceId),
+      storage: usePersistedState(
+        "locate",
+        {
+          version: 2,
+          defaults: { permissionGranted: false, mode: null, lastFix: null },
+          hydrate: hydrateLocate,
+        },
+        instanceId,
+      ).state,
       mode: ref(null), // null | 'active' | 'following' | 'error'
       position: ref(null), // Position | null
       compassHeading: ref(null), // smoothed DeviceOrientation compass bearing
@@ -79,6 +92,9 @@ export const useLocate = (explicitInstanceId) => {
       retryTimerId: null, // interval handle for the post-move marker re-sync
       retryDeadline: 0, // epoch ms when the retry loop gives up (0 = inactive)
       followModeRegistered: false, // the follow mode is registered once per instance
+      restoring: false, // true until a restore succeeds, fails or the user acts
+      restoreScheduled: false, // auto-restore is scheduled once per instance
+      restoreComplete: null, // Promise resolved when the scheduled restore ends
     });
   }
 
@@ -450,6 +466,9 @@ export const useLocate = (explicitInstanceId) => {
     // Ignore fixes that arrive after the user has stopped tracking.
     if (c.mode.value === null || c.mode.value === "error") return;
 
+    // The first accepted fix completes a silent restore.
+    c.restoring = false;
+
     if (!c.storage.permissionGranted) {
       c.storage.permissionGranted = true;
     }
@@ -464,6 +483,22 @@ export const useLocate = (explicitInstanceId) => {
       accuracy,
       speed,
     });
+
+    // Persist the fix for a crash/reload restore. The internal derivation
+    // baseline below is separate: it uses performance.now(), this uses epoch ms.
+    const persistedAccuracy =
+      typeof accuracy === "number" && Number.isFinite(accuracy) && accuracy >= 0
+        ? accuracy
+        : 0;
+    const persistedHeading =
+      typeof heading === "number" && Number.isFinite(heading) ? heading : null;
+    c.storage.lastFix = {
+      lat: latitude,
+      lng: longitude,
+      accuracy: persistedAccuracy,
+      heading: persistedHeading,
+      at: Date.now(),
+    };
 
     applyOrientFlight();
     syncMarkers();
@@ -523,7 +558,17 @@ export const useLocate = (explicitInstanceId) => {
     stopWatcher();
     stopOrientationWatching();
     removeMarkers();
-    c.mode.value = "error";
+
+    // A restore that fails before its first fix is silent: the user never
+    // started this session, so there is nothing to report and no modal to show.
+    if (c.restoring) {
+      setMode(null);
+      c.position.value = null;
+      c.restoring = false;
+      return;
+    }
+
+    setMode("error");
     if (err.code === 1 /* PERMISSION_DENIED */) {
       c.showErrorModal.value = true;
     }
@@ -531,34 +576,88 @@ export const useLocate = (explicitInstanceId) => {
 
   // ─── Internal helpers ─────────────────────────────────────────────────────
 
-  const startWatching = async () => {
+  /**
+   * Set the in-memory mode and mirror the restorable value into storage.
+   *
+   * Only `active` and `following` survive a reload. Every other state (`error`,
+   * `null`) clears the persisted mode and last fix, so a crash can never
+   * restore a session that was already being torn down.
+   *
+   * @param {'active'|'following'|'error'|null} mode
+   */
+  const setMode = (mode) => {
+    c.mode.value = mode;
+    const persisted = mode === "active" || mode === "following" ? mode : null;
+    c.storage.mode = persisted;
+    if (persisted === null) c.storage.lastFix = null;
+  };
+
+  /** Drop the persisted restore state without touching in-memory tracking. */
+  const clearPersistedRestore = () => {
+    c.storage.mode = null;
+    c.storage.lastFix = null;
+  };
+
+  /** Abandon a restore silently: no mode, no position and no stored session. */
+  const clearRestoredState = () => {
+    setMode(null);
+    c.position.value = null;
+    c.restoring = false;
+  };
+
+  /** Whether iOS-style orientation permission must be requested by gesture. */
+  const hasOrientationPermissionRequest = () =>
+    typeof DeviceOrientationEvent !== "undefined" &&
+    typeof DeviceOrientationEvent.requestPermission === "function";
+
+  /**
+   * @param {{ restore?: boolean }} [options]
+   */
+  const startWatching = async ({ restore = false } = {}) => {
     if (!("geolocation" in navigator)) {
-      c.mode.value = "error";
+      if (restore) {
+        clearRestoredState();
+        return;
+      }
+      setMode("error");
       return;
     }
     const gen = ++c.generation;
-    c.mode.value = "active";
+    setMode("active");
     c.needsInitialOrient = true;
     resetDerivation();
     armOrientRetry();
 
-    // Request orientation permission (no-op on non-iOS) then start listening.
-    // Both happen inside the same user-gesture call stack so iOS treats them
-    // as a single permission prompt.
-    await requestOrientationPermission();
+    if (restore) {
+      // iOS needs a user gesture for orientation permission, so a boot restore
+      // skips it entirely (heading stays null and the position marker is used).
+      // Other platforms can begin listening safely without a prompt.
+      if (!hasOrientationPermissionRequest()) startOrientationWatching();
+    } else {
+      // Request orientation permission (no-op on non-iOS) then start listening.
+      // Both happen inside the same user-gesture call stack so iOS treats them
+      // as a single permission prompt.
+      await requestOrientationPermission();
 
-    // A stop() (or a fresh startWatching) may have run during that await.
-    // Abandon this generation so we neither orphan a watcher nor clobber
-    // the newer session's state.
-    if (gen !== c.generation) return;
+      // A stop() (or a fresh startWatching) may have run during that await.
+      // Abandon this generation so we neither orphan a watcher nor clobber
+      // the newer session's state.
+      if (gen !== c.generation) return;
 
-    startOrientationWatching();
+      startOrientationWatching();
+    }
 
-    c.watcherId = navigator.geolocation.watchPosition(
-      (pos) => onPosition(pos, gen),
-      (err) => onError(err, gen),
-      { enableHighAccuracy: true },
-    );
+    try {
+      c.watcherId = navigator.geolocation.watchPosition(
+        (pos) => onPosition(pos, gen),
+        (err) => onError(err, gen),
+        { enableHighAccuracy: true, timeout: GEOLOCATION_TIMEOUT_MS },
+      );
+    } catch (error) {
+      // A synchronous throw is still a geolocation failure: route it through
+      // the normal error path (silent during a restore, reported otherwise).
+      onError(error, gen);
+    }
   };
 
   const stopWatcher = () => {
@@ -577,7 +676,7 @@ export const useLocate = (explicitInstanceId) => {
    * mid-follow, starts the follow camera and feeds it the last known fix.
    */
   const enterFollowing = () => {
-    c.mode.value = "following";
+    setMode("following");
     c.needsInitialOrient = false;
     clearOrientRetry();
     followCamera.start();
@@ -599,6 +698,7 @@ export const useLocate = (explicitInstanceId) => {
    * On first use (no stored grant), shows the confirmation modal.
    */
   const cycle = () => {
+    c.restoring = false;
     if (c.mode.value === "error") {
       c.showErrorModal.value = true;
       return;
@@ -627,6 +727,7 @@ export const useLocate = (explicitInstanceId) => {
    * @param {Function} [options.onStarted] - Called once following has started.
    */
   const startFollowing = ({ onStarted } = {}) => {
+    c.restoring = false;
     if (c.mode.value === "following") {
       onStarted?.();
       return;
@@ -684,6 +785,7 @@ export const useLocate = (explicitInstanceId) => {
     // Bump the generation first so any in-flight watcher callback (or a
     // startWatching still awaiting orientation permission) is superseded
     // and can no longer create a watcher or markers.
+    c.restoring = false;
     c.generation++;
     clearOrientRetry();
     c.needsInitialOrient = false;
@@ -692,7 +794,7 @@ export const useLocate = (explicitInstanceId) => {
     stopWatcher();
     stopOrientationWatching();
     removeMarkers();
-    c.mode.value = null;
+    setMode(null);
     c.position.value = null;
   };
 
@@ -709,7 +811,7 @@ export const useLocate = (explicitInstanceId) => {
    */
   const endFollowing = ({ persist = true } = {}) => {
     if (c.mode.value !== "following") return;
-    c.mode.value = "active";
+    setMode("active");
     followCamera.stop({ persist });
   };
 
@@ -744,10 +846,97 @@ export const useLocate = (explicitInstanceId) => {
    * Bypasses the confirmation modal since the user is explicitly retrying.
    */
   const retryPosition = async () => {
-    c.mode.value = null;
+    c.restoring = false;
+    setMode(null);
     c.showErrorModal.value = false;
     await startWatching();
   };
+
+  /**
+   * Restore a persisted locate session exactly once per instance.
+   *
+   * Restoration never prompts: it only proceeds when both a stored restorable
+   * mode/fix and an OS-level `granted` permission agree. Everything is silent
+   * on failure so a crash cannot surface an error modal on boot.
+   */
+  const restorePersistedSession = async () => {
+    let restoreStarted = false;
+
+    try {
+      const storedMode = c.storage.mode;
+      const storedFix = c.storage.lastFix;
+
+      // A legacy value has no mode: leave it untouched, never normalise it.
+      if (!storedMode) return;
+
+      if (!c.storage.permissionGranted || !storedFix) {
+        clearPersistedRestore();
+        return;
+      }
+
+      // The user already acted in this document; do not overwrite them.
+      if (c.mode.value !== null) return;
+
+      let permissionState = null;
+      try {
+        const status = await navigator.permissions?.query({
+          name: "geolocation",
+        });
+        permissionState = status?.state ?? null;
+      } catch {
+        permissionState = null;
+      }
+
+      // The user may have acted while the permission query was pending.
+      if (c.mode.value !== null) return;
+
+      if (permissionState !== "granted") {
+        clearPersistedRestore();
+        return;
+      }
+
+      c.position.value = new Position({
+        lat: storedFix.lat,
+        lng: storedFix.lng,
+        accuracy: storedFix.accuracy,
+        heading: storedFix.heading,
+        speed: 0,
+      });
+
+      c.restoring = true;
+      await startWatching({ restore: true });
+
+      if (c.mode.value === "active" && storedMode === "following") {
+        enterFollowing();
+      }
+
+      if (c.mode.value !== "active" && c.mode.value !== "following") {
+        return;
+      }
+
+      // Stay in restoring mode until the first accepted fix, so an early
+      // geolocation error is still silent.
+      restoreStarted = true;
+      syncMarkers();
+    } catch {
+      clearRestoredState();
+    } finally {
+      if (!restoreStarted) c.restoring = false;
+    }
+  };
+
+  // Auto-restore is scheduled once per instance, in a post-boot microtask so
+  // it runs after mount rather than synchronously inside feature install.
+  if (!c.restoreScheduled) {
+    c.restoreScheduled = true;
+    c.restoreComplete = new Promise((resolve) => {
+      queueMicrotask(() => {
+        restorePersistedSession()
+          .catch(() => {})
+          .finally(() => resolve());
+      });
+    });
+  }
 
   return {
     mode: computed(() => c.mode.value),
@@ -757,6 +946,7 @@ export const useLocate = (explicitInstanceId) => {
     permissionGranted: computed(() => c.storage.permissionGranted),
     showConfirmModal: c.showConfirmModal,
     showErrorModal: c.showErrorModal,
+    restoreComplete: c.restoreComplete,
     cycle,
     startFollowing,
     confirmLocate,

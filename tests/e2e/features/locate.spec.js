@@ -7,12 +7,16 @@ import { waitForMapReady, openMenuTab } from "../helpers/panel";
 import { projectionType } from "../helpers/mapProjection.js";
 import {
   LOCATE_FIX as FIX,
+  emitFix,
+  emitGeoError,
   expectedHashRegExp,
+  installGeolocationMock,
   orientHash,
   waitForCameraSettle,
   withGrantedLocateStorage as withGrantedStorage,
   withNoLocateStorage,
 } from "../helpers/locate.js";
+import { readStoredState } from "../helpers/storage.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
@@ -454,7 +458,10 @@ test.describe("Locate / Orientation reset", () => {
     // animation from the Following click, whose programmatic moveend persists
     // the old fitted view — is already gone, so no late persist can clobber it.
     await page.addInitScript((center) => {
-      const stored = JSON.parse(localStorage.getItem("ogis_view_app") || "{}");
+      const raw = localStorage.getItem("ogis_view_app");
+      const parsed = raw ? JSON.parse(raw) : null;
+      const stored = parsed && parsed.__ogisState === 1 ? parsed.data : parsed;
+      if (!stored || typeof stored !== "object") return;
       stored.mapView = { center, zoom: 10 };
       localStorage.setItem("ogis_view_app", JSON.stringify(stored));
     }, DEMO.center);
@@ -806,5 +813,269 @@ test.describe("Locate / French locale", () => {
       "aria-label",
       "Fermer",
     );
+  });
+});
+
+// ─── Locate / Restore ────────────────────────────────────────────────────────
+
+// A stored fix used by every restore case. Fixed coordinates and timestamp keep
+// the seed deterministic; the heading is optional by design.
+const RESTORE_FIX = {
+  lat: DEMO.center.lat,
+  lng: DEMO.center.lng,
+  accuracy: 12,
+  heading: null,
+  at: 1_700_000_000_000,
+};
+
+// The debounced storage write needs a little room, and SwiftShader may stretch
+// the restore microtask under load.
+const RESTORE_TIMEOUT = 30000;
+
+/** Seed the locate envelope before the document boots. */
+const withLocateState = (page, state) =>
+  page.addInitScript((stored) => {
+    localStorage.setItem("ogis_locate_app", JSON.stringify(stored));
+  }, state);
+
+/** Read the live locate state through the page's own module graph. */
+const readLocate = (page) =>
+  page.evaluate(async () => {
+    const { useLocate } = await import("/src/composables/useLocate.js");
+    const locate = useLocate("app");
+    const position = locate.position.value;
+    return {
+      mode: locate.mode.value,
+      position: position
+        ? {
+            lat: position.lat,
+            lng: position.lng,
+            accuracy: position.accuracy,
+            heading: position.heading,
+            speed: position.speed,
+          }
+        : null,
+      hasRestoreComplete:
+        locate.restoreComplete &&
+        typeof locate.restoreComplete.then === "function",
+    };
+  });
+
+/** Read the persisted locate envelope, unwrapping the versioned wrapper. */
+const readLocateStorage = async (page) =>
+  readStoredState(
+    await page.evaluate(() => localStorage.getItem("ogis_locate_app")),
+  );
+
+/** Read the active map modes through the page's own module graph. */
+const readActiveModes = (page) =>
+  page.evaluate(async () => {
+    const { useActions } = await import("/src/composables/useActions.js");
+    return useActions("app").activeModes.value;
+  });
+
+test.describe("Locate / Restore", () => {
+  test("restores an active session with the stored last fix", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withLocateState(page, {
+      permissionGranted: true,
+      mode: "active",
+      lastFix: RESTORE_FIX,
+    });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect
+      .poll(async () => (await readLocate(page)).mode, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe("active");
+
+    // The restored position is the stored fix, before any test-emitted fix.
+    const state = await readLocate(page);
+    expect(state.hasRestoreComplete).toBe(true);
+    expect(state.position).not.toBeNull();
+    expect(state.position.lat).toBeCloseTo(RESTORE_FIX.lat, 6);
+    expect(state.position.lng).toBeCloseTo(RESTORE_FIX.lng, 6);
+
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    const options = await page.evaluate(() => window.__geo.lastOptions());
+    expect(options.enableHighAccuracy).toBe(true);
+    expect(Number.isFinite(options.timeout)).toBe(true);
+    expect(options.timeout).toBeGreaterThan(0);
+  });
+
+  test("restores a following session and keeps following a live fix", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withLocateState(page, {
+      permissionGranted: true,
+      mode: "following",
+      lastFix: RESTORE_FIX,
+    });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect(btn).toHaveAttribute("aria-pressed", "true");
+    await expect
+      .poll(() => readActiveModes(page), { timeout: RESTORE_TIMEOUT })
+      .toContain("follow");
+
+    const next = {
+      lat: RESTORE_FIX.lat + 0.0005,
+      lng: RESTORE_FIX.lng,
+    };
+    await emitFix(page, next);
+
+    await expect
+      .poll(async () => (await readLocate(page)).position?.lat, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeCloseTo(next.lat, 6);
+    await expect(btn).toContainText("Following");
+    expect(await readActiveModes(page)).toContain("follow");
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeGreaterThan(0);
+  });
+
+  test("does not auto-resume without OS geolocation permission", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    // Deliberately no grant: the OS permission query must block the restore.
+    await withLocateState(page, {
+      permissionGranted: true,
+      mode: "following",
+      lastFix: RESTORE_FIX,
+    });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // The clear is the proof that auto-restore ran and declined.
+    await expect
+      .poll(async () => (await readLocateStorage(page))?.mode ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeNull();
+    await expect
+      .poll(async () => (await readLocateStorage(page))?.lastFix ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeNull();
+
+    expect((await readLocate(page)).mode).toBeNull();
+    expect(await page.evaluate(() => window.__geo.count())).toBe(0);
+    await expect(page.getByText("Unable to Locate")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden();
+  });
+
+  test("fails a restore silently when geolocation errors before the first fix", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withLocateState(page, {
+      permissionGranted: true,
+      mode: "active",
+      lastFix: RESTORE_FIX,
+    });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    await emitGeoError(page, 1);
+
+    await expect
+      .poll(async () => (await readLocate(page)).mode, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeNull();
+    await expect(page.getByText("Unable to Locate")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden();
+
+    await expect
+      .poll(async () => (await readLocateStorage(page))?.mode ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeNull();
+    await expect
+      .poll(async () => (await readLocateStorage(page))?.lastFix ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeNull();
+  });
+
+  test("persists the last accepted fix after a restored active session", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withLocateState(page, {
+      permissionGranted: true,
+      mode: "active",
+      lastFix: RESTORE_FIX,
+    });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect
+      .poll(async () => (await readLocate(page)).mode, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe("active");
+
+    const fix = {
+      lat: RESTORE_FIX.lat + 0.001,
+      lng: RESTORE_FIX.lng - 0.001,
+    };
+    await emitFix(page, fix);
+
+    await expect
+      .poll(
+        async () => {
+          const stored = await readLocateStorage(page);
+          if (stored?.mode !== "active" || !stored.lastFix) {
+            return Number.POSITIVE_INFINITY;
+          }
+          return (
+            Math.abs(stored.lastFix.lat - fix.lat) +
+            Math.abs(stored.lastFix.lng - fix.lng)
+          );
+        },
+        { timeout: RESTORE_TIMEOUT },
+      )
+      .toBeLessThan(1e-9);
+
+    const stored = await readLocateStorage(page);
+    expect(stored.mode).toBe("active");
+    expect(stored.lastFix.lat).toBeCloseTo(fix.lat, 6);
+    expect(stored.lastFix.lng).toBeCloseTo(fix.lng, 6);
   });
 });

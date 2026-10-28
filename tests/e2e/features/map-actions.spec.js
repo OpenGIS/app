@@ -16,6 +16,7 @@ import {
 } from "../helpers/locate.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 import { isSwiftShaderRun } from "../helpers/determinism.js";
+import { readStoredState } from "../helpers/storage.js";
 
 /**
  * Tests for Random while following.
@@ -129,20 +130,14 @@ const waitForStablePose = async (page, timeout = ACTION_TIMEOUT) => {
 };
 
 /** Read the persisted view centre, or null when nothing valid is stored. */
-const readStoredCentre = (page) =>
-  page.evaluate(() => {
-    const raw = localStorage.getItem("ogis_view_app");
-    if (!raw) return null;
-    try {
-      const centre = JSON.parse(raw)?.mapView?.center;
-      if (!Number.isFinite(centre?.lat) || !Number.isFinite(centre?.lng)) {
-        return null;
-      }
-      return { lat: centre.lat, lng: centre.lng };
-    } catch {
-      return null;
-    }
-  });
+const readStoredCentre = async (page) => {
+  const raw = await page.evaluate(() => localStorage.getItem("ogis_view_app"));
+  const centre = readStoredState(raw)?.mapView?.center;
+  if (!Number.isFinite(centre?.lat) || !Number.isFinite(centre?.lng)) {
+    return null;
+  }
+  return { lat: centre.lat, lng: centre.lng };
+};
 
 /** Ground-plane separation between two centres, in degrees. */
 const degreeDistance = (a, b) => Math.hypot(a.lat - b.lat, a.lng - b.lng);

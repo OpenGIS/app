@@ -1,5 +1,5 @@
 <script setup>
-import { ref, inject, onMounted, watch } from "vue";
+import { ref, inject, onMounted, watch, computed } from "vue";
 import iconSprite from "@/icons/ogis-icons.svg?raw";
 
 // UI
@@ -13,6 +13,7 @@ import { useActions } from "@/composables/useActions";
 import { useLocale } from "@/composables/useLocale";
 import { useAttribution } from "@/composables/useAttribution";
 import { useWakeLock } from "@/composables/useWakeLock";
+import { mapStatusMessageKey } from "@/resilience/mapRecovery";
 
 const instanceId = inject("ogisAppId", "app");
 
@@ -30,7 +31,24 @@ watch(
 
 // Map — template ref passed so useMap manages the full lifecycle
 const mapContainer = ref(null);
-useMap(mapContainer, {});
+const { mapStatus, mapError, retryMap } = useMap(mapContainer, {});
+
+// Localise the failure message. The lookup is explicit so every key is a
+// literal translation call the locale completeness gate can verify.
+const mapStatusMessages = computed(() => ({
+  "map.status.unavailable": t("map.status.unavailable"),
+  "map.status.unsupported": t("map.status.unsupported"),
+  "map.status.init": t("map.status.init"),
+  "map.status.style": t("map.status.style"),
+  "map.status.contextLost": t("map.status.contextLost"),
+}));
+const mapStatusMessage = computed(() => {
+  const key = mapStatusMessageKey(mapError.value?.code);
+  return (
+    mapStatusMessages.value[key] ??
+    mapStatusMessages.value["map.status.unavailable"]
+  );
+});
 
 // Attribution collapse state — mirrored onto the root so theme.scss can place
 // the MapLibre scale control inline beside the collapsed chip.
@@ -90,6 +108,19 @@ onMounted(() => initWakeLock());
       :class="{ 'panel-open': isPanelVisible && isDesktop }"
       @click="handleMapClick"
     />
+
+    <!-- Map failure surface — hidden entirely on the healthy path -->
+    <div
+      v-if="mapStatus === 'error'"
+      class="ogis-map-status"
+      role="alert"
+      data-map-status="error"
+    >
+      <p class="mb-3">{{ mapStatusMessage }}</p>
+      <button type="button" class="btn btn-primary btn-sm" @click="retryMap">
+        {{ t("map.status.retry") }}
+      </button>
+    </div>
 
     <!-- Corner controls overlay -->
     <Controls />

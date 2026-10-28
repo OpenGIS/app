@@ -6,6 +6,7 @@ import {
 import { waitForMapReady } from "../helpers/panel";
 import { waitForMapIdle } from "../helpers/mapIdle.js";
 import { isSwiftShaderRun } from "../helpers/determinism.js";
+import { readStoredState } from "../helpers/storage.js";
 import { emitFix, installGeolocationMock } from "../helpers/locate.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 import { readFileSync } from "node:fs";
@@ -112,11 +113,96 @@ const openRoutesPanel = async (page) => {
 const routeRow = (page, name) =>
   page.locator(".ogis-panel .border-top.py-2", { hasText: name });
 
-/** Read the persisted route documents. */
-const storedRoutes = (page) =>
-  page.evaluate(() =>
-    JSON.parse(localStorage.getItem("ogis_routes_app") || "[]"),
+/** Read the persisted route documents (envelope or legacy). */
+const storedRoutes = async (page) =>
+  readStoredState(
+    await page.evaluate(() => localStorage.getItem("ogis_routes_app")),
+  ) ?? [];
+
+/** Read the persisted navigation document (envelope or legacy). */
+const storedNavigation = async (page) =>
+  readStoredState(
+    await page.evaluate(() => localStorage.getItem("ogis_navigation_app")),
   );
+
+/** Read the live locate mode through the page's own module graph. */
+const readLocateMode = (page) =>
+  page.evaluate(async () => {
+    const { useLocate } = await import("/src/composables/useLocate.js");
+    return useLocate("app").mode.value;
+  });
+
+/** A stored fix for seeded restore cases. */
+const STORED_FIX = {
+  lat: DEMO.center.lat,
+  lng: DEMO.center.lng,
+  accuracy: 12,
+  heading: null,
+  at: 1_700_000_000_000,
+};
+
+/** A v2 route document for seeded restore cases. */
+const restoreRoute = (id) => ({
+  v: 2,
+  id,
+  kind: "route",
+  name: "Restore Loop",
+  gpxType: "trk",
+  createdAt: null,
+  source: { format: "gpx" },
+  segments: [
+    {
+      points: DEMO.route.slice(0, 5).map(({ lat, lng }) => ({ lat, lng })),
+    },
+  ],
+  waypoints: [],
+  color: "#3498db",
+});
+
+/** Seed persisted stores before the document boots. */
+const seedRestoreState = (page, state) =>
+  page.addInitScript((stored) => {
+    if (stored.routes) {
+      localStorage.setItem("ogis_routes_app", JSON.stringify(stored.routes));
+    }
+    if (stored.navigation) {
+      localStorage.setItem(
+        "ogis_navigation_app",
+        JSON.stringify(stored.navigation),
+      );
+    }
+    if (stored.locate) {
+      localStorage.setItem("ogis_locate_app", JSON.stringify(stored.locate));
+    }
+  }, state);
+
+/**
+ * Ensure a stored locate grant without overwriting a restored session on
+ * reload. Later seeds may still replace the value entirely.
+ */
+const withLocatePermission = (page) =>
+  page.addInitScript(() => {
+    if (!localStorage.getItem("ogis_locate_app")) {
+      localStorage.setItem(
+        "ogis_locate_app",
+        JSON.stringify({ permissionGranted: true }),
+      );
+    }
+  });
+
+/**
+ * Seed a known map view on first boot only, so later reloads keep whatever
+ * view the app persisted.
+ */
+const withKnownView = (page) =>
+  page.addInitScript((center) => {
+    if (!localStorage.getItem("ogis_view_app")) {
+      localStorage.setItem(
+        "ogis_view_app",
+        JSON.stringify({ mapView: { center, zoom: 14 } }),
+      );
+    }
+  }, DEMO.center);
 
 /**
  * Read the features currently held by the app's GeoJSON source.
@@ -365,21 +451,20 @@ test.describe("Routes / Import", () => {
 
     // The imported document is persisted in the v2 shape.
     await expect
-      .poll(() =>
-        page.evaluate(() => {
-          const stored = JSON.parse(
-            localStorage.getItem("ogis_routes_app") || "[]",
-          );
-          return stored.map((route) => ({
-            v: route.v,
-            kind: route.kind,
-            name: route.name,
-            segments: route.segments?.length,
-            waypoints: route.waypoints?.length,
-            color: /^#[0-9a-f]{6}$/i.test(route.color ?? ""),
-          }));
-        }),
-      )
+      .poll(async () => {
+        const raw = await page.evaluate(() =>
+          localStorage.getItem("ogis_routes_app"),
+        );
+        const stored = readStoredState(raw) ?? [];
+        return stored.map((route) => ({
+          v: route.v,
+          kind: route.kind,
+          name: route.name,
+          segments: route.segments?.length,
+          waypoints: route.waypoints?.length,
+          color: /^#[0-9a-f]{6}$/i.test(route.color ?? ""),
+        }));
+      })
       .toEqual([
         {
           v: 2,
@@ -1064,7 +1149,7 @@ test.describe("Routes / Persist across reload", () => {
     expectNoConsoleErrors(page);
   });
 
-  test("imported route persists as v2 and stays hidden after reload", async ({
+  test("imported route stays visible and persists as v2 after reload", async ({
     page,
   }) => {
     await routeRow(page, "Test Loop")
@@ -1074,7 +1159,7 @@ test.describe("Routes / Persist across reload", () => {
       .poll(() => mapFeatureIds(page, "routes-route-"))
       .toHaveLength(1);
 
-    // Visibility is not persisted; the document itself is.
+    // Visibility is persisted alongside the v2 document.
     const [stored] = await storedRoutes(page);
     expect(stored).toMatchObject({ v: 2, kind: "route", name: "Test Loop" });
     expect(stored.segments).toHaveLength(1);
@@ -1089,12 +1174,271 @@ test.describe("Routes / Persist across reload", () => {
     const row = routeRow(page, "Test Loop");
     await expect(row).toBeVisible();
     await expect(
-      row.getByRole("button", { name: "Show", exact: true }),
-    ).toHaveAttribute("aria-pressed", "false");
-    await expect.poll(() => mapFeatureIds(page, "routes-route-")).toEqual([]);
+      row.getByRole("button", { name: "Hide", exact: true }),
+    ).toBeVisible();
+    await expect
+      .poll(() => mapFeatureIds(page, "routes-route-"))
+      .toHaveLength(1);
 
     const [reloaded] = await storedRoutes(page);
     expect(reloaded.v).toBe(2);
     expect(reloaded.id).toBe(stored.id);
+  });
+});
+
+// ─── Routes / Restore across reload ─────────────────────────────────────────
+
+test.describe("Routes / Restore across reload", () => {
+  // Boots, camera settles and a debounced restore need ample headroom under
+  // the software renderer.
+  test.setTimeout(isSwiftShaderRun() ? 180000 : 90000);
+
+  const RESTORE_TIMEOUT = isSwiftShaderRun() ? 120000 : 60000;
+
+  test.beforeEach(({ page }) => trackConsoleErrors(page));
+
+  test.afterEach(({ page }) => expectNoConsoleErrors(page));
+
+  /** Boot the app, open the Routes panel and import the fixture. */
+  const bootRestoreRoutes = async (page) => {
+    await withLocatePermission(page);
+    await withKnownView(page);
+    await grantGeolocation(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+    await openRoutesPanel(page);
+    await importFixture(page);
+  };
+
+  test("visible route restores without fitting the stored user view", async ({
+    page,
+  }) => {
+    await bootRestoreRoutes(page);
+    await showRoute(page);
+
+    const [stored] = await storedRoutes(page);
+    const routeId = stored.id;
+    const userView = { lat: 40.4168, lng: -3.7038, zoom: 11 };
+
+    await page.evaluate(async (view) => {
+      const { getMapInstance } = await import("/src/composables/useMap.js");
+      getMapInstance("app").jumpTo({
+        center: [view.lng, view.lat],
+        zoom: view.zoom,
+        pitch: 0,
+        bearing: 0,
+      });
+    }, userView);
+
+    await expect
+      .poll(
+        async () =>
+          readStoredState(
+            await page.evaluate(() => localStorage.getItem("ogis_view_app")),
+          )?.mapView?.center?.lat ?? null,
+        { timeout: RESTORE_TIMEOUT },
+      )
+      .toBeCloseTo(userView.lat, 4);
+
+    await expect
+      .poll(async () => (await storedNavigation(page))?.visible ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toEqual([routeId]);
+
+    await page.reload();
+    await waitForMapReady(page);
+
+    // Restored visibility must not fit the route bounds: the stored user view
+    // is still the camera centre and it is nowhere near the route.
+    await expect
+      .poll(async () => centreDelta(await readMapCentre(page), userView), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeLessThan(0.01);
+    const centre = await readMapCentre(page);
+    expect(centreDelta(centre, ROUTE_CENTRE)).toBeGreaterThan(1);
+
+    await openRoutesPanel(page);
+    const row = routeRow(page, "Test Loop");
+    await expect(
+      row.getByRole("button", { name: "Hide", exact: true }),
+    ).toBeVisible();
+    await expect
+      .poll(() => mapFeatureIds(page, "routes-route-"), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toEqual([`routes-route-${routeId}`]);
+  });
+
+  test("navigation and owned follow resume after reload when geolocation is granted", async ({
+    page,
+  }) => {
+    await bootRestoreRoutes(page);
+    await showRoute(page);
+
+    const [stored] = await storedRoutes(page);
+    const routeId = stored.id;
+
+    await startNavigation(page);
+
+    await expect
+      .poll(async () => (await storedNavigation(page))?.routeId ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(routeId);
+    await expect
+      .poll(async () => (await storedNavigation(page))?.followOwned, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(true);
+
+    await page.reload();
+    await waitForMapReady(page);
+
+    await expect(locateLabel(page)).toHaveText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect(navControl(page)).toBeVisible({ timeout: RESTORE_TIMEOUT });
+    await expect
+      .poll(() => mapFeatureIds(page, "routes-route-"), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toEqual([`routes-route-${routeId}`]);
+
+    // The restored navigation owned follow, so stopping it stops locate too.
+    await stopNavigationFromPanel(page);
+    await expect(navControl(page)).toHaveCount(0);
+    await expect(locateLabel(page)).toHaveText("Locate");
+    await expect
+      .poll(async () => (await storedNavigation(page))?.routeId ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeNull();
+    await expect
+      .poll(async () => (await storedNavigation(page))?.followOwned, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(false);
+  });
+
+  test("a follow the user owned before navigation survives stopping the restore", async ({
+    page,
+  }) => {
+    await bootRestoreRoutes(page);
+    await showRoute(page);
+
+    const [stored] = await storedRoutes(page);
+    const routeId = stored.id;
+
+    // The user owns follow mode before navigation starts.
+    await page.locator("#locate-button").click();
+    await expect(locateLabel(page)).toHaveText("Located");
+    await page.locator("#locate-button").click();
+    await expect(locateLabel(page)).toHaveText("Following");
+
+    await startNavigation(page);
+
+    await expect
+      .poll(async () => (await storedNavigation(page))?.routeId ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(routeId);
+    await expect
+      .poll(async () => (await storedNavigation(page))?.followOwned, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(false);
+
+    await page.reload();
+    await waitForMapReady(page);
+
+    await expect(locateLabel(page)).toHaveText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect(navControl(page)).toBeVisible({ timeout: RESTORE_TIMEOUT });
+
+    // The user-owned follow is not owned by navigation, so it survives Stop.
+    await stopNavigationFromPanel(page);
+    await expect(navControl(page)).toHaveCount(0);
+    await expect(locateLabel(page)).toHaveText("Following");
+  });
+
+  test("does not resume navigation without OS geolocation permission", async ({
+    page,
+  }) => {
+    const routeId = "restore-route";
+
+    await withLocatePermission(page);
+    await seedRestoreState(page, {
+      routes: [restoreRoute(routeId)],
+      navigation: { routeId, visible: [routeId], followOwned: true },
+      locate: {
+        permissionGranted: true,
+        mode: "following",
+        lastFix: STORED_FIX,
+      },
+    });
+
+    // Deliberately no grant: the OS permission query must block the restore.
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect
+      .poll(async () => (await storedNavigation(page))?.routeId ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeNull();
+    await expect
+      .poll(() => readLocateMode(page), { timeout: RESTORE_TIMEOUT })
+      .toBeNull();
+    await expect(navControl(page)).toHaveCount(0);
+
+    // Navigation failed silently; the seeded route stays visible.
+    await expect
+      .poll(() => mapFeatureIds(page, "routes-route-"), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toEqual([`routes-route-${routeId}`]);
+    await expect
+      .poll(async () => (await storedNavigation(page))?.visible ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toEqual([routeId]);
+  });
+
+  test("missing navigated route clears navigation without errors", async ({
+    page,
+  }) => {
+    await withLocatePermission(page);
+    await seedRestoreState(page, {
+      navigation: {
+        routeId: "missing-route",
+        visible: ["missing-route"],
+        followOwned: true,
+      },
+    });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect
+      .poll(async () => (await storedNavigation(page))?.routeId ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeNull();
+    await expect
+      .poll(async () => (await storedNavigation(page))?.followOwned, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(false);
+    await expect
+      .poll(async () => (await storedNavigation(page))?.visible ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toEqual([]);
+
+    await expect(navControl(page)).toHaveCount(0);
+    expect(await mapFeatureIds(page, "routes-route-")).toEqual([]);
   });
 });

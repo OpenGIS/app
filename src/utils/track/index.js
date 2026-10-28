@@ -14,6 +14,8 @@ export {
   normaliseElevation,
   normalisePoint,
   normaliseTime,
+  normaliseWaypoint,
+  sanitiseTrackDocument,
   waypointCount,
 } from "./model.js";
 

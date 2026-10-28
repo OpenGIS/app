@@ -4,6 +4,7 @@ import {
   expectNoConsoleErrors,
 } from "../helpers/console.js";
 import { waitForMapReady, openMenuTab } from "../helpers/panel";
+import { readStoredState } from "../helpers/storage.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
@@ -90,11 +91,11 @@ const handleConfirm = (page, action, messages) => {
   });
 };
 
-/** Read the persisted recordings storage object. */
-const storedRecordings = (page) =>
-  page.evaluate(() =>
-    JSON.parse(localStorage.getItem("ogis_recordings_app") || "{}"),
-  );
+/** Read the persisted recordings storage object (envelope or legacy). */
+const storedRecordings = async (page) =>
+  readStoredState(
+    await page.evaluate(() => localStorage.getItem("ogis_recordings_app")),
+  ) ?? {};
 
 /**
  * Read the sorted ids of features currently held by the app's GeoJSON source,
@@ -317,15 +318,26 @@ test.describe("Recordings / Save and Discard", () => {
     await page.getByRole("button", { name: "Pause" }).click();
     await page.getByRole("button", { name: "Save" }).click();
 
-    // Verify saved to storage in the v2 document shape.
-    const stored = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem("ogis_recordings_app") || "{}"),
-    );
-    expect(stored.saved).toHaveLength(1);
-    expect(stored.saved[0]).toMatchObject({ v: 2, kind: "recording" });
-    expect(stored.saved[0].createdAt).toEqual(expect.any(Number));
-    expect(stored.saved[0].segments).toHaveLength(1);
-    expect(stored.saved[0].segments[0].points.length).toBeGreaterThan(0);
+    // Verify saved to storage in the v2 document shape. Writes are debounced,
+    // so wait for the persisted envelope rather than reading immediately.
+    await expect
+      .poll(async () =>
+        readStoredState(
+          await page.evaluate(() =>
+            localStorage.getItem("ogis_recordings_app"),
+          ),
+        ),
+      )
+      .toMatchObject({ saved: [{ v: 2, kind: "recording" }] });
+
+    const persisted =
+      readStoredState(
+        await page.evaluate(() => localStorage.getItem("ogis_recordings_app")),
+      ) ?? {};
+    expect(persisted.saved).toHaveLength(1);
+    expect(persisted.saved[0].createdAt).toEqual(expect.any(Number));
+    expect(persisted.saved[0].segments).toHaveLength(1);
+    expect(persisted.saved[0].segments[0].points.length).toBeGreaterThan(0);
 
     // Reload and check it's still there
     await page.reload();
@@ -413,26 +425,25 @@ test.describe("Recordings / Saved list management", () => {
     page,
   }) => {
     await expect
-      .poll(() =>
-        page.evaluate(() => {
-          const stored = JSON.parse(
-            localStorage.getItem("ogis_recordings_app") || "{}",
-          );
-          const [recording] = stored.saved ?? [];
-          if (!recording) return null;
-          return {
-            v: recording.v,
-            kind: recording.kind,
-            createdAt: recording.createdAt,
-            segments: recording.segments?.length,
-            points: recording.segments?.[0]?.points?.length,
-            waypoints: recording.waypoints?.length,
-            source: recording.source?.format,
-            color: /^#[0-9a-f]{6}$/i.test(recording.color ?? ""),
-            hasLegacyTimestamp: "timestamp" in recording,
-          };
-        }),
-      )
+      .poll(async () => {
+        const raw = await page.evaluate(() =>
+          localStorage.getItem("ogis_recordings_app"),
+        );
+        const stored = readStoredState(raw) ?? {};
+        const [recording] = stored.saved ?? [];
+        if (!recording) return null;
+        return {
+          v: recording.v,
+          kind: recording.kind,
+          createdAt: recording.createdAt,
+          segments: recording.segments?.length,
+          points: recording.segments?.[0]?.points?.length,
+          waypoints: recording.waypoints?.length,
+          source: recording.source?.format,
+          color: /^#[0-9a-f]{6}$/i.test(recording.color ?? ""),
+          hasLegacyTimestamp: "timestamp" in recording,
+        };
+      })
       .toEqual({
         v: 2,
         kind: "recording",

@@ -1,3 +1,5 @@
+import { reportError } from "@/resilience/errors.js";
+
 /**
  * Lightweight event emitter for ogis.app.
  *
@@ -73,9 +75,13 @@ export default class EventEmitter {
   emit(event, ...args) {
     const set = this._listeners.get(event);
     if (!set) return this;
-    for (const fn of [...set]) {
-      fn(...args);
-    }
+    [...set].forEach((fn, index) => {
+      try {
+        fn(...args);
+      } catch (error) {
+        reportError(error, { source: "emitter", event, index });
+      }
+    });
     return this;
   }
 }

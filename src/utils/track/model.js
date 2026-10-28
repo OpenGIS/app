@@ -6,6 +6,9 @@ const ELEVATION_SENTINELS = new Set([-9999, -19999, -32768]);
 
 const isV2 = (raw) => raw && typeof raw === "object" && raw.v === 2;
 
+const isPlainObject = (value) =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
 const finiteNumber = (value) => {
   if (value === null || value === undefined) return undefined;
   if (typeof value === "boolean") return undefined;
@@ -202,6 +205,103 @@ export function normalisePoint(point) {
   const t = normaliseTime(point.t);
   if (t !== undefined) result.t = t;
   return result;
+}
+
+/**
+ * Normalise a waypoint while preserving its descriptive extras.
+ *
+ * Coordinates and optional values are scrubbed through `normalisePoint`; every
+ * other field (name, desc, cmt, sym, type, links, …) is carried through as-is.
+ *
+ * @param {*} waypoint
+ * @returns {Object|null} A normalised waypoint, or null when unusable.
+ */
+export function normaliseWaypoint(waypoint) {
+  if (!isPlainObject(waypoint)) return null;
+
+  const point = normalisePoint(waypoint);
+  if (!point) return null;
+
+  const { lat: _lat, lng: _lng, ...rest } = waypoint;
+  const result = { ...rest, lat: point.lat, lng: point.lng };
+
+  if (point.ele !== undefined) result.ele = point.ele;
+  else delete result.ele;
+
+  if (point.t !== undefined) result.t = point.t;
+  else delete result.t;
+
+  return result;
+}
+
+const normaliseDocumentId = (value) => {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (Number.isFinite(value)) return String(value);
+  return createTrackId();
+};
+
+/**
+ * Sanitise any stored track document into the current v2 shape.
+ *
+ * Invalid points and empty segments are dropped, and a document with no usable
+ * segment points is rejected (`null`). Field-level problems are repaired rather
+ * than thrown so a single bad document cannot discard a whole store.
+ *
+ * @param {*} raw - A stored document, typically after `migrateRecording`,
+ *   `migrateRoute` or `migrateActiveRecording`.
+ * @param {{ kind?: "recording"|"route" }} [options]
+ * @returns {Object|null} A v2 track document, or null when no points survive.
+ */
+export function sanitiseTrackDocument(raw, { kind = "recording" } = {}) {
+  if (!isPlainObject(raw)) return null;
+
+  const segments = [];
+
+  if (Array.isArray(raw.segments)) {
+    for (const segment of raw.segments) {
+      if (!isPlainObject(segment)) continue;
+
+      const points = [];
+      if (Array.isArray(segment.points)) {
+        for (const point of segment.points) {
+          const normalised = normalisePoint(point);
+          if (normalised) points.push(normalised);
+        }
+      }
+
+      if (points.length > 0) segments.push({ ...segment, points });
+    }
+  }
+
+  if (documentPoints({ segments }).length === 0) return null;
+
+  const waypoints = [];
+  if (Array.isArray(raw.waypoints)) {
+    for (const waypoint of raw.waypoints) {
+      const normalised = normaliseWaypoint(waypoint);
+      if (normalised) waypoints.push(normalised);
+    }
+  }
+
+  const doc = {
+    ...raw,
+    v: 2,
+    kind,
+    id: normaliseDocumentId(raw.id),
+    name: text(raw.name),
+    gpxType: kind === "route" ? (raw.gpxType === "rte" ? "rte" : "trk") : null,
+    createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : null,
+    source: isPlainObject(raw.source) ? { ...raw.source } : {},
+    segments,
+    waypoints,
+  };
+
+  if (kind === "recording") {
+    if (Number.isFinite(raw.duration)) doc.duration = raw.duration;
+    else delete doc.duration;
+  }
+
+  return doc;
 }
 
 /** Strip path separators and reserved characters for a download filename. */

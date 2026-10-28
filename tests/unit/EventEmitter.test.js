@@ -1,10 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+const { reportErrorMock } = vi.hoisted(() => ({ reportErrorMock: vi.fn() }));
+
+vi.mock("@/resilience/errors.js", () => ({
+  reportError: reportErrorMock,
+}));
+
 import EventEmitter from "@/classes/EventEmitter.js";
 
 describe("EventEmitter", () => {
   let emitter;
 
   beforeEach(() => {
+    reportErrorMock.mockReset();
     emitter = new EventEmitter();
   });
 
@@ -119,6 +127,57 @@ describe("EventEmitter", () => {
       emitter.on("test", fn);
       expect(() => emitter.emit("test")).not.toThrow();
       expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it("keeps calling later listeners after one throws", () => {
+      const error = new Error("listener boom");
+      const first = vi.fn(() => {
+        throw error;
+      });
+      const second = vi.fn();
+
+      emitter.on("test", first);
+      emitter.on("test", second);
+
+      expect(emitter.emit("test")).toBe(emitter);
+      expect(first).toHaveBeenCalledOnce();
+      expect(second).toHaveBeenCalledOnce();
+      expect(reportErrorMock).toHaveBeenCalledWith(error, {
+        source: "emitter",
+        event: "test",
+        index: 0,
+      });
+    });
+
+    it("reports non-Error throws and continues", () => {
+      const second = vi.fn();
+      emitter.on("test", () => {
+        throw "plain failure";
+      });
+      emitter.on("test", second);
+
+      expect(() => emitter.emit("test")).not.toThrow();
+      expect(second).toHaveBeenCalledOnce();
+      expect(reportErrorMock).toHaveBeenCalledWith("plain failure", {
+        source: "emitter",
+        event: "test",
+        index: 0,
+      });
+    });
+
+    it("removes a once listener before it throws", () => {
+      const error = new Error("once boom");
+      const fn = vi.fn(() => {
+        throw error;
+      });
+
+      emitter.once("test", fn);
+      emitter.emit("test");
+
+      expect(fn).toHaveBeenCalledOnce();
+      expect(() => emitter.emit("test")).not.toThrow();
+      expect(fn).toHaveBeenCalledOnce();
+      expect(reportErrorMock).toHaveBeenCalledOnce();
     });
   });
 });

@@ -7,6 +7,7 @@ import {
 import { waitForMapReady } from "../helpers/panel.js";
 import { projectionType } from "../helpers/mapProjection.js";
 import { DEMO } from "../../fixtures/demo.mjs";
+import { readStoredState } from "../helpers/storage.js";
 
 /**
  * Tests for the follow-camera driver (`useFollowCamera`).
@@ -155,19 +156,19 @@ test.describe("Follow / Camera driver", () => {
 
     await expect
       .poll(
-        () =>
-          page.evaluate(() => {
-            const raw = localStorage.getItem("ogis_view_app");
-            return raw ? JSON.parse(raw).mapView : null;
-          }),
+        async () => {
+          const raw = await page.evaluate(() =>
+            localStorage.getItem("ogis_view_app"),
+          );
+          return readStoredState(raw)?.mapView ?? null;
+        },
         { timeout: CAMERA_TIMEOUT },
       )
       .not.toBeNull();
 
-    const persisted = await page.evaluate(() => {
-      const raw = localStorage.getItem("ogis_view_app");
-      return raw ? JSON.parse(raw).mapView : null;
-    });
+    const persisted = readStoredState(
+      await page.evaluate(() => localStorage.getItem("ogis_view_app")),
+    )?.mapView;
     expect(persisted.center.lat).toBeCloseTo(finalState.center.lat, 6);
     expect(persisted.center.lng).toBeCloseTo(finalState.center.lng, 6);
 

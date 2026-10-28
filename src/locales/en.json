@@ -3,6 +3,13 @@
 
   "common.close": "Close",
 
+  "map.status.unavailable": "Map unavailable. Check your connection and try again.",
+  "map.status.unsupported": "Your browser cannot display the map.",
+  "map.status.init": "The map could not start. Try again.",
+  "map.status.style": "The map could not load. Check your connection and try again.",
+  "map.status.contextLost": "The map display was interrupted. Try again.",
+  "map.status.retry": "Retry",
+
   "nav.menu": "Menu",
 
   "menu.info": "Info",

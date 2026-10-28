@@ -1,5 +1,6 @@
 import { computed, inject } from "vue";
-import { useStorage } from "@/composables/useStorage";
+import { usePersistedState } from "@/resilience/persistedState";
+import { hydrateSync } from "@/resilience/hydrators/sync";
 
 const cache = new Map();
 
@@ -18,7 +19,15 @@ export function useSyncStore(instanceId) {
 
   if (!cache.has(id)) {
     cache.set(id, {
-      state: useStorage("sync", { queue: [], failed: [] }, id),
+      state: usePersistedState(
+        "sync",
+        {
+          version: 1,
+          defaults: { queue: [], failed: [] },
+          hydrate: hydrateSync,
+        },
+        id,
+      ).state,
     });
   }
 

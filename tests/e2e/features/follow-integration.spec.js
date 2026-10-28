@@ -16,6 +16,7 @@ import {
   waitForCameraSettle,
   withGrantedLocateStorage,
 } from "../helpers/locate.js";
+import { readStoredState } from "../helpers/storage.js";
 
 /**
  * Tests for the locate -> follow-camera hand-off and the speed-driven chase.
@@ -40,6 +41,32 @@ test.beforeEach(({ page }) => trackConsoleErrors(page));
 test.afterEach(({ page }) => expectNoConsoleErrors(page));
 
 const hashOf = (url) => new URL(url).hash;
+
+/** Read the persisted view centre, unwrapping the storage envelope. */
+const readPersistedCentre = async (page) => {
+  const raw = await page.evaluate(() => localStorage.getItem("ogis_view_app"));
+  return readStoredState(raw)?.mapView?.center ?? null;
+};
+
+/**
+ * Wait for the debounced storage write to reach the stopped camera, then return
+ * the persisted centre.
+ */
+const waitForPersistedCentre = async (page, expected) => {
+  await expect
+    .poll(
+      async () => {
+        const centre = await readPersistedCentre(page);
+        return centre
+          ? Math.abs(centre.lat - expected.lat) +
+              Math.abs(centre.lng - expected.lng)
+          : Number.POSITIVE_INFINITY;
+      },
+      { timeout: CAMERA_TIMEOUT },
+    )
+    .toBeLessThan(1e-6);
+  return readPersistedCentre(page);
+};
 
 /** Shortest angular distance between two bearings, in degrees. */
 const angleDelta = (a, b) => {
@@ -434,12 +461,9 @@ test.describe("Follow / Locate chase", () => {
       .poll(() => hashOf(page.url()), { timeout: CAMERA_TIMEOUT })
       .toBe(expectedHash);
 
-    const persisted = await page.evaluate(() => {
-      const raw = localStorage.getItem("ogis_view_app");
-      return raw ? JSON.parse(raw).mapView : null;
-    });
-    expect(persisted.center.lat).toBeCloseTo(stopped.center.lat, 6);
-    expect(persisted.center.lng).toBeCloseTo(stopped.center.lng, 6);
+    const persisted = await waitForPersistedCentre(page, stopped.center);
+    expect(persisted.lat).toBeCloseTo(stopped.center.lat, 6);
+    expect(persisted.lng).toBeCloseTo(stopped.center.lng, 6);
 
     const afterStop = hashOf(page.url());
     await page.waitForTimeout(600);
@@ -581,12 +605,9 @@ test.describe("Follow / Locate chase", () => {
       .poll(() => hashOf(page.url()), { timeout: CAMERA_TIMEOUT })
       .toBe(expectedHash);
 
-    const persisted = await page.evaluate(() => {
-      const raw = localStorage.getItem("ogis_view_app");
-      return raw ? JSON.parse(raw).mapView : null;
-    });
-    expect(persisted.center.lat).toBeCloseTo(stopped.center.lat, 6);
-    expect(persisted.center.lng).toBeCloseTo(stopped.center.lng, 6);
+    const persisted = await waitForPersistedCentre(page, stopped.center);
+    expect(persisted.lat).toBeCloseTo(stopped.center.lat, 6);
+    expect(persisted.lng).toBeCloseTo(stopped.center.lng, 6);
 
     const afterStop = hashOf(page.url());
     await page.waitForTimeout(600);

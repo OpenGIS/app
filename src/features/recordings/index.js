@@ -11,14 +11,13 @@ import {
   createTrackId,
   documentBounds,
   lineGeometry,
-  migrateActiveRecording,
-  migrateRecording,
   normalisePoint,
   toGPX,
   toGeoJSON,
   trackFilename,
   trackMime,
 } from "@/utils/track/index.js";
+import { hydrateRecordings } from "@/resilience/hydrators/recordings.js";
 import RecordingsPanel from "./RecordingsPanel.vue";
 
 export { formatDuration, formatDistance };
@@ -48,11 +47,11 @@ export const RecordingsFeature = {
     addPanel,
     useLocale,
   }) {
-    const stored = useStorage("recordings", { saved: [], active: null });
-    stored.saved = (stored.saved ?? []).map((recording) =>
-      migrateRecording(recording),
-    );
-    stored.active = migrateActiveRecording(stored.active);
+    const stored = useStorage("recordings", {
+      version: 1,
+      defaults: { saved: [], active: null },
+      hydrate: hydrateRecordings,
+    }).state;
     assignTrackColors(stored.saved);
 
     const { isMetric } = useSettings();

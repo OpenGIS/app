@@ -3,6 +3,13 @@
 
   "common.close": "Fermer",
 
+  "map.status.unavailable": "Carte indisponible. Vérifiez votre connexion et réessayez.",
+  "map.status.unsupported": "Votre navigateur ne peut pas afficher la carte.",
+  "map.status.init": "La carte n'a pas pu démarrer. Réessayez.",
+  "map.status.style": "La carte n'a pas pu se charger. Vérifiez votre connexion et réessayez.",
+  "map.status.contextLost": "L'affichage de la carte a été interrompu. Réessayez.",
+  "map.status.retry": "Réessayer",
+
   "nav.menu": "Menu",
 
   "menu.info": "Infos",

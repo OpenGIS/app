@@ -14,6 +14,8 @@ import {
   normaliseElevation,
   normalisePoint,
   normaliseTime,
+  normaliseWaypoint,
+  sanitiseTrackDocument,
   waypointCount,
 } from "@/utils/track/index.js";
 
@@ -120,6 +122,106 @@ describe("track model / migration", () => {
       createdAt: 5,
     };
     expect(migrateActiveRecording(v2)).toBe(v2);
+  });
+});
+
+describe("track model / sanitisation", () => {
+  it("sanitises a v2 document, dropping invalid points and empty segments", () => {
+    const doc = sanitiseTrackDocument(
+      {
+        v: 2,
+        kind: "recording",
+        createdAt: "not a number",
+        duration: "long",
+        source: [],
+        segments: [
+          {
+            points: [
+              { lat: 1, lng: 2 },
+              { lat: 999, lng: 0 },
+            ],
+          },
+          { points: [{ lat: 200, lng: 0 }] },
+          { points: [{ lat: 3, lng: 4 }] },
+          "junk",
+        ],
+        waypoints: [],
+      },
+      { kind: "recording" },
+    );
+
+    expect(doc.v).toBe(2);
+    expect(doc.kind).toBe("recording");
+    expect(typeof doc.id).toBe("string");
+    expect(doc.createdAt).toBeNull();
+    expect(doc.source).toEqual({});
+    expect(doc).not.toHaveProperty("duration");
+    expect(doc.segments).toHaveLength(2);
+    expect(doc.segments[0].points).toEqual([{ lat: 1, lng: 2 }]);
+    expect(doc.segments[1].points).toEqual([{ lat: 3, lng: 4 }]);
+  });
+
+  it("returns null when no usable points survive", () => {
+    expect(
+      sanitiseTrackDocument(
+        { segments: [{ points: [] }, { points: [{ lat: 999, lng: 0 }] }] },
+        { kind: "route" },
+      ),
+    ).toBeNull();
+    expect(sanitiseTrackDocument("junk")).toBeNull();
+  });
+
+  it("keeps route metadata and normalises gpxType", () => {
+    const doc = sanitiseTrackDocument(
+      {
+        v: 2,
+        id: "r1",
+        name: "  Loop  ",
+        gpxType: "rte",
+        color: "#e74c3c",
+        source: { format: "gpx" },
+        segments: [{ points: [{ lat: 1, lng: 2 }] }],
+        waypoints: [],
+      },
+      { kind: "route" },
+    );
+
+    expect(doc).toMatchObject({
+      v: 2,
+      kind: "route",
+      id: "r1",
+      name: "Loop",
+      gpxType: "rte",
+      color: "#e74c3c",
+      source: { format: "gpx" },
+    });
+  });
+
+  it("normalises waypoints while preserving descriptive extras", () => {
+    expect(
+      normaliseWaypoint({
+        lat: "51.5",
+        lng: "-0.1",
+        ele: -9999,
+        t: "not a time",
+        name: "Lookout",
+        desc: "A view",
+        cmt: "comment",
+        sym: "Flag",
+        type: "POI",
+        links: [{ href: "https://example.com" }],
+      }),
+    ).toEqual({
+      lat: 51.5,
+      lng: -0.1,
+      name: "Lookout",
+      desc: "A view",
+      cmt: "comment",
+      sym: "Flag",
+      type: "POI",
+      links: [{ href: "https://example.com" }],
+    });
+    expect(normaliseWaypoint({ lat: 999, lng: 0 })).toBeNull();
   });
 });
 

@@ -22,9 +22,287 @@
     />
     <meta name="apple-mobile-web-app-title" content="OGIS" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <style>
+      [hidden] {
+        display: none !important;
+      }
+
+      .ogis-boot-fallback {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        background: #0b0f14;
+        color: #f2f5f7;
+        font:
+          16px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      .ogis-boot-fallback__card {
+        width: min(28rem, 100%);
+        padding: 1.5rem;
+        border: 1px solid #2c3a46;
+        border-radius: 0.75rem;
+        background: #111820;
+      }
+
+      .ogis-boot-fallback h1 {
+        margin: 0 0 0.5rem;
+        font-size: 1.25rem;
+      }
+
+      .ogis-boot-fallback p {
+        margin: 0 0 1.25rem;
+        color: #c9d4dc;
+      }
+
+      .ogis-boot-fallback__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      .ogis-boot-fallback button,
+      .ogis-boot-noscript {
+        font: inherit;
+      }
+
+      .ogis-boot-fallback button {
+        padding: 0.6rem 1rem;
+        border: 1px solid #39d353;
+        border-radius: 0.5rem;
+        background: #39d353;
+        color: #04120a;
+        cursor: pointer;
+      }
+
+      .ogis-boot-fallback button[data-ogis-boot-reset] {
+        border-color: #4a5b69;
+        background: transparent;
+        color: #f2f5f7;
+      }
+
+      .ogis-boot-fallback button:focus-visible {
+        outline: 3px solid #8ff0b0;
+        outline-offset: 2px;
+      }
+
+      .ogis-boot-noscript {
+        position: fixed;
+        inset: auto 0 0;
+        z-index: 2147483647;
+        padding: 1rem;
+        background: #111820;
+        color: #f2f5f7;
+        text-align: center;
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
+
+    <div
+      class="ogis-boot-fallback"
+      data-ogis-boot-fallback
+      role="alert"
+      aria-live="assertive"
+      hidden
+    >
+      <div class="ogis-boot-fallback__card">
+        <h1 data-ogis-boot-title>The app could not start.</h1>
+        <p data-ogis-boot-message>
+          Reload the page. If the problem persists, reset this instance's local
+          data.
+        </p>
+        <div class="ogis-boot-fallback__actions">
+          <button type="button" data-ogis-boot-reload>Reload</button>
+          <button type="button" data-ogis-boot-reset>Reset app data</button>
+        </div>
+      </div>
+    </div>
+
+    <noscript>
+      <div class="ogis-boot-noscript" role="alert">
+        ogis.app needs JavaScript to run. / ogis.app nécessite JavaScript pour
+        fonctionner.
+      </div>
+    </noscript>
+
+    <script>
+      (() => {
+        const messages = {
+          en: {
+            title: "The app could not start.",
+            message:
+              "Reload the page. If the problem persists, reset this instance's local data.",
+            reload: "Reload",
+            reset: "Reset app data",
+          },
+          fr: {
+            title: "L'application n'a pas pu démarrer.",
+            message:
+              "Rechargez la page. Si le problème persiste, réinitialisez les données locales de cette instance.",
+            reload: "Recharger",
+            reset: "Réinitialiser les données",
+          },
+        };
+
+        const language = (navigator.language || "en").toLowerCase();
+        const copy = language.startsWith("fr") ? messages.fr : messages.en;
+
+        const fallback = document.querySelector("[data-ogis-boot-fallback]");
+        const title = document.querySelector("[data-ogis-boot-title]");
+        const message = document.querySelector("[data-ogis-boot-message]");
+        const reload = document.querySelector("[data-ogis-boot-reload]");
+        const reset = document.querySelector("[data-ogis-boot-reset]");
+
+        if (title) title.textContent = copy.title;
+        if (message) message.textContent = copy.message;
+        if (reload) reload.textContent = copy.reload;
+        if (reset) reset.textContent = copy.reset;
+
+        const params = new URLSearchParams(window.location.search);
+        const instanceId =
+          (params.get("id") || "")
+            .replace(/[^a-zA-Z0-9_-]/g, "")
+            .slice(0, 64) || "app";
+
+        let booted = false;
+        let failed = false;
+        let watchdog = null;
+
+        const clearWatchdog = () => {
+          if (watchdog !== null) {
+            clearTimeout(watchdog);
+            watchdog = null;
+          }
+        };
+
+        const show = () => {
+          if (booted || failed) return;
+          failed = true;
+          clearWatchdog();
+          if (!fallback) return;
+          fallback.hidden = false;
+          try {
+            reload?.focus();
+          } catch {
+            // Focus is best-effort.
+          }
+        };
+
+        window.__ogisBoot = {
+          ready() {
+            if (booted) return;
+            booted = true;
+            clearWatchdog();
+            if (fallback) fallback.hidden = true;
+          },
+          fail() {
+            show();
+          },
+        };
+
+        const isScriptError = (event) => {
+          if (!event) return false;
+          try {
+            const target = event.target;
+            if (target && target.tagName === "SCRIPT") return true;
+          } catch {
+            // Fall through to the error/message checks.
+          }
+          try {
+            if (event.error) return true;
+          } catch {
+            return false;
+          }
+          try {
+            return (
+              typeof event.message === "string" && event.message.length > 0
+            );
+          } catch {
+            return false;
+          }
+        };
+
+        window.addEventListener(
+          "error",
+          (event) => {
+            if (!booted && isScriptError(event)) show();
+          },
+          true,
+        );
+
+        window.addEventListener("unhandledrejection", (event) => {
+          if (!booted && event && event.reason !== undefined) show();
+        });
+
+        const watchdogMs = Number(window.__ogisBootWatchdogMs);
+        const delay =
+          Number.isFinite(watchdogMs) && watchdogMs >= 0 ? watchdogMs : 30000;
+        watchdog = setTimeout(show, delay);
+
+        reload?.addEventListener("click", () => {
+          window.location.reload();
+        });
+
+        reset?.addEventListener("click", async () => {
+          try {
+            const escapeRegExp = (value) =>
+              value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const keyPattern = new RegExp(
+              `^ogis_.*_${escapeRegExp(instanceId)}$`,
+            );
+            for (const key of Object.keys(window.localStorage)) {
+              if (keyPattern.test(key)) window.localStorage.removeItem(key);
+            }
+          } catch {
+            // Storage may be unavailable; reloading is still worthwhile.
+          }
+
+          const cleanup = async () => {
+            try {
+              const registrations =
+                await (navigator.serviceWorker?.getRegistrations?.() ?? []);
+              await Promise.all(
+                registrations.map((registration) => registration.unregister()),
+              );
+            } catch {
+              // Best-effort unregistration only.
+            }
+
+            try {
+              const keys = await (window.caches?.keys?.() ?? []);
+              await Promise.all(
+                keys
+                  .filter((key) => key.startsWith("ogis-"))
+                  .map((key) => window.caches.delete(key)),
+              );
+            } catch {
+              // Best-effort cache cleanup only.
+            }
+          };
+
+          try {
+            await Promise.race([
+              cleanup(),
+              new Promise((resolve) => setTimeout(resolve, 1500)),
+            ]);
+          } catch {
+            // Reload regardless of cleanup failures.
+          }
+
+          window.location.reload();
+        });
+      })();
+    </script>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
