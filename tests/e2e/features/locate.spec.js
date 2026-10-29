@@ -7,15 +7,20 @@ import { waitForMapReady, openMenuTab } from "../helpers/panel";
 import { projectionType } from "../helpers/mapProjection.js";
 import {
   LOCATE_FIX as FIX,
+  dispatchCompass,
+  dispatchIOSCompass,
   emitFix,
   emitGeoError,
   expectedHashRegExp,
+  headingRotation,
   installGeolocationMock,
   orientHash,
+  tapMap,
   waitForCameraSettle,
   withAppleWebKitPromptPermission,
   withGrantedLocateStorage as withGrantedStorage,
   withHangingPermissionQuery,
+  withIOSOrientationPermission,
   withNoLocateStorage,
 } from "../helpers/locate.js";
 import { readStoredState } from "../helpers/storage.js";
@@ -1437,5 +1442,236 @@ test.describe("Locate / Restore", () => {
     await expect(page.locator("#locate-button")).toContainText("Following", {
       timeout: RESTORE_TIMEOUT,
     });
+  });
+});
+
+// ─── Locate / Restore / Compass permission ───────────────────────────────────
+
+/**
+ * A boot restore cannot prompt for iOS orientation permission, so it listens
+ * silently and arms a one-shot retry on the first map gesture. These cases pin
+ * that contract: the iOS prompt on the first map tap, the non-iOS auto-listen,
+ * and a graceful denial that leaves the position marker in place.
+ */
+test.describe("Locate / Restore / Compass permission", () => {
+  const recentFollowingSession = {
+    permissionGranted: true,
+    mode: "following",
+    lastFix: { ...RESTORE_FIX, at: Date.now() },
+    ownerId: "dead-owner",
+  };
+
+  test("requests compass permission on the first map gesture after an iOS restore", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withIOSOrientationPermission(page);
+    await withLocateState(page, recentFollowingSession);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+    await expect(page.locator(".ogis-locate-heading")).toHaveCount(0);
+    await expect(page.getByText("Trust")).toBeHidden();
+
+    // Restoring a session must never prompt on its own.
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      0,
+    );
+
+    await tapMap(page);
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    await dispatchIOSCompass(page, 180);
+    await expect
+      .poll(() => page.locator(".ogis-locate-heading").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    // The stored fix supplies the magnetic declination before any live GPS fix
+    // arrives, so a magnetic 180° heading is corrected to true north using the
+    // production `magvar` package at the stored coordinates.
+    const expectedBearing = await page.evaluate(
+      async (fix) => {
+        // Vite serves the optimised package with a default export.
+        const { magvar } = (await import("/@id/magvar")).default;
+        return (180 + magvar(fix.lat, fix.lng) + 360) % 360;
+      },
+      { lat: RESTORE_FIX.lat, lng: RESTORE_FIX.lng },
+    );
+
+    let rotation = null;
+    await expect
+      .poll(
+        async () => {
+          rotation = await headingRotation(page);
+          return rotation !== null && Math.abs(rotation - expectedBearing) < 10;
+        },
+        { timeout: RESTORE_TIMEOUT },
+      )
+      .toBe(true);
+    expect(rotation).toBeGreaterThan(expectedBearing - 10);
+    expect(rotation).toBeLessThan(expectedBearing + 10);
+
+    // The retry is one-shot: a later map tap must not prompt again.
+    await tapMap(page);
+    await page.waitForTimeout(200);
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      1,
+    );
+  });
+
+  test("starts orientation listening on restore without a prompt on non-iOS", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withLocateState(page, recentFollowingSession);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    // Absolute alpha 90 yields a 270° true-north bearing.
+    await dispatchCompass(page, 270);
+    await expect
+      .poll(() => page.locator(".ogis-locate-heading").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    let rotation = null;
+    await expect
+      .poll(
+        async () => {
+          rotation = await headingRotation(page);
+          return rotation !== null && Math.abs(rotation - 270) < 10;
+        },
+        { timeout: RESTORE_TIMEOUT },
+      )
+      .toBe(true);
+    expect(rotation).toBeGreaterThan(260);
+    expect(rotation).toBeLessThan(280);
+  });
+
+  test("arms the retry from the map container before the map is ready", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withIOSOrientationPermission(page);
+    await withLocateState(page, recentFollowingSession);
+
+    // Hold the style response so the restore finishes before MapLibre publishes
+    // its instance at `style.load`. The `.ogis-map` container rendered by the
+    // app already exists, so this exercises the DOM-container fallback. (The
+    // `map:ready` path is the further fallback for when neither exists.)
+    let releaseStyle;
+    const styleGate = new Promise((resolve) => {
+      releaseStyle = resolve;
+    });
+    await page.route("**/style.json", async (route) => {
+      await styleGate;
+      // Fall through to the suite's map-asset stub, which serves the fixture
+      // style rather than reaching the real network.
+      await route.fallback().catch(() => {});
+    });
+
+    await page.goto("/");
+
+    // Deliberately no `waitForMapReady`: the following restore must complete
+    // first for this case to prove anything.
+    await expect(page.locator("#locate-button")).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+
+    // Precondition: the map instance is not yet published, but its container is.
+    expect(
+      await page.evaluate(async () => {
+        const { getMapInstance } = await import("/src/composables/useMap.js");
+        return (
+          getMapInstance("app") === null &&
+          document.querySelector(".ogis-map") !== null
+        );
+      }),
+    ).toBe(true);
+
+    await tapMap(page);
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    // Let the map finish loading so teardown is clean.
+    releaseStyle();
+    await expect(page.locator(".ogis-map")).toHaveAttribute(
+      "data-map-ready",
+      "true",
+      { timeout: RESTORE_TIMEOUT },
+    );
+  });
+
+  test("a denied compass retry leaves the position marker and no error UI", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withIOSOrientationPermission(page, "denied");
+    await withLocateState(page, recentFollowingSession);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect(page.locator("#locate-button")).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    await tapMap(page);
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    // The retry settles with no heading and no error surface.
+    await page.waitForTimeout(200);
+    await expect(page.locator(".ogis-locate-heading")).toHaveCount(0);
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+    await expect(page.getByText("Unable to Locate")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden();
   });
 });

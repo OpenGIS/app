@@ -272,6 +272,67 @@ export const startCompassStream = (page, bearingDeg, intervalMs = 1000) =>
     { bearing: bearingDeg, interval: intervalMs },
   );
 
+/**
+ * Simulate iOS orientation permission gating before the document boots.
+ *
+ * Defines `DeviceOrientationEvent.requestPermission` as a stub that counts its
+ * calls on `window.__orientationPermissionCalls` and resolves `result`. It also
+ * removes `ondeviceorientationabsolute` so the app falls back to the generic
+ * `deviceorientation` event, matching iOS Safari. Must be installed before the
+ * document boots.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {"granted"|"denied"} [result]
+ */
+export const withIOSOrientationPermission = (page, result = "granted") =>
+  page.addInitScript((permissionResult) => {
+    window.__orientationPermissionCalls = 0;
+    Object.defineProperty(window.DeviceOrientationEvent, "requestPermission", {
+      configurable: true,
+      value: () => {
+        window.__orientationPermissionCalls += 1;
+        return Promise.resolve(permissionResult);
+      },
+    });
+    delete window.ondeviceorientationabsolute;
+  }, result);
+
+/** Dispatch one iOS-style `deviceorientation` event with a compass heading. */
+export const dispatchIOSCompass = (page, headingDeg) =>
+  page.evaluate((heading) => {
+    const event = new DeviceOrientationEvent("deviceorientation", {
+      alpha: 0,
+      beta: 0,
+      gamma: 0,
+    });
+    Object.defineProperty(event, "webkitCompassHeading", {
+      value: heading,
+      writable: false,
+    });
+    window.dispatchEvent(event);
+  }, headingDeg);
+
+/**
+ * Dispatch a `pointerdown` on the map container (never on a control or panel),
+ * which is where the restored-session compass retry is armed.
+ */
+export const tapMap = (page) =>
+  page.locator(".ogis-map").dispatchEvent("pointerdown");
+
+/**
+ * Read the heading marker's current rotation in degrees, or null while the
+ * marker is absent or being re-synced.
+ */
+export const headingRotation = (page) =>
+  page
+    .locator(".ogis-locate-heading")
+    .evaluate((el) => {
+      const transform = el.style.transform || "";
+      const match = transform.match(/rotateZ\(([^)]+)deg\)/);
+      return match ? parseFloat(match[1]) : null;
+    })
+    .catch(() => null);
+
 /** Stop the live compass stream started by {@link startCompassStream}. */
 export const stopCompassStream = (page) =>
   page.evaluate(() => {

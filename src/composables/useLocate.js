@@ -104,6 +104,9 @@ const createLocate = (instanceId) => {
       pendingCallback: null, // called when user confirms the permission modal
       watcherId: null,
       orientationListener: null, // { eventName, handler }
+      orientationGestureTarget: null, // map element armed for a gesture retry
+      orientationGestureHandler: null, // one-shot pointerdown handler
+      orientationGestureReadyListener: null, // pending map:ready arming
       positionMarker: null,
       headingMarker: null,
       idleMap: null, // map instance with the bound idle listener
@@ -356,7 +359,10 @@ const createLocate = (instanceId) => {
    * On other platforms the API is available without an explicit grant.
    */
   const requestOrientationPermission = async () => {
-    if (typeof DeviceOrientationEvent?.requestPermission === "function") {
+    if (
+      typeof DeviceOrientationEvent !== "undefined" &&
+      typeof DeviceOrientationEvent.requestPermission === "function"
+    ) {
       try {
         const result = await DeviceOrientationEvent.requestPermission();
         return result === "granted";
@@ -397,7 +403,7 @@ const createLocate = (instanceId) => {
       c.headingLost.value = false;
       scheduleHeadingTimeout();
 
-      // iOS Safari provides a true compass heading via webkitCompassHeading
+      // iOS Safari provides a magnetic compass heading via webkitCompassHeading
       // (0-360° clockwise from magnetic north). We correct it to true north by
       // adding the magnetic declination for the user's current position.
       // For absolute events (Android), alpha is already relative to true north,
@@ -599,6 +605,7 @@ const createLocate = (instanceId) => {
     if (err.code === 3 && c.gotFix) return;
     c.generation++; // bump so any other in-flight callback is discarded
     clearOrientRetry();
+    clearOrientationGestureRetry();
     c.needsInitialOrient = false;
     followCamera.stop();
     resetDerivation();
@@ -665,11 +672,88 @@ const createLocate = (instanceId) => {
     typeof DeviceOrientationEvent !== "undefined" &&
     typeof DeviceOrientationEvent.requestPermission === "function";
 
+  /** Drop the armed one-shot gesture retry and any pending map:ready arming. */
+  const clearOrientationGestureRetry = () => {
+    if (c.orientationGestureReadyListener) {
+      emitter.off("map:ready", c.orientationGestureReadyListener);
+      c.orientationGestureReadyListener = null;
+    }
+    if (c.orientationGestureTarget && c.orientationGestureHandler) {
+      c.orientationGestureTarget.removeEventListener(
+        "pointerdown",
+        c.orientationGestureHandler,
+        { capture: true },
+      );
+    }
+    c.orientationGestureTarget = null;
+    c.orientationGestureHandler = null;
+  };
+
+  /** Attach the one-shot pointerdown retry to a resolved map container. */
+  const attachOrientationGestureRetry = (target) => {
+    if (!target || c.orientationGestureHandler) return;
+    c.orientationGestureTarget = target;
+    c.orientationGestureHandler = () => {
+      clearOrientationGestureRetry();
+      if (c.mode.value !== "active" && c.mode.value !== "following") return;
+      if (c.compassHeading.value !== null) return;
+      retryOrientation().catch(() => {});
+    };
+    target.addEventListener("pointerdown", c.orientationGestureHandler, {
+      capture: true,
+      passive: true,
+    });
+  };
+
+  /**
+   * Arm a one-shot orientation permission retry on the next map gesture.
+   *
+   * A restore cannot prompt at boot, so on iOS the orientation listener starts
+   * silently and stays idle until permission exists. The first pointerdown on
+   * the map itself — never on a control or panel — requests permission once and
+   * starts watching; if a heading is already available it only clears itself.
+   *
+   * A boot restore can finish before MapLibre publishes its instance at
+   * `style.load`, so this prefers the live map container, falls back to the
+   * `.ogis-map` element rendered by `App.vue`, and otherwise waits for
+   * `map:ready` before arming. It is therefore never skipped while the map is
+   * still loading.
+   */
+  const armOrientationGestureRetry = () => {
+    clearOrientationGestureRetry();
+
+    const resolveTarget = () => {
+      const map = getMapInstance(instanceId);
+      return (
+        map?.getContainer?.() ??
+        (typeof document !== "undefined"
+          ? document.querySelector(".ogis-map")
+          : null)
+      );
+    };
+
+    const target = resolveTarget();
+    if (target) {
+      attachOrientationGestureRetry(target);
+      return;
+    }
+
+    // Neither the map instance nor its container exists yet; arm once ready.
+    c.orientationGestureReadyListener = () => {
+      c.orientationGestureReadyListener = null;
+      attachOrientationGestureRetry(resolveTarget());
+    };
+    emitter.once("map:ready", c.orientationGestureReadyListener);
+  };
+
   /**
    * @param {{ restore?: boolean }} [options]
    */
   const startWatching = async ({ restore = false } = {}) => {
     if (c.disposed) return;
+    // A normal start (or a fresh restore) owns the permission flow; drop any
+    // retry armed for the previous restored session.
+    clearOrientationGestureRetry();
     if (!("geolocation" in navigator)) {
       if (restore) {
         clearRestoredState();
@@ -686,14 +770,16 @@ const createLocate = (instanceId) => {
     armOrientRetry();
 
     if (restore) {
-      // iOS needs a user gesture for orientation permission, so a boot restore
-      // skips it entirely (heading stays null and the position marker is used).
-      // Other platforms can begin listening safely without a prompt.
-      if (!hasOrientationPermissionRequest()) startOrientationWatching();
+      // The listener itself needs no prompt. If orientation permission is
+      // already effective, heading events resume automatically; on iOS nothing
+      // arrives and the heading watchdog leaves the position marker in place.
+      // A successful restore arms a one-shot map gesture to request permission
+      // (see restorePersistedSession), because a boot restore cannot prompt.
+      startOrientationWatching();
     } else {
-      // Request orientation permission (no-op on non-iOS) then start listening.
-      // Both happen inside the same user-gesture call stack so iOS treats them
-      // as a single permission prompt.
+      // One user gesture triggers both permission requests. Location and
+      // motion/orientation are separate OS permissions on iOS, so the browser
+      // may present them as separate native prompts; they cannot be merged.
       await requestOrientationPermission();
 
       // A stop() (or a fresh startWatching) may have run during that await.
@@ -846,6 +932,7 @@ const createLocate = (instanceId) => {
     c.restoring = false;
     c.generation++;
     clearOrientRetry();
+    clearOrientationGestureRetry();
     c.needsInitialOrient = false;
     followCamera.stop();
     resetDerivation();
@@ -971,6 +1058,13 @@ const createLocate = (instanceId) => {
         return;
       }
 
+      // Orientation listening starts immediately on restore, so derive the
+      // magnetic declination from the stored fix before the first live fix can
+      // arrive. iOS webkitCompassHeading is magnetic north; without this an
+      // early heading would be treated as true north. onPosition recalculates
+      // it on every live fix.
+      c.magneticDeclination = magvar(storedFix.lat, storedFix.lng);
+
       c.position.value = new Position({
         lat: storedFix.lat,
         lng: storedFix.lng,
@@ -993,6 +1087,11 @@ const createLocate = (instanceId) => {
       // Stay in restoring mode until the first accepted fix, so an early
       // geolocation error is still silent.
       restoreStarted = true;
+
+      // iOS cannot prompt during boot, so arm one gesture on the map to ask for
+      // orientation permission. Non-iOS needs no gesture and is not armed.
+      if (hasOrientationPermissionRequest()) armOrientationGestureRetry();
+
       syncMarkers();
     } catch {
       clearRestoredState();
@@ -1046,6 +1145,7 @@ const createLocate = (instanceId) => {
 
     followCamera.stop({ persist: false });
     clearOrientRetry();
+    clearOrientationGestureRetry();
     c.needsInitialOrient = false;
     resetDerivation();
     stopWatcher();
