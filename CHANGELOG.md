@@ -1,3 +1,10 @@
+## [3.19.1](https://github.com/OpenGIS/app/compare/v3.19.0...v3.19.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **locate:** restore compass after app quit ([19bb9f8](https://github.com/OpenGIS/app/commit/19bb9f80bbe3485517812cc91a67a1c2578f40d7))
+
 # [3.19.0](https://github.com/OpenGIS/app/compare/v3.18.0...v3.19.0) (2026-10-29)
 
 
