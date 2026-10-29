@@ -3,6 +3,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { ALGORITHM, findStaleSources } from "../../scripts/locales-sources.js";
+
 /**
  * Translation completeness gate.
  *
@@ -10,7 +12,10 @@ import { fileURLToPath } from "node:url";
  * every other `src/locales/*.json` is a translation. These tests fail on the
  * drift that would otherwise leak raw keys or untranslated strings into the
  * UI: keys added on one side only, empty values, values left in English, and
- * `t()` calls whose keys are missing, misspelled, or unverifiable.
+ * `t()` calls whose keys are missing, misspelled, or unverifiable. Source
+ * stamps (`tests/fixtures/locale-sources.json`) additionally catch a
+ * translation that was faithful to an English message which has since been
+ * superseded.
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -29,6 +34,7 @@ const DEFAULT_LOCALE = "en";
 const UNTRANSLATED_ALLOWLIST = {
   "nav.menu": ["fr"],
   "menu.collections": ["fr"],
+  "panel.about.openSource": ["fr"],
   "panel.account.resourcesCollections": ["fr"],
   "panel.account.resourcesCollectionLabel": ["fr"],
   "panel.maps.fieldSlug": ["fr"],
@@ -319,6 +325,42 @@ describe("translation call sites", () => {
     expect(
       problems,
       "The completeness gate cannot verify dynamic keys; use a literal key.",
+    ).toEqual([]);
+  });
+});
+
+describe("stale translations", () => {
+  it("reviews every English message since it was last translated", () => {
+    const stamp = JSON.parse(
+      readFileSync(
+        join(ROOT, "tests", "fixtures", "locale-sources.json"),
+        "utf8",
+      ),
+    );
+
+    expect(
+      stamp.algorithm,
+      "The source stamp was produced with a different algorithm. Run npm run locales:stamp.",
+    ).toBe(ALGORITHM);
+
+    const { stale, missing, orphaned } = findStaleSources(
+      loadLocale(DEFAULT_LOCALE),
+      stamp,
+    );
+
+    expect(
+      missing,
+      "Every English key must be stamped. Run npm run locales:stamp after adding keys.",
+    ).toEqual([]);
+    expect(
+      orphaned,
+      "The stamp references keys that no longer exist in en.json. Run npm run locales:stamp after removing keys.",
+    ).toEqual([]);
+    expect(
+      stale,
+      stale.length
+        ? `English messages changed since their translations were last reviewed: ${stale.join(", ")}. Re-translate the value in each locale file, then run npm run locales:stamp.`
+        : "Every English message matches its reviewed source stamp.",
     ).toEqual([]);
   });
 });

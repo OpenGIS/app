@@ -1436,13 +1436,17 @@ test.describe("Secondary UI states — desktop landscape", () => {
     await stabilizeCaptureRendering(page);
     await waitForMapIdle(page, testInfo);
 
-    // Desktop boots on the Info pane; expand the Privacy disclosure so the
-    // capture shows the full disclosure body.
+    // Desktop boots on the Info pane; expand the Privacy bar so the capture
+    // shows the full disclosure body.
     await expect(page.locator(".ogis-info-panel")).toBeVisible();
     const privacy = page.locator(".ogis-privacy-section");
     await expect(privacy).toBeVisible();
-    await privacy.locator("summary").click();
-    await expect(privacy.locator(".ogis-disclosure-less")).toBeVisible();
+    await privacy.locator(".ogis-privacy-bar summary").click();
+    await expect(privacy.locator(".ogis-privacy-bar")).toHaveJSProperty(
+      "open",
+      true,
+    );
+    await expect(privacy.locator(".ogis-privacy-bar__body")).toBeVisible();
     await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "privacy-expanded");
   });

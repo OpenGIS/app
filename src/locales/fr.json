@@ -23,16 +23,16 @@
   "panel.about.freePrivate": "Libre, privé &",
   "panel.about.openSource": "Open Source",
 
-  "panel.privacy.title": "Vos données privées",
-  "panel.privacy.summary": "Vos données restent sur votre appareil.",
-  "panel.privacy.onDevice": "Vos données restent privées",
-  "panel.privacy.onDeviceBody": "Toutes les données de cette application sont stockées de manière sécurisée sur l'appareil. Cela inclut vos informations de localisation, si l'autorisation est accordée.",
+  "panel.privacy.title": "Confidentialité",
+  "panel.privacy.summary": "Vos données restent sur votre appareil. Aucune analyse d'audience, aucun pistage.",
+  "panel.privacy.onDevice": "Stocké sur votre appareil",
+  "panel.privacy.onDeviceBody": "Les enregistrements, les itinéraires et les réglages sont stockés dans votre navigateur, sur cet appareil — y compris votre dernière position connue, si vous accordez l'autorisation. Rien de ce que vous enregistrez n'est envoyé.",
   "panel.privacy.thirdParty": "Sources de données tierces",
-  "panel.privacy.thirdPartyBody": "Cette application charge des données directement depuis plusieurs sources de données publiques. Comme pour toute requête réseau, votre adresse IP est visible par leurs serveurs.",
+  "panel.privacy.thirdPartyBody": "La carte est assemblée à partir de sources publiques — OpenFreeMap, Mapterhorn, Esri et ogis.app — toutes chargées en HTTPS. Comme pour toute requête web, ces serveurs voient votre adresse IP, et la zone que vous affichez peut être déduite des tuiles demandées.",
 
   "panel.account.title": "Compte",
-  "panel.account.description": "Connectez-vous avec un lien magique pour relier cette application à vos API de compte ogis.app.",
-  "panel.account.loading": "Vérification de la session du compte…",
+  "panel.account.description": "Connectez-vous avec un lien magique pour relier cette application à votre compte ogis.app.",
+  "panel.account.loading": "Vérification de votre session…",
   "panel.account.emailLabel": "E-mail",
   "panel.account.emailPlaceholder": "vous@exemple.com",
   "panel.account.requestMagicLink": "Envoyer un lien magique",
@@ -65,7 +65,7 @@
 
   "panel.maps.title": "Cartes",
   "panel.maps.description": "Parcourez vos cartes et affichez leur GeoJSON sur la carte actuelle.",
-  "panel.maps.loadingSession": "Vérification de la session du compte…",
+  "panel.maps.loadingSession": "Vérification de votre session…",
   "panel.maps.signInRequired": "Connectez-vous pour accéder à vos ressources cartographiques privées.",
   "panel.maps.openAccount": "Ouvrir le panneau compte",
   "panel.maps.refresh": "Actualiser les cartes",
@@ -109,7 +109,7 @@
 
   "panel.collections.title": "Collections",
   "panel.collections.description": "Gérez vos collections et leur hiérarchie.",
-  "panel.collections.loadingSession": "Vérification de la session du compte…",
+  "panel.collections.loadingSession": "Vérification de votre session…",
   "panel.collections.signInRequired": "Connectez-vous pour accéder à vos ressources de collections privées.",
   "panel.collections.openAccount": "Ouvrir le panneau compte",
   "panel.collections.refresh": "Actualiser les collections",
@@ -240,9 +240,6 @@
   "panel.routes.errorNoRoutes": "Aucun itinéraire trouvé dans le fichier",
   "panel.routes.errorImport": "Impossible d'importer le fichier.",
 
-  "panel.info.readMore": "En savoir plus",
-  "panel.info.readLess": "Réduire",
-
   "panel.view.share": "Partager",
   "panel.view.copied": "Copié !",
   "panel.view.improve": "Améliorer",
@@ -261,7 +258,7 @@
   "modal.locate.deniedIntro": "L'application n'a pas pu obtenir votre localisation, peut-être en raison d'un refus d'autorisation préalable. Pour la réactiver, essayez :",
   "modal.locate.tryOne": "Rechargez cette page et réessayez.",
   "modal.locate.tryTwo": "Recherchez sur le web : « autoriser la géolocalisation après refus <votre-navigateur> <votre-appareil> ».",
-  "modal.locate.tryThree": "Attendez un moment, puis réessayez plus tard.",
+  "modal.locate.tryThree": "Attendez un moment, puis réessayez.",
   "modal.locate.close": "Fermer",
   "modal.locate.retry": "Réessayer"
 }

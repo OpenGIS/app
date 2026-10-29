@@ -277,7 +277,7 @@ test.describe("Info panel", () => {
 
     const about = panel.locator(".ogis-about-section");
     await expect(about).toContainText("Free, private");
-    await expect(about).toContainText("Open-Source");
+    await expect(about).toContainText("Open Source");
     await expect(
       about.locator('a[href="https://github.com/OpenGIS/app/"]'),
     ).toHaveAttribute("target", "_blank");
@@ -287,10 +287,12 @@ test.describe("Info panel", () => {
     await expect(aboutLogo).toHaveAttribute("src", /\/icon-192\.png$/);
 
     const privacy = panel.locator(".ogis-privacy-section");
-    await expect(privacy).toContainText("All data in this app");
-    await expect(privacy).toContainText("location information");
-    await expect(privacy).toContainText("Third-party data sources");
-    await expect(privacy).toContainText("public data sources");
+    await expect(privacy).toContainText(
+      "Recordings, routes and settings are stored",
+    );
+    await expect(privacy).toContainText("last known location");
+    await expect(privacy).toContainText("Third-party Data Sources");
+    await expect(privacy).toContainText("public sources");
 
     await expect(panel.locator(".ogis-attribution-section")).toContainText(
       /OpenStreetMap/,
@@ -394,34 +396,42 @@ test.describe("Info panel", () => {
     await expect(page.locator(".ogis-info-panel")).toBeVisible();
   });
 
-  test("Privacy disclosure toggles its label between Read more and Read less", async ({
-    page,
-  }) => {
+  test("Privacy bar expands and collapses its details", async ({ page }) => {
     await withViewStorage(page);
     await page.goto("/");
     await waitForMapReady(page);
 
-    // Scope to the Privacy section disclosure.
+    // Scope to the Privacy section's expandable bar.
     const privacy = page.locator(".ogis-privacy-section");
     await expect(privacy).toBeVisible();
 
-    const summary = privacy.locator("summary");
-    const more = privacy.locator(".ogis-disclosure-more");
-    const less = privacy.locator(".ogis-disclosure-less");
+    const bar = privacy.locator(".ogis-privacy-bar");
+    const summary = bar.locator("summary");
+    const body = bar.locator(".ogis-privacy-bar__body");
+    await expect(bar).toBeVisible();
 
-    // Collapsed: "Read more" shows and "Read less" is hidden.
-    await expect(more).toBeVisible();
-    await expect(less).toBeHidden();
+    // The glyph is CSS-generated; getComputedStyle serialises it quoted.
+    const glyph = () =>
+      summary.evaluate((el) =>
+        getComputedStyle(el, "::after").content.replace(/^["']|["']$/g, ""),
+      );
 
-    // Expanded: the labels swap.
+    // Collapsed: no open state, hidden body, "+" affordance.
+    await expect(bar).toHaveJSProperty("open", false);
+    await expect(body).toBeHidden();
+    await expect.poll(glyph).toBe("+");
+
+    // Expanded: the body shows and the affordance becomes "−" (U+2212).
     await summary.click();
-    await expect(less).toBeVisible();
-    await expect(more).toBeHidden();
+    await expect(bar).toHaveJSProperty("open", true);
+    await expect(body).toBeVisible();
+    await expect.poll(glyph).toBe("−");
 
-    // Collapsed again: back to "Read more".
+    // Collapsed again: back to the hidden body and "+".
     await summary.click();
-    await expect(more).toBeVisible();
-    await expect(less).toBeHidden();
+    await expect(bar).toHaveJSProperty("open", false);
+    await expect(body).toBeHidden();
+    await expect.poll(glyph).toBe("+");
   });
 
   test("Attribution footer is pinned with sticky positioning", async ({
@@ -431,16 +441,22 @@ test.describe("Info panel", () => {
     await page.goto("/");
     await waitForMapReady(page);
 
-    const attribution = page.locator(".ogis-attribution-section");
-    await expect(attribution).toBeVisible();
+    // Privacy and attribution share one pinned wrapper.
+    const footer = page.locator(".ogis-info-footer");
+    await expect(footer).toBeVisible();
 
-    const { position, bottom } = await attribution.evaluate((el) => {
+    const { position, bottom } = await footer.evaluate((el) => {
       const styles = getComputedStyle(el);
       return { position: styles.position, bottom: styles.bottom };
     });
 
     expect(position).toBe("sticky");
     expect(bottom).toBe("0px");
+
+    // The attribution section sits inside the pinned footer.
+    const attribution = footer.locator(".ogis-attribution-section");
+    await expect(attribution).toBeVisible();
+    await expect(attribution).toContainText(/OpenStreetMap/);
   });
 });
 

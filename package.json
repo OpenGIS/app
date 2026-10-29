@@ -1,6 +1,6 @@
 {
   "name": "ogis-app",
-  "version": "3.17.0",
+  "version": "3.18.0",
   "type": "module",
   "description": "ogis.app — Get where you are going.",
   "private": true,
@@ -25,6 +25,7 @@
     "screenshots:fetch": "node scripts/fetch-screenshots.js",
     "screenshots:verify": "node scripts/verify-matrix.js",
     "fixtures:refresh": "node tests/fixtures/map/refresh.mjs",
+    "locales:stamp": "node scripts/locales-sources.js",
     "format": "prettier --write . --ignore-path .gitignore --ignore-path .prettierignore --ignore-path \"$HOME/.config/prettier/ignore\"",
     "format:check": "prettier --check . --ignore-path .gitignore --ignore-path .prettierignore --ignore-path \"$HOME/.config/prettier/ignore\"",
     "check": "npm run format:check && npm test",

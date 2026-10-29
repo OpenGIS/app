@@ -145,7 +145,7 @@ const onImprove = (e) => {
 
     <!-- About -->
     <div
-      class="sidebar-section sidebar-section-body p-3 border-top ogis-about-section"
+      class="sidebar-section sidebar-section-body p-3 border-top border-bottom ogis-about-section"
     >
       <div class="d-flex align-items-center gap-3">
         <p class="lead mb-0">
@@ -165,44 +165,45 @@ const onImprove = (e) => {
       </div>
     </div>
 
-    <!-- Privacy -->
-    <div
-      class="sidebar-section sidebar-section-body p-3 border-top ogis-privacy-section"
-    >
-      <h5 class="mb-2">{{ t("panel.privacy.title") }}</h5>
-      <p class="mb-2 small text-body-secondary">
-        {{ t("panel.privacy.summary") }}
-      </p>
+    <!-- Privacy and attribution share one pinned surface: the bar sits above
+         the credits, and a single sticky wrapper avoids stacked glass. -->
+    <div class="sidebar-section border-top ogis-info-footer">
+      <section
+        class="ogis-privacy-section"
+        aria-labelledby="ogis-privacy-title"
+      >
+        <details class="ogis-privacy-bar">
+          <summary>
+            <h5 id="ogis-privacy-title" class="ogis-privacy-bar__title">
+              {{ t("panel.privacy.title") }}
+            </h5>
+            <span class="ogis-privacy-bar__summary">
+              {{ t("panel.privacy.summary") }}
+            </span>
+          </summary>
 
-      <details class="ogis-disclosure">
-        <summary>
-          <span class="ogis-disclosure-more">{{
-            t("panel.info.readMore")
-          }}</span>
-          <span class="ogis-disclosure-less">{{
-            t("panel.info.readLess")
-          }}</span>
-        </summary>
+          <div class="ogis-privacy-bar__body">
+            <h6 class="mb-2 text-muted small text-uppercase fw-semibold">
+              {{ t("panel.privacy.onDevice") }}
+            </h6>
+            <p class="mb-3 small">{{ t("panel.privacy.onDeviceBody") }}</p>
 
-        <div class="pt-2">
-          <h6 class="mb-2 text-muted small text-uppercase fw-semibold">
-            {{ t("panel.privacy.onDevice") }}
-          </h6>
-          <p class="mb-3 small">{{ t("panel.privacy.onDeviceBody") }}</p>
+            <h6 class="mb-2 text-muted small text-uppercase fw-semibold">
+              {{ t("panel.privacy.thirdParty") }}
+            </h6>
+            <p class="mb-0 small">{{ t("panel.privacy.thirdPartyBody") }}</p>
+          </div>
+        </details>
+      </section>
 
-          <h6 class="mb-2 text-muted small text-uppercase fw-semibold">
-            {{ t("panel.privacy.thirdParty") }}
-          </h6>
-          <p class="mb-0 small">{{ t("panel.privacy.thirdPartyBody") }}</p>
-        </div>
-      </details>
-    </div>
-
-    <!-- Attribution -->
-    <div
-      class="sidebar-section sidebar-section-body px-3 py-2 border-top ogis-attribution-section"
-    >
-      <p class="mb-0 small ogis-attribution-text" v-html="attributionHtml"></p>
+      <div
+        class="sidebar-section sidebar-section-body px-3 py-2 border-top ogis-attribution-section"
+      >
+        <p
+          class="mb-0 small ogis-attribution-text"
+          v-html="attributionHtml"
+        ></p>
+      </div>
     </div>
   </div>
 </template>

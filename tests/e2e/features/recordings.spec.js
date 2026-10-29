@@ -195,7 +195,7 @@ test.describe("Recordings / Permission modal", () => {
     await openMenuTab(page, "Recordings");
     await page.locator("#recordings-start-button").click();
     await expect(page.getByText("Trust")).toBeVisible();
-    await page.getByRole("button", { name: "I Understand" }).click();
+    await page.getByRole("button", { name: "I understand" }).click();
     await expect(page.getByText("Trust")).toBeHidden();
     await expect(page.getByText("Current Recording")).toBeVisible({
       timeout: 5000,
