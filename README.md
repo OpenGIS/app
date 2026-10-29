@@ -22,7 +22,7 @@ Both heroes are live, intentionally non-deterministic captures — a random-coun
 ogis.app is a **Vue 3 + Vite** single-page application and an **installable PWA** ([`public/manifest.json`](public/manifest.json), `display: standalone`) — the map is [MapLibre GL JS](https://maplibre.org/) with a Bootstrap SCSS theme, and a hand-rolled service worker ([`public/sw.js`](public/sw.js), no Workbox) provides the app shell and offline map support. The backend features (account, maps, collections) are disabled in the current SPA front-end only mode.
 
 - **Entry point** — [`src/main.js`](src/main.js) reads the URL parameters, creates the Vue app, installs the core features and mounts to `#app`.
-- **Resilience** — persisted stores use a versioned envelope with hydration and quarantine; boot failures are contained and a static fallback covers a failed module load. The map view and shared routes, recordings and offline regions sync live across tabs, while locate, route-navigation and active-recording sessions restore in the tab where they started. Critical transitions flush immediately, recordings restore paused, and map recovery surfaces style and WebGL failures. See [State and resilience](docs/16.state-and-resilience.md).
+- **Resilience** — persisted stores use a versioned envelope with hydration and quarantine; boot failures are contained and a static fallback covers a failed module load. The map view and shared routes, recordings and offline regions sync live across tabs, while locate, route-navigation and active-recording sessions restore durably in the tab that owns them; a liveness probe stops another live tab from restoring or clearing them. Critical transitions flush immediately, recordings restore paused, and map recovery surfaces style and WebGL failures. See [State and resilience](docs/16.state-and-resilience.md).
 - **Features** — self-contained bundles registered from `src/main.js`; each is a plain object with an `install(ctx)` method that registers a side-panel tab and/or a corner control chip. See [Features](docs/10.features.md).
 - **Tracks** — routes, recordings and waypoint documents share a versioned `v: 2` model in [`src/utils/track/`](src/utils/track/) for import, export, distance and legacy migration; GeoJSON is a render/export projection. See [Tracks](docs/15.tracks.md).
 - **Actions and modes** — camera-taking actions claim the map from sustained modes (following, offline draw, route navigation) so state is reconciled before the camera moves. See [UI actions and map modes](docs/5.ui.md#ui-actions-and-map-modes).
@@ -45,7 +45,7 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 - Shareable camera views
 - Map view and shared routes, recordings and offline regions sync live across tabs
 - Map view persisted between sessions
-- Locate, route navigation and an active recording restored after a reload in the same tab
+- Locate, route navigation and an active recording restored after a reload or app quit
 - Light and dark mode, following your device setting
 - Works on any device
 
@@ -57,7 +57,7 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 - Location permissions are required for GPS/Compass features. Some users have a deny-all approach to browser permissions and changing them varies between browsers and devices.
 - The app does not work in the background or when the device is locked — a common limitation of web apps.
 - The app requires an initial connection to load assets and map tiles, even though it works offline thereafter.
-- Session restore is best-effort and partial: a normal reload in the same tab restores locate, navigation and an active recording, but a hard kill or force-quit can lose the most recent debounced change, and a full browser restart may start those sessions fresh. Another tab never sees them. UI/panel state, map projection, theme, units, locale and saved-recording visibility are not restored.
+- Session restore is best-effort and partial: locate, navigation and an active recording are stored durably and survive a normal reload or app quit, provided permission and stored data allow. A hard kill or force-quit can still lose the most recent debounced change. Tab-owned sessions carry a liveness-checked owner id, so a second live tab never restores or clears another tab's session. UI/panel state, map projection, theme, units, locale and saved-recording visibility are not restored.
 
 ## Planned Changes
 

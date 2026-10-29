@@ -112,8 +112,10 @@ test.describe("Boot fallback", () => {
       localStorage.setItem("__ogisE2eSeeded", "1");
       localStorage.setItem("ogis_view_app", "x");
       localStorage.setItem("ogis_view_trip_app", "x");
-      sessionStorage.setItem("ogis_locate_app", "x");
-      sessionStorage.setItem("ogis_locate_trip_app", "x");
+      localStorage.setItem("ogis_locate_app", "x");
+      localStorage.setItem("ogis_locate_trip_app", "x");
+      sessionStorage.setItem("ogis_navigation_app", "x");
+      sessionStorage.setItem("ogis_navigation_trip_app", "x");
     });
 
     await page.goto("/");
@@ -131,13 +133,17 @@ test.describe("Boot fallback", () => {
     const storage = await page.evaluate(() => ({
       localApp: localStorage.getItem("ogis_view_app"),
       localTripApp: localStorage.getItem("ogis_view_trip_app"),
-      sessionApp: sessionStorage.getItem("ogis_locate_app"),
-      sessionTripApp: sessionStorage.getItem("ogis_locate_trip_app"),
+      localLocateApp: localStorage.getItem("ogis_locate_app"),
+      localLocateTripApp: localStorage.getItem("ogis_locate_trip_app"),
+      sessionApp: sessionStorage.getItem("ogis_navigation_app"),
+      sessionTripApp: sessionStorage.getItem("ogis_navigation_trip_app"),
     }));
 
     expect(storage.localApp).toBeNull();
+    expect(storage.localLocateApp).toBeNull();
     expect(storage.sessionApp).toBeNull();
     expect(storage.localTripApp).toBe("x");
+    expect(storage.localLocateTripApp).toBe("x");
     expect(storage.sessionTripApp).toBe("x");
 
     expectNoConsoleErrors(page);

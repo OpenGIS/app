@@ -37,10 +37,10 @@ test.afterEach(({ page }) => expectNoConsoleErrors(page));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Seed sessionStorage with permission granted and localStorage with a view. */
+/** Seed localStorage with permission granted and a view. */
 const withGrantedStorage = (page) =>
   page.addInitScript((center) => {
-    sessionStorage.setItem(
+    localStorage.setItem(
       "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
     );
@@ -59,6 +59,7 @@ const withNoStorage = (page) =>
     sessionStorage.removeItem("ogis_locate_app");
     localStorage.removeItem("ogis_view_app");
     localStorage.removeItem("ogis_recordings_app");
+    localStorage.removeItem("ogis_recording-active_app");
     sessionStorage.removeItem("ogis_recording-active_app");
   });
 
@@ -103,13 +104,13 @@ const handleConfirm = (page, action, messages) => {
 };
 
 /**
- * Read the persisted recordings: saved documents from localStorage and the
- * tab-owned active recording from sessionStorage.
+ * Read the persisted recordings: saved documents and the active recording,
+ * both from localStorage.
  */
 const storedRecordings = async (page) => {
   const { saved, active } = await page.evaluate(() => ({
     saved: localStorage.getItem("ogis_recordings_app"),
-    active: sessionStorage.getItem("ogis_recording-active_app"),
+    active: localStorage.getItem("ogis_recording-active_app"),
   }));
   return {
     ...(readStoredState(saved) ?? {}),
@@ -357,7 +358,7 @@ test.describe("Recordings / Restored elapsed", () => {
   const withRestoredRecording = (page) =>
     page.addInitScript(
       ({ center, createdAt, points }) => {
-        sessionStorage.setItem(
+        localStorage.setItem(
           "ogis_locate_app",
           JSON.stringify({ permissionGranted: true }),
         );
@@ -369,7 +370,7 @@ test.describe("Recordings / Restored elapsed", () => {
           "ogis_recordings_app",
           JSON.stringify({ saved: [] }),
         );
-        sessionStorage.setItem(
+        localStorage.setItem(
           "ogis_recording-active_app",
           JSON.stringify({
             active: {
@@ -382,6 +383,7 @@ test.describe("Recordings / Restored elapsed", () => {
               segments: [{ points }],
               waypoints: [],
             },
+            ownerId: "dead-owner",
           }),
         );
       },
@@ -395,7 +397,9 @@ test.describe("Recordings / Restored elapsed", () => {
       },
     );
 
-  test("restores elapsed from the last recorded point", async ({ page }) => {
+  test("restores a paused active recording from localStorage with a dead owner", async ({
+    page,
+  }) => {
     await withRestoredRecording(page);
     await page.goto("/");
     await waitForMapReady(page);
@@ -495,7 +499,7 @@ test.describe("Recordings / Saved list management", () => {
   const withOneSavedRecording = (page) =>
     page.addInitScript(
       ({ center, points, savedAt }) => {
-        sessionStorage.setItem(
+        localStorage.setItem(
           "ogis_locate_app",
           JSON.stringify({ permissionGranted: true }),
         );
@@ -688,7 +692,7 @@ test.describe("Recordings / Saved list management", () => {
 test.describe("Recordings / Migration", () => {
   const CREATED_AT = Date.UTC(2025, 0, 15, 9, 30, 0);
 
-  test("moves a legacy active recording from localStorage into sessionStorage", async ({
+  test("moves a legacy active recording from localStorage into the local active store", async ({
     page,
   }) => {
     await page.addInitScript(
@@ -725,7 +729,7 @@ test.describe("Recordings / Migration", () => {
     await expect
       .poll(async () => {
         const raw = await page.evaluate(() =>
-          sessionStorage.getItem("ogis_recording-active_app"),
+          localStorage.getItem("ogis_recording-active_app"),
         );
         return (
           readStoredState(raw)?.active?.segments?.[0]?.points?.length ?? null
@@ -738,6 +742,11 @@ test.describe("Recordings / Migration", () => {
     );
     expect(local).toEqual({ saved: [] });
     expect(local).not.toHaveProperty("active");
+    expect(
+      await page.evaluate(() =>
+        sessionStorage.getItem("ogis_recording-active_app"),
+      ),
+    ).toBeNull();
   });
 });
 
@@ -764,7 +773,7 @@ test.describe("Recordings / Saved list order", () => {
             t: timestamp - (points.length - 1 - index) * duration,
           })),
         });
-        sessionStorage.setItem(
+        localStorage.setItem(
           "ogis_locate_app",
           JSON.stringify({ permissionGranted: true }),
         );

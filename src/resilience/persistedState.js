@@ -222,10 +222,11 @@ const replaceState = (state, data) => {
  * Copy a legacy localStorage value into sessionStorage once, then remove the
  * local copy. Session storage wins when both exist.
  *
- * This is a one-time boot migration for stores that moved from shared
- * localStorage to tab-owned sessionStorage. It copies the raw string without
- * hydrating it; the store's normal boot path hydrates it afterwards. It is
- * safe when storage is unavailable or throws, and never throws itself.
+ * This helper is retained for tests and older callers; production stores now
+ * live in localStorage and use `migrateSessionToLocal` instead. It copies the
+ * raw string without hydrating it; the store's normal boot path hydrates it
+ * afterwards. It is safe when storage is unavailable or throws, and never
+ * throws itself.
  *
  * @param {string} namespace
  * @param {string} instanceId
@@ -249,6 +250,36 @@ export const migrateLocalToSession = (namespace, instanceId) => {
     return true;
   } catch (error) {
     debug.warn(`could not migrate [${key}] to session storage`, error);
+    return false;
+  }
+};
+
+/**
+ * Copy a legacy sessionStorage value into localStorage once, then remove the
+ * session copy.
+ *
+ * Session storage wins when both exist, because it holds the live session from
+ * the previous storage model. The raw string is copied without hydrating it; the
+ * store's normal boot path hydrates it afterwards. The session key is removed
+ * only after a successful local write, so a failed migration retries next boot.
+ * Safe when storage is unavailable or throws, and never throws itself.
+ *
+ * @param {string} namespace
+ * @param {string} instanceId
+ * @returns {boolean} true when a session value was moved.
+ */
+export const migrateSessionToLocal = (namespace, instanceId) => {
+  const key = storeKey(namespace, instanceId);
+
+  try {
+    const sessionRaw = safeGetItem("session", key);
+    if (sessionRaw === null) return false;
+
+    if (!safeSetItem("local", key, sessionRaw)) return false;
+    safeRemoveItem("session", key);
+    return true;
+  } catch (error) {
+    debug.warn(`could not migrate [${key}] to local storage`, error);
     return false;
   }
 };

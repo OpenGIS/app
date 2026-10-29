@@ -64,10 +64,10 @@ const GEOJSON_ROUTE = {
   ],
 };
 
-/** Seed sessionStorage with permission granted and localStorage with a view. */
+/** Seed localStorage with permission granted and a view. */
 const withGrantedStorage = (page) =>
   page.addInitScript((center) => {
-    sessionStorage.setItem(
+    localStorage.setItem(
       "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
     );
@@ -126,7 +126,7 @@ const storedRoutes = async (page) =>
 /** Read the persisted navigation document (envelope or legacy). */
 const storedNavigation = async (page) =>
   readStoredState(
-    await page.evaluate(() => sessionStorage.getItem("ogis_navigation_app")),
+    await page.evaluate(() => localStorage.getItem("ogis_navigation_app")),
   );
 
 /** Read the live locate mode through the page's own module graph. */
@@ -170,13 +170,13 @@ const seedRestoreState = (page, state) =>
       localStorage.setItem("ogis_routes_app", JSON.stringify(stored.routes));
     }
     if (stored.navigation) {
-      sessionStorage.setItem(
+      localStorage.setItem(
         "ogis_navigation_app",
         JSON.stringify(stored.navigation),
       );
     }
     if (stored.locate) {
-      sessionStorage.setItem("ogis_locate_app", JSON.stringify(stored.locate));
+      localStorage.setItem("ogis_locate_app", JSON.stringify(stored.locate));
     }
   }, state);
 
@@ -186,8 +186,8 @@ const seedRestoreState = (page, state) =>
  */
 const withLocatePermission = (page) =>
   page.addInitScript(() => {
-    if (!sessionStorage.getItem("ogis_locate_app")) {
-      sessionStorage.setItem(
+    if (!localStorage.getItem("ogis_locate_app")) {
+      localStorage.setItem(
         "ogis_locate_app",
         JSON.stringify({ permissionGranted: true }),
       );
@@ -1229,7 +1229,7 @@ test.describe("Routes / Restore across reload", () => {
     await importFixture(page);
   };
 
-  test("migrates a legacy localStorage navigation value into sessionStorage", async ({
+  test("migrates a legacy sessionStorage navigation value into localStorage", async ({
     page,
   }) => {
     const routeId = "migrate-route";
@@ -1237,7 +1237,10 @@ test.describe("Routes / Restore across reload", () => {
     await page.addInitScript(
       ({ route, navigation }) => {
         localStorage.setItem("ogis_routes_app", JSON.stringify([route]));
-        localStorage.setItem("ogis_navigation_app", JSON.stringify(navigation));
+        sessionStorage.setItem(
+          "ogis_navigation_app",
+          JSON.stringify(navigation),
+        );
       },
       {
         route: restoreRoute(routeId),
@@ -1254,8 +1257,11 @@ test.describe("Routes / Restore across reload", () => {
       })
       .toEqual([routeId]);
     expect(
-      await page.evaluate(() => localStorage.getItem("ogis_navigation_app")),
+      await page.evaluate(() => sessionStorage.getItem("ogis_navigation_app")),
     ).toBeNull();
+    expect(
+      await page.evaluate(() => localStorage.getItem("ogis_navigation_app")),
+    ).not.toBeNull();
     await expect
       .poll(() => mapFeatureIds(page, "routes-route-"), {
         timeout: RESTORE_TIMEOUT,
@@ -1375,6 +1381,48 @@ test.describe("Routes / Restore across reload", () => {
       .toBe(false);
   });
 
+  test("navigation and owned follow resume after an app quit with a dead owner", async ({
+    page,
+  }) => {
+    const routeId = "dead-owner-route";
+
+    await withLocatePermission(page);
+    await seedRestoreState(page, {
+      routes: [restoreRoute(routeId)],
+      navigation: {
+        routeId,
+        visible: [routeId],
+        followOwned: true,
+        ownerId: "dead-owner",
+      },
+      locate: {
+        permissionGranted: true,
+        mode: "following",
+        lastFix: STORED_FIX,
+        ownerId: "dead-owner",
+      },
+    });
+    await grantGeolocation(page);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect(locateLabel(page)).toHaveText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect(navControl(page)).toBeVisible({ timeout: RESTORE_TIMEOUT });
+    await expect
+      .poll(async () => (await storedNavigation(page))?.routeId ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(routeId);
+    await expect
+      .poll(async () => (await storedNavigation(page))?.ownerId ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .not.toBe("dead-owner");
+  });
+
   test("navigation in one tab is not restored in another tab", async ({
     context,
     page: pageA,
@@ -1396,15 +1444,21 @@ test.describe("Routes / Restore across reload", () => {
     await pageB.goto("/");
     await waitForMapReady(pageB);
 
+    // The secondary tab must not restore the owner's navigation…
+    await expect(navControl(pageB)).toHaveCount(0);
     await expect
-      .poll(async () => (await storedNavigation(pageB))?.routeId ?? null, {
+      .poll(async () => (await storedNavigation(pageB))?.ownerId ?? null, {
         timeout: RESTORE_TIMEOUT,
       })
-      .toBeNull();
-    expect(
-      await pageB.evaluate(() => sessionStorage.getItem("ogis_navigation_app")),
-    ).toBeNull();
-    await expect(navControl(pageB)).toHaveCount(0);
+      .not.toBeNull();
+
+    // …and must not clear it: the owner stays navigating.
+    await expect(navControl(pageA)).toBeVisible({ timeout: RESTORE_TIMEOUT });
+    await expect
+      .poll(async () => (await storedNavigation(pageA))?.routeId ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(routeId);
 
     await pageB.close();
   });

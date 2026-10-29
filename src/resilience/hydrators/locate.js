@@ -39,12 +39,12 @@ function hydrateFix(value) {
  *
  * A session can only be restored when both a restorable mode and a valid last
  * fix are present; otherwise both are dropped. This keeps legacy values and
- * transient states (`error`) from resuming a dead session. A non-object top
- * level throws so the primitive quarantines the value and falls back to
- * defaults.
+ * transient states (`error`) from resuming a dead session. Version 2 values
+ * carry no owner id and gain a `null` one. A non-object top level throws so the
+ * primitive quarantines the value and falls back to defaults.
  *
  * @param {*} data - Raw decoded state, at any stored version.
- * @returns {{ permissionGranted: boolean, mode: 'active'|'following'|null, lastFix: Object|null }}
+ * @returns {{ permissionGranted: boolean, mode: 'active'|'following'|null, lastFix: Object|null, ownerId: string|null }}
  */
 export function hydrateLocate(data) {
   if (!isPlainObject(data)) {
@@ -58,10 +58,17 @@ export function hydrateLocate(data) {
 
   const mode = RESTORABLE_MODES.has(data.mode) ? data.mode : null;
   const lastFix = mode === null ? null : hydrateFix(data.lastFix);
+  const ownerId =
+    lastFix !== null &&
+    typeof data.ownerId === "string" &&
+    data.ownerId.trim() !== ""
+      ? data.ownerId
+      : null;
 
   return {
     permissionGranted,
     mode: lastFix === null ? null : mode,
     lastFix,
+    ownerId: lastFix === null ? null : ownerId,
   };
 }

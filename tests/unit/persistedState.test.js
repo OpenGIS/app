@@ -5,6 +5,7 @@ import {
   usePersistedState,
   resetInstanceState,
   migrateLocalToSession,
+  migrateSessionToLocal,
   __resetPersistedStateForTests,
 } from "@/resilience/persistedState";
 
@@ -533,6 +534,72 @@ describe("usePersistedState", () => {
         localStorage.getItem("ogis_quarantine_invalid-sync_invalid-sync-id"),
       ).toBeNull();
 
+      warn.mockRestore();
+    });
+  });
+
+  describe("migrateSessionToLocal", () => {
+    it("moves a session value to local and removes the session copy", () => {
+      const raw = JSON.stringify({ permissionGranted: true });
+      sessionStorage.setItem("ogis_locate_move-id", raw);
+
+      expect(migrateSessionToLocal("locate", "move-id")).toBe(true);
+      expect(localStorage.getItem("ogis_locate_move-id")).toBe(raw);
+      expect(sessionStorage.getItem("ogis_locate_move-id")).toBeNull();
+    });
+
+    it("lets the session value win when both exist", () => {
+      localStorage.setItem("ogis_locate_both-id", JSON.stringify({ a: 1 }));
+      sessionStorage.setItem("ogis_locate_both-id", JSON.stringify({ a: 2 }));
+
+      expect(migrateSessionToLocal("locate", "both-id")).toBe(true);
+      expect(JSON.parse(localStorage.getItem("ogis_locate_both-id"))).toEqual({
+        a: 2,
+      });
+      expect(sessionStorage.getItem("ogis_locate_both-id")).toBeNull();
+    });
+
+    it("is a no-op when session storage has no value", () => {
+      localStorage.setItem("ogis_locate_local-only", JSON.stringify({ a: 1 }));
+
+      expect(migrateSessionToLocal("locate", "local-only")).toBe(false);
+      expect(
+        JSON.parse(localStorage.getItem("ogis_locate_local-only")),
+      ).toEqual({ a: 1 });
+    });
+
+    it("keeps the session value when the local write fails", () => {
+      const raw = JSON.stringify({ a: 2 });
+      sessionStorage.setItem("ogis_locate_write-fails", raw);
+
+      const setItem = vi
+        .spyOn(localStorage, "setItem")
+        .mockImplementation(() => {
+          throw new Error("local storage unavailable");
+        });
+
+      try {
+        expect(migrateSessionToLocal("locate", "write-fails")).toBe(false);
+      } finally {
+        setItem.mockRestore();
+      }
+
+      expect(sessionStorage.getItem("ogis_locate_write-fails")).toBe(raw);
+      expect(localStorage.getItem("ogis_locate_write-fails")).toBeNull();
+    });
+
+    it("never throws when storage is unavailable", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const getItem = vi
+        .spyOn(Storage.prototype, "getItem")
+        .mockImplementation(() => {
+          throw new Error("storage unavailable");
+        });
+
+      expect(() => migrateSessionToLocal("locate", "throws-id")).not.toThrow();
+      expect(migrateSessionToLocal("locate", "throws-id")).toBe(false);
+
+      getItem.mockRestore();
       warn.mockRestore();
     });
   });

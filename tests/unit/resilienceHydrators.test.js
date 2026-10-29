@@ -297,27 +297,53 @@ describe("recording active hydrator", () => {
   });
 
   it("returns null for a missing or null active value", () => {
-    expect(hydrateRecordingActive({ active: null })).toEqual({ active: null });
-    expect(hydrateRecordingActive({})).toEqual({ active: null });
+    expect(hydrateRecordingActive({ active: null })).toEqual({
+      active: null,
+      ownerId: null,
+    });
+    expect(hydrateRecordingActive({})).toEqual({
+      active: null,
+      ownerId: null,
+    });
   });
 
   it("returns null when the active document has fewer than two points", () => {
     expect(hydrateRecordingActive({ active: { points: [] } })).toEqual({
       active: null,
+      ownerId: null,
     });
     expect(
       hydrateRecordingActive({ active: { points: [{ lat: 1, lng: 2 }] } }),
-    ).toEqual({ active: null });
+    ).toEqual({ active: null, ownerId: null });
     expect(hydrateRecordingActive({ active: { points: "nope" } })).toEqual({
       active: null,
+      ownerId: null,
     });
   });
 
   it("returns null for a malformed active document", () => {
     expect(hydrateRecordingActive({ active: "junk" })).toEqual({
       active: null,
+      ownerId: null,
     });
-    expect(hydrateRecordingActive({ active: {} })).toEqual({ active: null });
+    expect(hydrateRecordingActive({ active: {} })).toEqual({
+      active: null,
+      ownerId: null,
+    });
+  });
+
+  it("keeps a non-empty owner id only alongside an active document", () => {
+    expect(
+      hydrateRecordingActive({ active: v2Recording(), ownerId: "tab-1" })
+        .ownerId,
+    ).toBe("tab-1");
+    expect(
+      hydrateRecordingActive({ active: v2Recording(), ownerId: "  " }).ownerId,
+    ).toBeNull();
+    expect(
+      hydrateRecordingActive({ active: v2Recording(), ownerId: 7 }).ownerId,
+    ).toBeNull();
+    expect(hydrateRecordingActive({ ownerId: "tab-1" }).ownerId).toBeNull();
   });
 
   it("rejects a non-object top level", () => {
@@ -337,7 +363,7 @@ describe("migrateRecordingsSession", () => {
     startTime: TIMESTAMP,
   });
 
-  it("moves active to session and rewrites local as saved-only", () => {
+  it("moves active to the local active store and rewrites saved-only", () => {
     const activeDoc = active();
     localStorage.setItem(
       "ogis_recordings_migrate-legacy",
@@ -346,13 +372,14 @@ describe("migrateRecordingsSession", () => {
 
     expect(migrateRecordingsSession("migrate-legacy")).toBe(true);
     expect(
-      JSON.parse(
-        sessionStorage.getItem("ogis_recording-active_migrate-legacy"),
-      ),
+      JSON.parse(localStorage.getItem("ogis_recording-active_migrate-legacy")),
     ).toEqual({ active: activeDoc });
     expect(
       JSON.parse(localStorage.getItem("ogis_recordings_migrate-legacy")),
     ).toEqual({ saved: saved() });
+    expect(
+      sessionStorage.getItem("ogis_recording-active_migrate-legacy"),
+    ).toBeNull();
   });
 
   it("unwraps an envelope input", () => {
@@ -364,7 +391,7 @@ describe("migrateRecordingsSession", () => {
     expect(migrateRecordingsSession("migrate-envelope")).toBe(true);
     expect(
       JSON.parse(
-        sessionStorage.getItem("ogis_recording-active_migrate-envelope"),
+        localStorage.getItem("ogis_recording-active_migrate-envelope"),
       ),
     ).toEqual({ active: active() });
     expect(
@@ -372,20 +399,37 @@ describe("migrateRecordingsSession", () => {
     ).toEqual({ saved: saved() });
   });
 
-  it("keeps an existing session value and still strips local active", () => {
+  it("moves a legacy session active value into localStorage", () => {
+    const sessionActive = { active: { kept: true } };
+    sessionStorage.setItem(
+      "ogis_recording-active_migrate-session",
+      JSON.stringify(sessionActive),
+    );
+
+    expect(migrateRecordingsSession("migrate-session")).toBe(true);
+    expect(
+      JSON.parse(localStorage.getItem("ogis_recording-active_migrate-session")),
+    ).toEqual(sessionActive);
+    expect(
+      sessionStorage.getItem("ogis_recording-active_migrate-session"),
+    ).toBeNull();
+  });
+
+  it("keeps an existing local active value and still strips local active", () => {
+    const kept = { active: { kept: true } };
     localStorage.setItem(
       "ogis_recordings_migrate-both",
       JSON.stringify({ saved: saved(), active: active() }),
     );
-    sessionStorage.setItem(
+    localStorage.setItem(
       "ogis_recording-active_migrate-both",
-      JSON.stringify({ active: { kept: true } }),
+      JSON.stringify(kept),
     );
 
     expect(migrateRecordingsSession("migrate-both")).toBe(true);
     expect(
-      JSON.parse(sessionStorage.getItem("ogis_recording-active_migrate-both")),
-    ).toEqual({ active: { kept: true } });
+      JSON.parse(localStorage.getItem("ogis_recording-active_migrate-both")),
+    ).toEqual(kept);
     expect(
       JSON.parse(localStorage.getItem("ogis_recordings_migrate-both")),
     ).toEqual({ saved: saved() });
@@ -400,20 +444,19 @@ describe("migrateRecordingsSession", () => {
       localStorage.setItem(`ogis_recordings_${id}`, raw);
       expect(migrateRecordingsSession(id)).toBe(false);
       expect(localStorage.getItem(`ogis_recordings_${id}`)).toBe(raw);
+      expect(localStorage.getItem(`ogis_recording-active_${id}`)).toBeNull();
       expect(sessionStorage.getItem(`ogis_recording-active_${id}`)).toBeNull();
     }
   });
 
-  it("leaves the local value untouched when the session write fails", () => {
+  it("leaves the local value untouched when the active write fails", () => {
     const activeDoc = active();
     const raw = JSON.stringify({ saved: saved(), active: activeDoc });
     localStorage.setItem("ogis_recordings_migrate-set-fails", raw);
 
-    const setItem = vi
-      .spyOn(sessionStorage, "setItem")
-      .mockImplementation(() => {
-        throw new Error("session storage unavailable");
-      });
+    const setItem = vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+      throw new Error("local storage unavailable");
+    });
 
     try {
       expect(migrateRecordingsSession("migrate-set-fails")).toBe(false);
@@ -426,7 +469,7 @@ describe("migrateRecordingsSession", () => {
       JSON.parse(localStorage.getItem("ogis_recordings_migrate-set-fails")),
     ).toEqual({ saved: saved(), active: activeDoc });
     expect(
-      sessionStorage.getItem("ogis_recording-active_migrate-set-fails"),
+      localStorage.getItem("ogis_recording-active_migrate-set-fails"),
     ).toBeNull();
   });
 
@@ -439,7 +482,7 @@ describe("migrateRecordingsSession", () => {
       raw,
     );
     expect(
-      sessionStorage.getItem("ogis_recording-active_migrate-saved-only"),
+      localStorage.getItem("ogis_recording-active_migrate-saved-only"),
     ).toBeNull();
   });
 
@@ -577,6 +620,7 @@ describe("locate hydrator", () => {
     permissionGranted: true,
     mode: null,
     lastFix: null,
+    ownerId: null,
     ...overrides,
   });
 
@@ -599,6 +643,33 @@ describe("locate hydrator", () => {
     const state = restored({ mode: "following", lastFix: validFix() });
 
     expect(hydrateLocate(state)).toEqual(state);
+  });
+
+  it("adds a null owner id to version 2 data", () => {
+    const result = hydrateLocate({
+      permissionGranted: true,
+      mode: "active",
+      lastFix: validFix(),
+    });
+
+    expect(result.ownerId).toBeNull();
+  });
+
+  it("keeps a non-empty owner id and drops an invalid one", () => {
+    const withOwner = restored({
+      mode: "following",
+      lastFix: validFix(),
+      ownerId: "tab-1",
+    });
+
+    expect(hydrateLocate(withOwner)).toEqual(withOwner);
+    expect(
+      hydrateLocate({
+        ...withOwner,
+        ownerId: "   ",
+      }).ownerId,
+    ).toBeNull();
+    expect(hydrateLocate({ ...withOwner, ownerId: 7 }).ownerId).toBeNull();
   });
 
   it("drops mode and fix from a legacy permission-only value", () => {
@@ -686,6 +757,7 @@ describe("navigation hydrator", () => {
       routeId: "route-1",
       visible: ["route-1", "route-2"],
       followOwned: true,
+      ownerId: "tab-1",
     };
 
     expect(hydrateNavigation(state)).toEqual(state);
@@ -696,11 +768,13 @@ describe("navigation hydrator", () => {
       routeId: null,
       visible: [],
       followOwned: false,
+      ownerId: null,
     });
     expect(hydrateNavigation({ visible: ["route-1"] })).toEqual({
       routeId: null,
       visible: ["route-1"],
       followOwned: false,
+      ownerId: null,
     });
     expect(
       hydrateNavigation({
@@ -712,6 +786,7 @@ describe("navigation hydrator", () => {
       routeId: "route-1",
       visible: ["route-2", "route-1"],
       followOwned: true,
+      ownerId: null,
     });
   });
 
@@ -744,7 +819,19 @@ describe("navigation hydrator", () => {
       routeId: "r1",
       visible: ["r2", "r1"],
       followOwned: false,
+      ownerId: null,
     });
+  });
+
+  it("keeps a non-empty owner id only alongside a route", () => {
+    expect(hydrateNavigation({ routeId: "r1", ownerId: "tab-1" }).ownerId).toBe(
+      "tab-1",
+    );
+    expect(hydrateNavigation({ routeId: "r1", ownerId: "  " }).ownerId).toBe(
+      null,
+    );
+    expect(hydrateNavigation({ routeId: "r1", ownerId: 7 }).ownerId).toBeNull();
+    expect(hydrateNavigation({ ownerId: "tab-1" }).ownerId).toBeNull();
   });
 
   it("drops followOwned without a route", () => {

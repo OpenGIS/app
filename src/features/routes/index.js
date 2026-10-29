@@ -19,7 +19,12 @@ import {
   trackFilename,
   trackMime,
 } from "@/utils/track/index.js";
-import { migrateLocalToSession } from "@/resilience/persistedState";
+import { migrateSessionToLocal } from "@/resilience/persistedState";
+import {
+  getSessionTabId,
+  isSessionOwnerAlive,
+  listenForSessionProbes,
+} from "@/resilience/sessionChannel";
 import { hydrateNavigation } from "@/resilience/hydrators/navigation.js";
 import { hydrateRoutes } from "@/resilience/hydrators/routes.js";
 import RoutesPanel from "./RoutesPanel.vue";
@@ -48,12 +53,17 @@ export const RoutesFeature = {
     }).state;
     assignTrackColors(routes);
 
-    migrateLocalToSession("navigation", instanceId);
+    migrateSessionToLocal("navigation", instanceId);
 
     const navigationStore = useStorage("navigation", {
-      version: 1,
-      storage: "session",
-      defaults: { routeId: null, visible: [], followOwned: false },
+      version: 2,
+      storage: "local",
+      defaults: {
+        routeId: null,
+        visible: [],
+        followOwned: false,
+        ownerId: null,
+      },
       hydrate: hydrateNavigation,
     });
     const navigation = navigationStore.state;
@@ -188,6 +198,7 @@ export const RoutesFeature = {
     const persistNavigation = () => {
       navigation.routeId = navigating.value ?? null;
       navigation.followOwned = navigating.value ? followOwned : false;
+      navigation.ownerId = navigating.value ? getSessionTabId() : null;
       flushNavigation();
     };
 
@@ -195,6 +206,7 @@ export const RoutesFeature = {
     const clearPersistedNavigation = () => {
       navigation.routeId = null;
       navigation.followOwned = false;
+      navigation.ownerId = null;
       flushNavigation();
     };
 
@@ -233,6 +245,11 @@ export const RoutesFeature = {
     if (restoredVisible.length !== storedVisible.length) persistVisibility();
 
     const stopNavigation = ({ stopFollow = true, handoff = false } = {}) => {
+      // A tab that only observed another tab's session must not clear it.
+      if (navigating.value === null && !followOwned) {
+        setMenuNavigation(null);
+        return;
+      }
       navigating.value = null;
       setMenuNavigation(null);
       if (
@@ -374,6 +391,22 @@ export const RoutesFeature = {
       if (!storedRouteId) return;
 
       try {
+        // Another live tab owns this navigation session. Leave it untouched so
+        // a secondary tab neither restores nor clears it.
+        const storedOwner = navigation.ownerId;
+        const tabId = getSessionTabId();
+        if (storedOwner && storedOwner !== tabId) {
+          const ownerAlive = await isSessionOwnerAlive(storedOwner, {
+            instanceId,
+          });
+          if (ownerAlive) return;
+          if (navigating.value || navigation.routeId !== storedRouteId) return;
+        }
+
+        // This tab now owns the durable navigation session.
+        navigation.ownerId = tabId;
+        flushNavigation();
+
         const route = routes.find((item) => item.id === storedRouteId);
         if (!route || !lineGeometry(route)) {
           clearPersistedNavigation();
@@ -465,9 +498,16 @@ export const RoutesFeature = {
       }
     });
 
+    const stopSessionProbes = listenForSessionProbes(instanceId, () => {
+      if (!navigation.routeId) return null;
+      const ownerId = navigation.ownerId;
+      return ownerId === getSessionTabId() ? ownerId : null;
+    });
+
     onCleanup(stopNavigationIndicator);
     onCleanup(stopLocateModeWatch);
     onCleanup(unbindMapBearing);
+    onCleanup(stopSessionProbes);
 
     // Non-blocking: the app mounts immediately and navigation resumes only if
     // the locate restore re-entered following.

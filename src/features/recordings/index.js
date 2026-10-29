@@ -22,6 +22,11 @@ import {
   hydrateRecordings,
   migrateRecordingsSession,
 } from "@/resilience/hydrators/recordings.js";
+import {
+  getSessionTabId,
+  isSessionOwnerAlive,
+  listenForSessionProbes,
+} from "@/resilience/sessionChannel";
 import RecordingsPanel from "./RecordingsPanel.vue";
 
 export { formatDuration, formatDistance };
@@ -67,9 +72,9 @@ export const RecordingsFeature = {
     const stored = recordingsStore.state;
 
     const activeStore = useStorage("recording-active", {
-      version: 1,
-      storage: "session",
-      defaults: { active: null },
+      version: 2,
+      storage: "local",
+      defaults: { active: null, ownerId: null },
       hydrate: hydrateRecordingActive,
     });
     const active = activeStore.state;
@@ -89,27 +94,23 @@ export const RecordingsFeature = {
     const state = reactive({
       isRecording: false,
       isPaused: false,
-      points: active.active?.segments?.[0]?.points ?? [],
-      startTime: active.active?.createdAt ?? null,
+      points: [],
+      startTime: null,
       saved: stored.saved,
     });
 
-    // A restored paused recording starts its clock at the last recorded point,
-    // so the panel reflects the elapsed capture rather than 0:00.
-    const lastRestoredPoint = state.points.at(-1);
-    const restoredElapsed =
-      Number.isFinite(lastRestoredPoint?.t) &&
-      Number.isFinite(active.active?.createdAt)
-        ? Math.max(0, lastRestoredPoint.t - active.active.createdAt)
-        : 0;
-
-    const elapsed = ref(restoredElapsed);
+    const elapsed = ref(0);
     const locationError = ref(null);
     const distance = computed(() => totalDistance(state.points));
     const visible = reactive(new Set());
 
     let watchId = null;
     let timerId = null;
+
+    // Guards the durable active store while a restore is in flight or while
+    // another tab owns the session.
+    let activeRestorePending = false;
+    let foreignActive = false;
 
     const geoJSON = useGeoJSON(instanceId);
 
@@ -147,7 +148,13 @@ export const RecordingsFeature = {
             }
           : null;
       stored.saved = state.saved;
+
+      // Do not overwrite a stored session that this tab has not restored.
+      if (activeRestorePending) return;
+      if (foreignActive && !state.isRecording && !state.isPaused) return;
+
       active.active = activeDoc;
+      active.ownerId = activeDoc ? getSessionTabId() : null;
     };
 
     const startGeo = () => {
@@ -219,6 +226,8 @@ export const RecordingsFeature = {
 
     const doStart = () => {
       locationError.value = null;
+      activeRestorePending = false;
+      foreignActive = false;
       state.isRecording = true;
       state.isPaused = false;
       if (!state.startTime) state.startTime = Date.now();
@@ -413,11 +422,55 @@ export const RecordingsFeature = {
       await shareFile(blob, filename, { title: name });
     };
 
-    // Crash recovery: restore paused line if the app was closed mid-recording.
-    if (active.active?.segments?.[0]?.points?.length >= 2) {
+    const elapsedFor = (doc) => {
+      const lastPoint = doc?.segments?.[0]?.points?.at(-1);
+      return Number.isFinite(lastPoint?.t) && Number.isFinite(doc?.createdAt)
+        ? Math.max(0, lastPoint.t - doc.createdAt)
+        : 0;
+    };
+
+    const loadPausedRecording = (doc) => {
+      state.points = doc.segments[0].points;
+      state.startTime = doc.createdAt;
       state.isPaused = true;
+      elapsed.value = elapsedFor(doc);
       updateLine();
-    }
+    };
+
+    // Crash recovery: restore a paused line if the app was closed mid-recording.
+    // A session owned by another live tab is left untouched.
+    const restoreStoredActive = async () => {
+      const storedActive = active.active;
+      const storedPoints = storedActive?.segments?.[0]?.points;
+      if (!Array.isArray(storedPoints) || storedPoints.length < 2) return;
+
+      const storedOwner = active.ownerId;
+      const tabId = getSessionTabId();
+
+      if (storedOwner && storedOwner !== tabId) {
+        activeRestorePending = true;
+        const ownerAlive = await isSessionOwnerAlive(storedOwner, {
+          instanceId,
+        });
+        activeRestorePending = false;
+        if (state.isRecording || state.isPaused) return;
+        if (ownerAlive) {
+          foreignActive = true;
+          return;
+        }
+      }
+
+      active.ownerId = tabId;
+      loadPausedRecording(storedActive);
+      activeStore.flush();
+    };
+
+    const stopSessionProbes = listenForSessionProbes(instanceId, () =>
+      state.isRecording || state.isPaused ? active.ownerId : null,
+    );
+    onCleanup(stopSessionProbes);
+
+    restoreStoredActive().catch(() => {});
 
     // Surface the recording state on the always-mounted menu chip (via useUI's
     // generic badge signal) so it shows even while the panel is closed.

@@ -914,16 +914,16 @@ const RESTORE_FIX = {
 // the restore microtask under load.
 const RESTORE_TIMEOUT = 30000;
 
-/** Seed the locate envelope into sessionStorage before the document boots. */
+/** Seed the locate envelope into localStorage before the document boots. */
 const withLocateState = (page, state) =>
   page.addInitScript((stored) => {
-    sessionStorage.setItem("ogis_locate_app", JSON.stringify(stored));
+    localStorage.setItem("ogis_locate_app", JSON.stringify(stored));
   }, state);
 
-/** Seed a legacy localStorage locate value so the boot migration moves it. */
+/** Seed a legacy sessionStorage locate value so the boot migration moves it. */
 const withLegacyLocateState = (page, state) =>
   page.addInitScript((stored) => {
-    localStorage.setItem("ogis_locate_app", JSON.stringify(stored));
+    sessionStorage.setItem("ogis_locate_app", JSON.stringify(stored));
   }, state);
 
 /** Read the live locate state through the page's own module graph. */
@@ -952,7 +952,7 @@ const readLocate = (page) =>
 /** Read the persisted locate envelope, unwrapping the versioned wrapper. */
 const readLocateStorage = async (page) =>
   readStoredState(
-    await page.evaluate(() => sessionStorage.getItem("ogis_locate_app")),
+    await page.evaluate(() => localStorage.getItem("ogis_locate_app")),
   );
 
 /** Read the active map modes through the page's own module graph. */
@@ -1002,7 +1002,7 @@ test.describe("Locate / Restore", () => {
     expect(options.timeout).toBeGreaterThan(0);
   });
 
-  test("migrates a legacy localStorage session into sessionStorage", async ({
+  test("migrates a legacy sessionStorage session into localStorage", async ({
     page,
   }) => {
     await installGeolocationMock(page);
@@ -1023,10 +1023,10 @@ test.describe("Locate / Restore", () => {
       .toBe("active");
 
     expect(
-      await page.evaluate(() => localStorage.getItem("ogis_locate_app")),
+      await page.evaluate(() => sessionStorage.getItem("ogis_locate_app")),
     ).toBeNull();
     expect(
-      await page.evaluate(() => sessionStorage.getItem("ogis_locate_app")),
+      await page.evaluate(() => localStorage.getItem("ogis_locate_app")),
     ).not.toBeNull();
 
     await expect
@@ -1323,10 +1323,119 @@ test.describe("Locate / Restore", () => {
         timeout: RESTORE_TIMEOUT,
       })
       .toBeNull();
-    expect(
-      await pageB.evaluate(() => sessionStorage.getItem("ogis_locate_app")),
-    ).toBeNull();
+
+    // The owner's durable session is untouched and still live.
+    expect((await readLocateStorage(pageA))?.mode).toBe("following");
+    await expect
+      .poll(async () => (await readLocate(pageA)).mode, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe("following");
 
     await pageB.close();
+  });
+
+  test("keeps the permission grant after an app quit", async ({
+    context,
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await context.grantPermissions(["geolocation"]);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // First-ever request shows the explainer; confirming grants permission.
+    await page.locator("#locate-button").click();
+    await expect(page.getByText("Trust")).toBeVisible();
+    await page.getByRole("button", { name: "I Understand" }).click();
+    await expect(page.locator("#locate-button")).toContainText("Located", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await expect
+      .poll(
+        async () => (await readLocateStorage(page))?.permissionGranted ?? false,
+        { timeout: RESTORE_TIMEOUT },
+      )
+      .toBe(true);
+
+    // A new page in the same context has fresh sessionStorage but shared
+    // localStorage, simulating an app quit and reopen.
+    await page.close();
+    const reopened = await context.newPage();
+    await reopened.goto("/");
+    await waitForMapReady(reopened);
+
+    await reopened.locator("#locate-button").click();
+    await expect(reopened.getByText("Trust")).toBeHidden();
+    await expect(reopened.locator("#locate-button")).toContainText("Located", {
+      timeout: LOCATE_TIMEOUT,
+    });
+  });
+
+  test("restores a following session from localStorage with a dead owner", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withLocateState(page, {
+      permissionGranted: true,
+      mode: "following",
+      lastFix: RESTORE_FIX,
+      ownerId: "dead-owner",
+    });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect
+      .poll(async () => (await readLocate(page)).mode, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe("following");
+    const stored = await readLocateStorage(page);
+    expect(stored.mode).toBe("following");
+    expect(stored.ownerId).not.toBe("dead-owner");
+  });
+
+  test("restores a following session after a same-tab reload", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await page.addInitScript(() => {
+      if (!localStorage.getItem("ogis_locate_app")) {
+        localStorage.setItem(
+          "ogis_locate_app",
+          JSON.stringify({ permissionGranted: true }),
+        );
+      }
+    });
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await page.locator("#locate-button").click();
+    await expect(page.locator("#locate-button")).toContainText("Located", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await emitFix(page, {
+      lat: RESTORE_FIX.lat,
+      lng: RESTORE_FIX.lng,
+    });
+    await expect
+      .poll(async () => (await readLocateStorage(page))?.lastFix ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .not.toBeNull();
+    await page.locator("#locate-button").click();
+    await expect(page.locator("#locate-button")).toContainText("Following", {
+      timeout: LOCATE_TIMEOUT,
+    });
+
+    await page.reload();
+    await waitForMapReady(page);
+
+    await expect(page.locator("#locate-button")).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
   });
 });

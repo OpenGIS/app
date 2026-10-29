@@ -8,10 +8,11 @@ const isPlainObject = (value) =>
  * falls back to defaults. The route id is trimmed and only kept when it is a
  * non-empty string; the visible list keeps trimmed, unique string ids in
  * first-seen order. A route that is being navigated is always added to the
- * visible list, and `followOwned` only survives alongside a route.
+ * visible list, and `followOwned` only survives alongside a route. The owner id
+ * is kept only as a non-empty string alongside a route.
  *
  * @param {*} data - Raw decoded state, at any stored version.
- * @returns {{ routeId: string|null, visible: string[], followOwned: boolean }}
+ * @returns {{ routeId: string|null, visible: string[], followOwned: boolean, ownerId: string|null }}
  */
 export function hydrateNavigation(data) {
   if (!isPlainObject(data)) {
@@ -39,9 +40,17 @@ export function hydrateNavigation(data) {
 
   if (routeId !== null && !seen.has(routeId)) visible.push(routeId);
 
+  const ownerId =
+    routeId !== null &&
+    typeof data.ownerId === "string" &&
+    data.ownerId.trim() !== ""
+      ? data.ownerId
+      : null;
+
   return {
     routeId,
     visible,
     followOwned: routeId !== null && data.followOwned === true,
+    ownerId,
   };
 }

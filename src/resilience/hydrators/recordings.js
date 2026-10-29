@@ -1,4 +1,5 @@
 import { createDebug } from "@/debug.js";
+import { migrateSessionToLocal } from "@/resilience/persistedState";
 import {
   documentPointCount,
   migrateActiveRecording,
@@ -50,10 +51,11 @@ export function hydrateRecordings(data) {
  * The top-level shape must be an object; anything else throws so the primitive
  * quarantines the value and falls back to defaults. A `null` or missing
  * `active` yields `null`. Otherwise the document is migrated and sanitised,
- * and kept only when it has at least two usable points.
+ * and kept only when it has at least two usable points. The owner id is kept
+ * only as a non-empty string alongside an active document.
  *
  * @param {*} data - Raw decoded state.
- * @returns {{ active: Object|null }}
+ * @returns {{ active: Object|null, ownerId: string|null }}
  */
 export function hydrateRecordingActive(data) {
   if (!isPlainObject(data)) {
@@ -68,7 +70,14 @@ export function hydrateRecordingActive(data) {
     if (doc && documentPointCount(doc) >= 2) active = doc;
   }
 
-  return { active };
+  const ownerId =
+    active !== null &&
+    typeof data.ownerId === "string" &&
+    data.ownerId.trim() !== ""
+      ? data.ownerId
+      : null;
+
+  return { active, ownerId };
 }
 
 const storageFor = (kind) => {
@@ -102,55 +111,59 @@ const writeRaw = (kind, key, value) => {
 };
 
 /**
- * One-time boot migration from the shared recordings store to the tab-owned
- * active-recording store.
+ * One-time boot migration into the durable active-recording store.
  *
- * Reads the legacy local `ogis_recordings_{instanceId}` value and, when it
- * carries an `active` property, moves a non-null active recording into
- * sessionStorage under `ogis_recording-active_{instanceId}` (unless that key
- * already exists) and rewrites the local value as saved-only. If the session
- * write fails, the local value is left untouched so a later boot can retry. A
- * value with no `active` property, malformed input or a non-object top level is
- * left untouched. Best-effort only; never throws.
+ * Moves a legacy session `ogis_recording-active_{instanceId}` value into
+ * localStorage, then moves a legacy local `ogis_recordings_{instanceId}`
+ * `active` document into the local active store. The saved store is rewritten
+ * as saved-only only after the active document has been written successfully,
+ * so a failed write leaves the local recordings value intact for a later boot.
+ * A value with no `active` property, malformed input or a non-object top level
+ * is left untouched. Best-effort only; never throws.
  *
  * @param {string} instanceId
- * @returns {boolean} true when the local value was rewritten.
+ * @returns {boolean} true when a value was moved or the saved store rewritten.
  */
 export function migrateRecordingsSession(instanceId) {
-  const localKey = `ogis_recordings_${instanceId}`;
-  const sessionKey = `ogis_recording-active_${instanceId}`;
+  const recordingsKey = `ogis_recordings_${instanceId}`;
+  const activeKey = `ogis_recording-active_${instanceId}`;
+
+  let migrated = migrateSessionToLocal("recording-active", instanceId);
 
   try {
-    const raw = readRaw("local", localKey);
-    if (raw === null) return false;
+    const raw = readRaw("local", recordingsKey);
+    if (raw === null) return migrated;
 
     let parsed;
     try {
       parsed = JSON.parse(raw);
     } catch {
-      return false;
+      return migrated;
     }
 
     const data =
       isPlainObject(parsed) && parsed.__ogisState === 1 ? parsed.data : parsed;
 
-    if (!isPlainObject(data)) return false;
-    if (!Object.hasOwn(data, "active")) return false;
+    if (!isPlainObject(data)) return migrated;
+    if (!Object.hasOwn(data, "active")) return migrated;
 
-    const needsMove = data.active !== null && data.active !== undefined;
-    if (needsMove && readRaw("session", sessionKey) === null) {
+    const activeDoc = data.active;
+    const needsMove = activeDoc !== null && activeDoc !== undefined;
+
+    if (needsMove && readRaw("local", activeKey) === null) {
       const written = writeRaw(
-        "session",
-        sessionKey,
-        JSON.stringify({ active: data.active }),
+        "local",
+        activeKey,
+        JSON.stringify({ active: activeDoc }),
       );
-      // Keep the local value intact when the move fails; a later boot retries.
-      if (!written) return false;
+      // Keep the local recordings value intact when the move fails.
+      if (!written) return migrated;
+      migrated = true;
     }
 
     writeRaw(
       "local",
-      localKey,
+      recordingsKey,
       JSON.stringify({
         saved: Array.isArray(data.saved) ? data.saved : [],
       }),
@@ -158,7 +171,7 @@ export function migrateRecordingsSession(instanceId) {
 
     return true;
   } catch (error) {
-    debug.warn("could not migrate recordings to session storage", error);
-    return false;
+    debug.warn("could not migrate recordings to local storage", error);
+    return migrated;
   }
 }

@@ -2,9 +2,14 @@ import { ref, computed, inject } from "vue";
 import maplibregl from "maplibre-gl";
 import { magvar } from "magvar";
 import {
-  migrateLocalToSession,
+  migrateSessionToLocal,
   usePersistedState,
 } from "@/resilience/persistedState";
+import {
+  getSessionTabId,
+  isSessionOwnerAlive,
+  listenForSessionProbes,
+} from "@/resilience/sessionChannel";
 import {
   canRestoreLocate,
   queryGeolocationPermission,
@@ -60,14 +65,19 @@ function smoothAngle(current, next, factor) {
  */
 const createLocate = (instanceId) => {
   if (!locateCache.has(instanceId)) {
-    migrateLocalToSession("locate", instanceId);
+    migrateSessionToLocal("locate", instanceId);
 
     const locateStore = usePersistedState(
       "locate",
       {
-        version: 2,
-        storage: "session",
-        defaults: { permissionGranted: false, mode: null, lastFix: null },
+        version: 3,
+        storage: "local",
+        defaults: {
+          permissionGranted: false,
+          mode: null,
+          lastFix: null,
+          ownerId: null,
+        },
         hydrate: hydrateLocate,
       },
       instanceId,
@@ -109,6 +119,7 @@ const createLocate = (instanceId) => {
       gotFix: false, // true once this session has accepted a fix
       restoreScheduled: false, // auto-restore is scheduled once per instance
       restoreComplete: null, // Promise resolved when the scheduled restore ends
+      stopSessionProbes: null, // idempotent liveness-probe listener stop
     });
   }
 
@@ -117,6 +128,16 @@ const createLocate = (instanceId) => {
   const { orientView } = useOrientView(instanceId);
   const followCamera = useFollowCamera(instanceId);
   const actions = useActions(instanceId);
+
+  // Answer liveness probes while this tab owns a live locate session, so a
+  // second tab never restores or clears this tab's durable session.
+  if (!c.stopSessionProbes) {
+    c.stopSessionProbes = listenForSessionProbes(instanceId, () =>
+      c.mode.value === "active" || c.mode.value === "following"
+        ? c.storage.ownerId
+        : null,
+    );
+  }
 
   // ─── Following ───────────────────────────────────────────────────────────
 
@@ -615,7 +636,12 @@ const createLocate = (instanceId) => {
     c.mode.value = mode;
     const persisted = mode === "active" || mode === "following" ? mode : null;
     c.storage.mode = persisted;
-    if (persisted === null) c.storage.lastFix = null;
+    if (persisted === null) {
+      c.storage.lastFix = null;
+      c.storage.ownerId = null;
+    } else {
+      c.storage.ownerId = getSessionTabId();
+    }
     c.flushStorage();
   };
 
@@ -623,6 +649,7 @@ const createLocate = (instanceId) => {
   const clearPersistedRestore = () => {
     c.storage.mode = null;
     c.storage.lastFix = null;
+    c.storage.ownerId = null;
     c.flushStorage();
   };
 
@@ -900,6 +927,7 @@ const createLocate = (instanceId) => {
     try {
       const storedMode = c.storage.mode;
       const storedFix = c.storage.lastFix;
+      const storedOwner = c.storage.ownerId;
 
       // A legacy value has no mode: leave it untouched, never normalise it.
       if (!storedMode) return;
@@ -911,6 +939,22 @@ const createLocate = (instanceId) => {
 
       // The user already acted in this document; do not overwrite them.
       if (c.mode.value !== null) return;
+
+      // Another live tab owns this session. Leave it untouched so the second
+      // tab neither restores it nor clears the owner's stored state.
+      const tabId = getSessionTabId();
+      if (storedOwner && storedOwner !== tabId) {
+        const ownerAlive = await isSessionOwnerAlive(storedOwner, {
+          instanceId,
+        });
+        if (c.disposed) return;
+        if (ownerAlive) return;
+        if (c.mode.value !== null) return;
+      }
+
+      // This tab now owns the durable session.
+      c.storage.ownerId = tabId;
+      c.flushStorage();
 
       const permissionState = await queryGeolocationPermission();
 
@@ -1016,6 +1060,9 @@ const createLocate = (instanceId) => {
     c.pendingCallback = null;
     c.showConfirmModal.value = false;
     c.showErrorModal.value = false;
+
+    c.stopSessionProbes?.();
+    c.stopSessionProbes = null;
 
     if (locateCache.get(instanceId) === c) locateCache.delete(instanceId);
   };

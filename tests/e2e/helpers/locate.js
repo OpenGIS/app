@@ -27,16 +27,16 @@ export const withNoLocateStorage = (page) =>
 /** Seed a stored locate grant so the confirmation modal is skipped. */
 export const withGrantedLocateStorage = (page) =>
   page.addInitScript(() => {
-    sessionStorage.setItem(
+    localStorage.setItem(
       "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
     );
   });
 
-/** Seed an arbitrary locate value into sessionStorage before boot. */
+/** Seed an arbitrary locate value into localStorage before boot. */
 export const withLocateSession = (page, value) =>
   page.addInitScript((stored) => {
-    sessionStorage.setItem("ogis_locate_app", JSON.stringify(stored));
+    localStorage.setItem("ogis_locate_app", JSON.stringify(stored));
   }, value);
 
 /**
