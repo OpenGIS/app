@@ -1,3 +1,15 @@
+# [3.19.0](https://github.com/OpenGIS/app/compare/v3.18.0...v3.19.0) (2026-10-29)
+
+
+### Bug Fixes
+
+* **resilience:** keep sessions durable across app quits ([b051a92](https://github.com/OpenGIS/app/commit/b051a92cc4eeecfd1d0188f1dc1612fcf6760a1e))
+
+
+### Features
+
+* **info:** pin privacy bar above attribution ([2a29bc7](https://github.com/OpenGIS/app/commit/2a29bc73a49d999292aabc865a7a4948cf4fa977))
+
 # [3.18.0](https://github.com/OpenGIS/app/compare/v3.17.0...v3.18.0) (2026-10-29)
 
 
