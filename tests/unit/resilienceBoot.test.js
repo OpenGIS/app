@@ -6,6 +6,7 @@ const createBaseContext = () => {
   const panels = [];
   const listeners = new Map();
   const mapReady = new Set();
+  const cleanups = [];
 
   const addTo = (array) => (config) => {
     array.push(config);
@@ -26,6 +27,20 @@ const createBaseContext = () => {
     return () => mapReady.delete(fn);
   };
 
+  const registerCleanup = (fn) => {
+    if (typeof fn !== "function") {
+      throw new TypeError("onCleanup() requires a function");
+    }
+    const entry = { fn, active: true };
+    cleanups.push(entry);
+    return () => {
+      if (!entry.active) return;
+      entry.active = false;
+      const index = cleanups.indexOf(entry);
+      if (index !== -1) cleanups.splice(index, 1);
+    };
+  };
+
   const ctx = {
     app: {},
     instanceId: "test",
@@ -43,9 +58,13 @@ const createBaseContext = () => {
     once: vi.fn(on),
     off: vi.fn(),
     onMapReady: vi.fn(registerMapReady),
+    onCleanup: vi.fn(registerCleanup),
   };
 
-  return { ctx, registries: { buttons, panels, listeners, mapReady } };
+  return {
+    ctx,
+    registries: { buttons, panels, listeners, mapReady, cleanups },
+  };
 };
 
 describe("installFeature", () => {
@@ -201,6 +220,142 @@ describe("installFeature", () => {
     expect(onError).toHaveBeenCalledWith(expect.any(TypeError), {
       source: "feature-install",
       feature: "bad",
+    });
+  });
+
+  it("keeps a successful install's cleanup registered without running it", () => {
+    const { ctx, registries } = createBaseContext();
+    const onError = vi.fn();
+    const cleanup = vi.fn();
+
+    const installed = installFeature(
+      "good",
+      {
+        install(context) {
+          context.onCleanup(cleanup);
+        },
+      },
+      ctx,
+      { onError },
+    );
+
+    expect(installed).toBe(true);
+    expect(onError).not.toHaveBeenCalled();
+    expect(registries.cleanups).toHaveLength(1);
+    expect(cleanup).not.toHaveBeenCalled();
+  });
+
+  it("registers a returned teardown without running it during install", () => {
+    const { ctx, registries } = createBaseContext();
+    const onError = vi.fn();
+    const teardown = vi.fn();
+
+    const installed = installFeature("good", { install: () => teardown }, ctx, {
+      onError,
+    });
+
+    expect(installed).toBe(true);
+    expect(onError).not.toHaveBeenCalled();
+    expect(teardown).not.toHaveBeenCalled();
+    expect(registries.cleanups).toHaveLength(1);
+    expect(registries.cleanups[0].fn).toBe(teardown);
+
+    for (const entry of [...registries.cleanups].reverse()) {
+      if (!entry.active) continue;
+      entry.active = false;
+      entry.fn();
+    }
+
+    expect(teardown).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a successful install when the base context has no onCleanup", () => {
+    const { ctx } = createBaseContext();
+    const teardown = vi.fn();
+    delete ctx.onCleanup;
+
+    const installed = installFeature("good", { install: () => teardown }, ctx);
+
+    expect(installed).toBe(true);
+    expect(teardown).not.toHaveBeenCalled();
+  });
+
+  it("runs failed install's cleanups in reverse order and removes them", () => {
+    const { ctx, registries } = createBaseContext();
+    const onError = vi.fn();
+    const order = [];
+
+    const installed = installFeature(
+      "broken",
+      {
+        install(context) {
+          context.onCleanup(() => order.push("first"));
+          context.onCleanup(() => order.push("second"));
+          throw new Error("install boom");
+        },
+      },
+      ctx,
+      { onError },
+    );
+
+    expect(installed).toBe(false);
+    expect(order).toEqual(["second", "first"]);
+    expect(registries.cleanups).toHaveLength(0);
+  });
+
+  it("reports a throwing cleanup and still runs the remaining cleanups", () => {
+    const { ctx, registries } = createBaseContext();
+    const onError = vi.fn();
+    const remaining = vi.fn();
+
+    const installed = installFeature(
+      "broken",
+      {
+        install(context) {
+          context.onCleanup(remaining);
+          context.onCleanup(() => {
+            throw new Error("cleanup boom");
+          });
+          throw new Error("install boom");
+        },
+      },
+      ctx,
+      { onError },
+    );
+
+    expect(installed).toBe(false);
+    expect(remaining).toHaveBeenCalledOnce();
+    expect(registries.cleanups).toHaveLength(0);
+    expect(onError).toHaveBeenNthCalledWith(1, expect.any(Error), {
+      source: "feature-install-dispose",
+      feature: "broken",
+    });
+    expect(onError).toHaveBeenNthCalledWith(2, expect.any(Error), {
+      source: "feature-install",
+      feature: "broken",
+    });
+  });
+
+  it("treats an invalid onCleanup argument as an install failure", () => {
+    const { ctx, registries } = createBaseContext();
+    const onError = vi.fn();
+
+    const installed = installFeature(
+      "bad-cleanup",
+      {
+        install(context) {
+          context.onCleanup("not a function");
+        },
+      },
+      ctx,
+      { onError },
+    );
+
+    expect(installed).toBe(false);
+    expect(registries.cleanups).toHaveLength(0);
+    expect(onError).toHaveBeenCalledWith(expect.any(TypeError), {
+      source: "feature-install",
+      feature: "bad-cleanup",
     });
   });
 });

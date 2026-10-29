@@ -47,43 +47,85 @@ describe("shareFile", () => {
   it("shares a File when the Web Share API supports it", async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     stubShare(share, () => true);
+    const report = vi.fn();
 
-    await shareFile(blob(), "route.gpx", { title: "Route" });
+    const result = await shareFile(blob(), "route.gpx", {
+      title: "Route",
+      report,
+    });
 
+    expect(result).toBe(true);
     expect(share).toHaveBeenCalledTimes(1);
     const payload = share.mock.calls[0][0];
     expect(payload.title).toBe("Route");
     expect(payload.files[0].name).toBe("route.gpx");
     expect(createSpy).not.toHaveBeenCalled();
+    expect(report).not.toHaveBeenCalled();
   });
 
-  it("returns silently when the share sheet is aborted", async () => {
+  it("returns false and reports nothing when the share sheet is aborted", async () => {
     const abort = new Error("cancelled");
     abort.name = "AbortError";
     stubShare(vi.fn().mockRejectedValue(abort), () => true);
+    const report = vi.fn();
 
-    await shareFile(blob(), "route.gpx");
+    const result = await shareFile(blob(), "route.gpx", { report });
 
+    expect(result).toBe(false);
     expect(createSpy).not.toHaveBeenCalled();
+    expect(report).not.toHaveBeenCalled();
   });
 
-  it("falls back to a download when sharing fails", async () => {
-    stubShare(vi.fn().mockRejectedValue(new Error("failed")), () => true);
+  it("reports a non-abort share failure then falls back to a download", async () => {
+    const error = new Error("failed");
+    stubShare(vi.fn().mockRejectedValue(error), () => true);
+    const report = vi.fn();
 
-    await shareFile(blob(), "route.gpx");
+    const result = await shareFile(blob(), "route.gpx", { report });
 
+    expect(result).toBe(true);
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report).toHaveBeenCalledWith(error, {
+      source: "share",
+      phase: "web-share",
+    });
     expect(createSpy).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
   });
 
   it("downloads through an anchor when the Web Share API is absent", async () => {
     vi.useFakeTimers();
+    const report = vi.fn();
 
-    await shareFile(blob(), "route.geojson");
+    const result = await shareFile(blob(), "route.geojson", { report });
 
+    expect(result).toBe(true);
+    expect(report).not.toHaveBeenCalled();
     expect(createSpy).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
     expect(revokeSpy).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1000);
+
+    expect(revokeSpy).toHaveBeenCalledWith("blob:test");
+  });
+
+  it("reports a throwing anchor click and returns false", async () => {
+    vi.useFakeTimers();
+    const error = new Error("click boom");
+    click.mockImplementationOnce(() => {
+      throw error;
+    });
+    const report = vi.fn();
+
+    const result = await shareFile(blob(), "route.gpx", { report });
+
+    expect(result).toBe(false);
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report).toHaveBeenCalledWith(error, {
+      source: "share",
+      phase: "download",
+    });
 
     vi.advanceTimersByTime(1000);
 

@@ -30,8 +30,13 @@ const disposeAll = (disposers, name, report) => {
  *
  * Registrations made through the wrapped context are tracked. If install
  * throws, they are rolled back in reverse order before the error is reported,
- * so a broken feature cannot leave partial UI or listeners behind. `provide`
- * cannot be rolled back — Vue has no unprovide — which is accepted here.
+ * so a broken feature cannot leave partial UI, listeners or feature-owned
+ * cleanups behind. A successful install leaves `onCleanup` registrations with
+ * `main.js`, where they run on app destroy. A teardown function returned by a
+ * successful install is registered through the wrapped `onCleanup` for the
+ * same reason, so it joins the feature cleanup registry and runs on destroy
+ * rather than immediately. `provide` cannot be rolled back — Vue has no
+ * unprovide — which is accepted here.
  *
  * @param {string} name - Stable feature name for reporting.
  * @param {{install: Function}} feature - Feature object.
@@ -84,10 +89,48 @@ export const installFeature = (
       trackDisposer(disposers, result);
       return result;
     },
+    onCleanup: (fn) => {
+      const remove = baseContext.onCleanup?.(fn);
+      if (typeof remove !== "function") return remove;
+
+      let active = true;
+
+      // Roll back the side effect and then unregister it from the base
+      // registry, even when the cleanup itself throws.
+      disposers.push(() => {
+        if (!active) return;
+        active = false;
+        try {
+          fn();
+        } finally {
+          remove();
+        }
+      });
+
+      // An explicit removal cancels the rollback without running the cleanup.
+      return () => {
+        if (!active) return;
+        active = false;
+        remove();
+      };
+    },
   };
 
   try {
-    feature.install(context);
+    const result = feature.install(context);
+
+    // Register a returned teardown through the wrapped `onCleanup`, not the
+    // base context directly, so it shares the rollback tracking and lifecycle
+    // of every other feature-owned cleanup. Without a base `onCleanup` (minimal
+    // test contexts) there is nowhere to register it; the install still
+    // succeeds and the teardown is simply not owned by the app.
+    if (
+      typeof result === "function" &&
+      typeof baseContext.onCleanup === "function"
+    ) {
+      context.onCleanup(result);
+    }
+
     return true;
   } catch (error) {
     disposeAll(disposers, name, onError);

@@ -50,7 +50,7 @@ test.afterEach(({ page }) => expectNoConsoleErrors(page));
 const seedStorage = (page) =>
   page.addInitScript(
     ({ center }) => {
-      localStorage.setItem(
+      sessionStorage.setItem(
         "ogis_locate_app",
         JSON.stringify({ permissionGranted: true }),
       );

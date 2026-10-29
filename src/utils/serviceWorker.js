@@ -1,4 +1,5 @@
 import { createDebug } from "@/debug.js";
+import { reportError } from "@/resilience/errors.js";
 
 const debug = createDebug("service-worker");
 
@@ -21,12 +22,14 @@ const debug = createDebug("service-worker");
  * @param {ImportMetaEnv} [options.env] - Build env, defaults to import.meta.env
  * @param {Navigator} [options.nav] - Navigator, defaults to globalThis.navigator
  * @param {CacheStorage} [options.cacheStorage] - Cache storage, defaults to globalThis.caches
+ * @param {Function} [options.report] - Reporter, defaults to reportError
  * @returns {Promise<{registered: boolean, cleanedRegistrations: number, cleanedCaches: number}>}
  */
 export const setupServiceWorker = async ({
   env = import.meta.env,
   nav = globalThis.navigator,
   cacheStorage = globalThis.caches,
+  report = reportError,
 } = {}) => {
   const summary = {
     registered: false,
@@ -43,7 +46,7 @@ export const setupServiceWorker = async ({
       await nav.serviceWorker.register("/sw.js");
       summary.registered = true;
     } catch (error) {
-      console.error("Service worker registration failed:", error);
+      report(error, { source: "service-worker", phase: "register" });
     }
     return summary;
   }

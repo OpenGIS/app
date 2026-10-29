@@ -1,7 +1,14 @@
 import { ref, computed, inject } from "vue";
 import maplibregl from "maplibre-gl";
 import { magvar } from "magvar";
-import { usePersistedState } from "@/resilience/persistedState";
+import {
+  migrateLocalToSession,
+  usePersistedState,
+} from "@/resilience/persistedState";
+import {
+  canRestoreLocate,
+  queryGeolocationPermission,
+} from "@/resilience/locateRestore";
 import { hydrateLocate } from "@/resilience/hydrators/locate";
 import { getMapInstance } from "@/composables/useMap";
 import { useOrientView } from "@/composables/useOrientView";
@@ -44,27 +51,31 @@ function smoothAngle(current, next, factor) {
 }
 
 /**
- * Composable for the Locate feature.
+ * Creates the Locate state and public API for one instance.
  *
  * Manages GPS tracking state, map markers, and the permission flow.
  * State is cached per app instance and shared across all callers.
  *
- * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, restoreComplete: Promise<void>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function }}
+ * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, restoreComplete: Promise<void>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function, dispose: Function }}
  */
-export const useLocate = (explicitInstanceId) => {
-  const instanceId = explicitInstanceId ?? inject("ogisAppId", "app");
-
+const createLocate = (instanceId) => {
   if (!locateCache.has(instanceId)) {
+    migrateLocalToSession("locate", instanceId);
+
+    const locateStore = usePersistedState(
+      "locate",
+      {
+        version: 2,
+        storage: "session",
+        defaults: { permissionGranted: false, mode: null, lastFix: null },
+        hydrate: hydrateLocate,
+      },
+      instanceId,
+    );
+
     locateCache.set(instanceId, {
-      storage: usePersistedState(
-        "locate",
-        {
-          version: 2,
-          defaults: { permissionGranted: false, mode: null, lastFix: null },
-          hydrate: hydrateLocate,
-        },
-        instanceId,
-      ).state,
+      storage: locateStore.state,
+      flushStorage: locateStore.flush,
       mode: ref(null), // null | 'active' | 'following' | 'error'
       position: ref(null), // Position | null
       compassHeading: ref(null), // smoothed DeviceOrientation compass bearing
@@ -92,7 +103,10 @@ export const useLocate = (explicitInstanceId) => {
       retryTimerId: null, // interval handle for the post-move marker re-sync
       retryDeadline: 0, // epoch ms when the retry loop gives up (0 = inactive)
       followModeRegistered: false, // the follow mode is registered once per instance
+      unregisterFollow: null, // removes the follow mode (terminal teardown only)
+      disposed: false, // true once dispose() has run
       restoring: false, // true until a restore succeeds, fails or the user acts
+      gotFix: false, // true once this session has accepted a fix
       restoreScheduled: false, // auto-restore is scheduled once per instance
       restoreComplete: null, // Promise resolved when the scheduled restore ends
     });
@@ -462,14 +476,19 @@ export const useLocate = (explicitInstanceId) => {
    *   callbacks from a stopped/superseded session are ignored.
    */
   const onPosition = (geoPos, gen) => {
+    if (c.disposed) return;
     if (gen !== c.generation) return;
     // Ignore fixes that arrive after the user has stopped tracking.
     if (c.mode.value === null || c.mode.value === "error") return;
 
+    const firstFix = !c.gotFix;
+    const permissionChanged = !c.storage.permissionGranted;
+    c.gotFix = true;
+
     // The first accepted fix completes a silent restore.
     c.restoring = false;
 
-    if (!c.storage.permissionGranted) {
+    if (permissionChanged) {
       c.storage.permissionGranted = true;
     }
 
@@ -499,6 +518,10 @@ export const useLocate = (explicitInstanceId) => {
       heading: persistedHeading,
       at: Date.now(),
     };
+
+    // Critical transitions write now: the first restorable fix of a session and
+    // a permission grant. Routine fixes stay on the debounced write path.
+    if (firstFix || permissionChanged) c.flushStorage();
 
     applyOrientFlight();
     syncMarkers();
@@ -550,6 +573,9 @@ export const useLocate = (explicitInstanceId) => {
    */
   const onError = (err, gen) => {
     if (gen !== c.generation) return;
+    // A timeout after a fix is transient: the watch is still usable, so keep
+    // the session, camera and persisted state intact.
+    if (err.code === 3 && c.gotFix) return;
     c.generation++; // bump so any other in-flight callback is discarded
     clearOrientRetry();
     c.needsInitialOrient = false;
@@ -590,12 +616,14 @@ export const useLocate = (explicitInstanceId) => {
     const persisted = mode === "active" || mode === "following" ? mode : null;
     c.storage.mode = persisted;
     if (persisted === null) c.storage.lastFix = null;
+    c.flushStorage();
   };
 
   /** Drop the persisted restore state without touching in-memory tracking. */
   const clearPersistedRestore = () => {
     c.storage.mode = null;
     c.storage.lastFix = null;
+    c.flushStorage();
   };
 
   /** Abandon a restore silently: no mode, no position and no stored session. */
@@ -614,6 +642,7 @@ export const useLocate = (explicitInstanceId) => {
    * @param {{ restore?: boolean }} [options]
    */
   const startWatching = async ({ restore = false } = {}) => {
+    if (c.disposed) return;
     if (!("geolocation" in navigator)) {
       if (restore) {
         clearRestoredState();
@@ -623,6 +652,7 @@ export const useLocate = (explicitInstanceId) => {
       return;
     }
     const gen = ++c.generation;
+    c.gotFix = false;
     setMode("active");
     c.needsInitialOrient = true;
     resetDerivation();
@@ -774,6 +804,7 @@ export const useLocate = (explicitInstanceId) => {
   /** Called when the user confirms they understand the permission request. */
   const confirmLocate = () => {
     c.storage.permissionGranted = true;
+    c.flushStorage();
     c.showConfirmModal.value = false;
     const cb = c.pendingCallback;
     c.pendingCallback = null;
@@ -815,11 +846,11 @@ export const useLocate = (explicitInstanceId) => {
     followCamera.stop({ persist });
   };
 
-  // The follow mode owns the camera while following. Registered once; the
-  // locate cache lives for the app lifetime, so it is never unregistered.
+  // The follow mode owns the camera while following. Registered once and kept
+  // for the app lifetime; dispose() is the only path that unregisters it.
   if (!c.followModeRegistered) {
     c.followModeRegistered = true;
-    actions.registerMode("follow", {
+    c.unregisterFollow = actions.registerMode("follow", {
       active: computed(() => c.mode.value === "following"),
       stop: ({ handoff = false } = {}) => endFollowing({ persist: !handoff }),
     });
@@ -855,11 +886,15 @@ export const useLocate = (explicitInstanceId) => {
   /**
    * Restore a persisted locate session exactly once per instance.
    *
-   * Restoration never prompts: it only proceeds when both a stored restorable
-   * mode/fix and an OS-level `granted` permission agree. Everything is silent
-   * on failure so a crash cannot surface an error modal on boot.
+   * Restoration never opens the app's permission explainer or blocks mount:
+   * it proceeds only when a stored restorable mode/fix and the OS permission
+   * agree. Apple WebKit may report `prompt` after a grant, so there a fix no
+   * older than 24 hours also qualifies; WebKit may still show its own native
+   * prompt if the grant has lapsed. Everything is silent on failure so a
+   * crash cannot surface an error modal on boot.
    */
   const restorePersistedSession = async () => {
+    if (c.disposed) return;
     let restoreStarted = false;
 
     try {
@@ -877,20 +912,17 @@ export const useLocate = (explicitInstanceId) => {
       // The user already acted in this document; do not overwrite them.
       if (c.mode.value !== null) return;
 
-      let permissionState = null;
-      try {
-        const status = await navigator.permissions?.query({
-          name: "geolocation",
-        });
-        permissionState = status?.state ?? null;
-      } catch {
-        permissionState = null;
-      }
+      const permissionState = await queryGeolocationPermission();
+
+      // dispose() may have run while the permission query was pending.
+      if (c.disposed) return;
 
       // The user may have acted while the permission query was pending.
       if (c.mode.value !== null) return;
 
-      if (permissionState !== "granted") {
+      // Strict on engines that report permission accurately. Apple WebKit can
+      // report `prompt` after a grant, so a recent fix may still restore there.
+      if (!canRestoreLocate({ permissionState, fixAt: storedFix.at })) {
         clearPersistedRestore();
         return;
       }
@@ -936,7 +968,57 @@ export const useLocate = (explicitInstanceId) => {
           .finally(() => resolve());
       });
     });
+
+    // E2E-only: expose the app instance's own restore promise so a test never
+    // observes a duplicate module instance with a different promise.
+    if (
+      import.meta.env.VITE_E2E_FIXTURES === "1" &&
+      instanceId === "app" &&
+      typeof window !== "undefined"
+    ) {
+      window.__ogisLocateRestoreComplete = c.restoreComplete;
+    }
   }
+
+  /**
+   * Terminal teardown for one instance.
+   *
+   * Stops the geolocation watcher, orientation listening, marker sync and the
+   * follow camera without writing persisted state, clears transient flags and
+   * drops the cached state only when it is still this instance's state. Shared
+   * by recordings and routes, so a single feature must not call it.
+   * Idempotent.
+   */
+  const dispose = () => {
+    if (c.disposed) return;
+    c.disposed = true;
+
+    c.restoring = false;
+    c.generation++;
+
+    if (typeof c.unregisterFollow === "function") c.unregisterFollow();
+    c.unregisterFollow = null;
+    c.followModeRegistered = false;
+
+    followCamera.stop({ persist: false });
+    clearOrientRetry();
+    c.needsInitialOrient = false;
+    resetDerivation();
+    stopWatcher();
+    stopOrientationWatching();
+    removeMarkers();
+
+    clearTimeout(c.headingTimeoutId);
+    c.headingTimeoutId = null;
+    c.smoothedHeading = null;
+    c.compassHeading.value = null;
+    c.headingLost.value = false;
+    c.pendingCallback = null;
+    c.showConfirmModal.value = false;
+    c.showErrorModal.value = false;
+
+    if (locateCache.get(instanceId) === c) locateCache.delete(instanceId);
+  };
 
   return {
     mode: computed(() => c.mode.value),
@@ -955,5 +1037,27 @@ export const useLocate = (explicitInstanceId) => {
     endFollowing,
     retryOrientation,
     retryPosition,
+    dispose,
   };
+};
+
+/**
+ * Composable for the Locate feature.
+ *
+ * Resolves the instance and builds the public API around the shared per-instance
+ * state. Creation is fail-safe: a throw removes any partial cache entry before
+ * it is rethrown, so the next call starts clean.
+ *
+ * @param {string} [explicitInstanceId]
+ * @returns {ReturnType<typeof createLocate>}
+ */
+export const useLocate = (explicitInstanceId) => {
+  const instanceId = explicitInstanceId ?? inject("ogisAppId", "app");
+
+  try {
+    return createLocate(instanceId);
+  } catch (error) {
+    locateCache.delete(instanceId);
+    throw error;
+  }
 };

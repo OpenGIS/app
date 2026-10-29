@@ -12,6 +12,7 @@ const { t, locale, formatLocale } = useLocale();
 const {
   state,
   elapsed,
+  locationError,
   distance,
   start,
   pause,
@@ -25,6 +26,19 @@ const {
 } = inject("recordings");
 
 const isActive = computed(() => state.isRecording || state.isPaused);
+
+const locationErrorText = computed(() => {
+  switch (locationError.value) {
+    case "denied":
+      return t("panel.recordings.locationDenied");
+    case "timeout":
+      return t("panel.recordings.locationTimeout");
+    case "unavailable":
+      return t("panel.recordings.locationUnavailable");
+    default:
+      return "";
+  }
+});
 
 const sortedRecordings = computed(() =>
   [...state.saved].sort(
@@ -48,6 +62,10 @@ const confirmDelete = (recording) => {
 
 <template>
   <div class="p-3">
+    <p v-if="locationError" class="text-danger small" role="alert">
+      {{ locationErrorText }}
+    </p>
+
     <!-- Active recording -->
     <template v-if="isActive">
       <h6 class="text-body-secondary mb-3">

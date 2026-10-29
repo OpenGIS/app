@@ -22,6 +22,10 @@ const GLYPH_RANGE_STEP = 256;
 const GLYPH_FIRST_RANGE = 0;
 const GLYPH_LAST_RANGE = 65280;
 
+// Upper bound for a single tile or glyph request, so a stalled connection
+// cannot hang the download (and the panel) indefinitely.
+const FETCH_TIMEOUT_MS = 15000;
+
 /** Estimate bytes for a single tile of the given source type. */
 export function averageBytesForType(type) {
   return AVERAGE_BYTES[type] ?? 60 * 1024;
@@ -105,28 +109,53 @@ export function glyphUrlsForTemplate(glyphTemplate, fontstacks) {
 
 /**
  * Fetch a list of URLs with a bounded concurrency, reporting progress as each
- * resolves. Only successful (ok) responses are counted.
+ * resolves. A URL succeeds only when the response is ok and its body drains
+ * fully. Each request is bounded by its own timeout, and the caller's signal
+ * cancels the whole download.
  *
  * @param {Array<string>} urls
  * @param {(done: number, total: number) => void} onProgress
  * @param {AbortSignal} [signal]
- * @returns {Promise<number>} Count of successful fetches
+ * @param {{ timeoutMs?: number }} [options]
+ * @returns {Promise<{ succeededUrls: Set<string>, failed: number, total: number }>}
  */
-export async function fetchAll(urls, onProgress = () => {}, signal) {
+export async function fetchAll(
+  urls,
+  onProgress = () => {},
+  signal,
+  { timeoutMs = FETCH_TIMEOUT_MS } = {},
+) {
   let done = 0;
-  let succeeded = 0;
+  let failed = 0;
   const total = urls.length;
+  const succeededUrls = new Set();
 
   const worker = async (url) => {
+    const controller = new AbortController();
+    const onParentAbort = () => controller.abort();
+
+    if (signal?.aborted) controller.abort();
+    else signal?.addEventListener("abort", onParentAbort, { once: true });
+
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-      const response = await fetch(url, { signal });
-      if (response.ok) succeeded++;
-      // Drain the body so the response can be cached fully and connections reused.
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) {
+        failed++;
+        return;
+      }
+      // Drain the body so the response is cached fully and the connection reused.
       await response.arrayBuffer();
+      succeededUrls.add(url);
     } catch (err) {
-      if (err.name === "AbortError") throw err;
-      // Ignore per-URL failures — do not abort the whole download.
+      // A caller abort stops the whole download; a timeout or network/body
+      // failure only fails this URL and the remaining ones continue.
+      if (signal?.aborted) throw err;
+      failed++;
     } finally {
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", onParentAbort);
       done++;
       onProgress(done, total);
     }
@@ -140,7 +169,7 @@ export async function fetchAll(urls, onProgress = () => {}, signal) {
   }
   await Promise.all(workers);
 
-  return succeeded;
+  return { succeededUrls, failed, total };
 }
 
 async function runWorker(queue, worker) {
@@ -246,7 +275,13 @@ export async function regionUrlsForRegion({
  * @param {(done: number, total: number) => void} [params.onProgress]
  * @param {AbortSignal} [params.signal]
  * @param {() => import('maplibre-gl').Map | null} params.getMap
- * @returns {Promise<{ tileCount: number, glyphCount: number, totalCount: number }>}
+ * @returns {Promise<{
+ *   tileCount: number,
+ *   glyphCount: number,
+ *   totalCount: number,
+ *   requestedCount: number,
+ *   failedCount: number
+ * }>}
  */
 export async function downloadRegion({
   bounds,
@@ -263,11 +298,24 @@ export async function downloadRegion({
     getMap,
   });
 
-  await fetchAll(allUrls, onProgress, signal);
+  const { succeededUrls, failed } = await fetchAll(allUrls, onProgress, signal);
+
+  const tileCount = tileUrls.filter((url) => succeededUrls.has(url)).length;
+  const glyphCount = glyphUrls.filter((url) => succeededUrls.has(url)).length;
+
+  // A region with no usable map tiles is not worth saving, even if some glyphs
+  // downloaded successfully.
+  if (tileCount === 0) {
+    const error = new Error("No map tiles were downloaded");
+    error.code = "download-empty";
+    throw error;
+  }
 
   return {
-    tileCount: tileUrls.length,
-    glyphCount: glyphUrls.length,
-    totalCount: allUrls.length,
+    tileCount,
+    glyphCount,
+    totalCount: tileCount + glyphCount,
+    requestedCount: allUrls.length,
+    failedCount: failed,
   };
 }

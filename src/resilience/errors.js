@@ -178,11 +178,19 @@ export const installGlobalErrorHandlers = (
 export const installVueErrorHandler = (app, { report = reportError } = {}) => {
   try {
     if (!app?.config) return;
-    app.config.errorHandler = (error, _instance, info) => {
+    app.config.errorHandler = (error, instance, info) => {
       try {
         report(error, { source: "vue", info });
       } catch {
         // A reporter must not throw inside Vue's error path.
+      }
+
+      try {
+        const isRoot =
+          !instance || instance.$root === instance || instance.parent === null;
+        if (isRoot) window.__ogisBoot?.fail?.(error);
+      } catch {
+        // The root check and the boot signal must not escape.
       }
     };
   } catch {

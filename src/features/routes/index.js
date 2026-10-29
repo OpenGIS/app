@@ -19,6 +19,7 @@ import {
   trackFilename,
   trackMime,
 } from "@/utils/track/index.js";
+import { migrateLocalToSession } from "@/resilience/persistedState";
 import { hydrateNavigation } from "@/resilience/hydrators/navigation.js";
 import { hydrateRoutes } from "@/resilience/hydrators/routes.js";
 import RoutesPanel from "./RoutesPanel.vue";
@@ -35,20 +36,28 @@ export const RoutesFeature = {
     instanceId,
     provide,
     addPanel,
+    onCleanup,
     useLocale,
   }) {
     const routes = useStorage("routes", {
       version: 1,
       defaults: [],
       hydrate: hydrateRoutes,
+      crossTab: true,
+      onSync: () => reconcileRoutes(),
     }).state;
     assignTrackColors(routes);
 
-    const navigation = useStorage("navigation", {
+    migrateLocalToSession("navigation", instanceId);
+
+    const navigationStore = useStorage("navigation", {
       version: 1,
+      storage: "session",
       defaults: { routeId: null, visible: [], followOwned: false },
       hydrate: hydrateNavigation,
-    }).state;
+    });
+    const navigation = navigationStore.state;
+    const flushNavigation = navigationStore.flush;
 
     const navigating = ref(null);
     const error = ref(null);
@@ -108,7 +117,28 @@ export const RoutesFeature = {
       onMapReady(({ map }) => bindMapBearing(map));
     }
 
+    // Feature ids rendered for each visible route, so a re-render or removal
+    // can clean up exactly the waypoints that were drawn.
+    const renderedWaypoints = new Map();
+
+    const removeRouteFeatures = (routeOrId) => {
+      const id =
+        typeof routeOrId === "object" && routeOrId !== null
+          ? routeOrId.id
+          : routeOrId;
+      if (id === null || id === undefined) return;
+
+      geoJSON.removeFeature(lineFeatureId(id));
+      for (const featureId of renderedWaypoints.get(id) ?? []) {
+        geoJSON.removeFeature(featureId);
+      }
+      renderedWaypoints.delete(id);
+    };
+
     const renderRoute = (route) => {
+      removeRouteFeatures(route);
+
+      const waypointIds = [];
       const geometry = lineGeometry(route);
       if (geometry) {
         geoJSON.setFeature({
@@ -129,9 +159,11 @@ export const RoutesFeature = {
         if (!point) return;
         const coordinates = [point.lng, point.lat];
         if (point.ele !== undefined) coordinates.push(point.ele);
+        const featureId = waypointFeatureId(route.id, index);
+        waypointIds.push(featureId);
         geoJSON.setFeature({
           type: "Feature",
-          id: waypointFeatureId(route.id, index),
+          id: featureId,
           geometry: { type: "Point", coordinates },
           properties: {
             "ogis.color": route.color,
@@ -140,14 +172,8 @@ export const RoutesFeature = {
         });
       });
 
+      renderedWaypoints.set(route.id, waypointIds);
       return geometry;
-    };
-
-    const removeRouteFeatures = (route) => {
-      geoJSON.removeFeature(lineFeatureId(route.id));
-      (route.waypoints ?? []).forEach((waypoint, index) => {
-        geoJSON.removeFeature(waypointFeatureId(route.id, index));
-      });
     };
 
     const isVisible = (id) => visible.has(id);
@@ -155,18 +181,21 @@ export const RoutesFeature = {
     /** Mirror the current visible set into the navigation store. */
     const persistVisibility = () => {
       navigation.visible = [...visible];
+      flushNavigation();
     };
 
     /** Mirror the current navigation owner into the navigation store. */
     const persistNavigation = () => {
       navigation.routeId = navigating.value ?? null;
       navigation.followOwned = navigating.value ? followOwned : false;
+      flushNavigation();
     };
 
     /** Clear persisted navigation without touching route visibility. */
     const clearPersistedNavigation = () => {
       navigation.routeId = null;
       navigation.followOwned = false;
+      flushNavigation();
     };
 
     const showOnMap = (
@@ -244,6 +273,41 @@ export const RoutesFeature = {
       persistVisibility();
     };
 
+    /**
+     * Reconcile map and navigation state after another tab replaced the route
+     * store. Visibility is last-writer-wins: a route that disappeared is
+     * hidden, and a visible route whose document changed is re-rendered.
+     */
+    const reconcileRoutes = () => {
+      if (!Array.isArray(routes)) return;
+
+      assignTrackColors(routes);
+      const ids = new Set(routes.map((route) => route.id));
+      let visibilityChanged = false;
+
+      for (const id of [...visible]) {
+        const route = ids.has(id)
+          ? routes.find((item) => item.id === id)
+          : null;
+        if (!route) {
+          removeRouteFeatures(id);
+          visible.delete(id);
+          visibilityChanged = true;
+          continue;
+        }
+
+        if (!renderRoute(route)) {
+          removeRouteFeatures(route);
+          visible.delete(id);
+          visibilityChanged = true;
+          if (navigating.value === id) stopNavigation();
+        }
+      }
+
+      if (visibilityChanged) persistVisibility();
+      if (navigating.value && !ids.has(navigating.value)) stopNavigation();
+    };
+
     const importTracks = async (files) => {
       const imported = [];
       let failure = null;
@@ -300,9 +364,10 @@ export const RoutesFeature = {
     /**
      * Resume persisted navigation once locate has settled.
      *
-     * Runs after mount and never prompts. Visibility is restored first and is
-     * left untouched by any navigation failure, so a denied geolocation restore
-     * only clears navigation. Every failure is silent.
+     * Runs after mount and never opens the app's permission explainer.
+     * Visibility is restored first and is left untouched by any navigation
+     * failure, so a denied geolocation restore only clears navigation. Every
+     * failure is silent.
      */
     const restoreNavigation = async () => {
       const storedRouteId = navigation.routeId;
@@ -394,11 +459,15 @@ export const RoutesFeature = {
       setMenuNavigation(navigationState.value);
     });
 
-    watch(locate.mode, (mode) => {
+    const stopLocateModeWatch = watch(locate.mode, (mode) => {
       if (navigating.value && mode !== "following") {
         stopNavigation({ stopFollow: false });
       }
     });
+
+    onCleanup(stopNavigationIndicator);
+    onCleanup(stopLocateModeWatch);
+    onCleanup(unbindMapBearing);
 
     // Non-blocking: the app mounts immediately and navigation resumes only if
     // the locate restore re-entered following.

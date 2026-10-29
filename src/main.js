@@ -30,7 +30,7 @@ const boot = () => {
   installGlobalErrorHandlers();
 
   // --- Instance config ---
-  // The instance ID scopes localStorage keys, enabling iframe isolation.
+  // The instance ID scopes storage keys, enabling iframe isolation.
   // Override via ?id= URL param (e.g. an embedded iframe with id="trip-planner").
   const params = new URLSearchParams(window.location.search);
   const instanceId =
@@ -60,12 +60,29 @@ const boot = () => {
     mapRef.value = map;
   });
 
-  // Auto-cleanup tracking for feature-added map sources/layers.
+  // Auto-cleanup tracking for feature-added map sources/layers and for
+  // feature-owned side effects registered through `featureCtx.onCleanup`.
   const trackedSources = [];
   const trackedLayers = [];
+  const cleanups = [];
 
   emitter.on("destroy", () => {
     mapRef.value = null;
+
+    // Feature cleanups run first, newest first, so a feature can release its
+    // own listeners or timers before the shared map teardown below. Each
+    // entry is deactivated before it runs, so a remover cannot re-run it.
+    for (const entry of [...cleanups].reverse()) {
+      if (!entry.active) continue;
+      entry.active = false;
+      try {
+        entry.fn();
+      } catch (error) {
+        reportError(error, { source: "feature-cleanup" });
+      }
+    }
+    cleanups.length = 0;
+
     const map = getMapInstance(instanceId);
     if (map) {
       for (const layerId of [...trackedLayers].reverse()) {
@@ -85,6 +102,8 @@ const boot = () => {
   // Passed to each feature's install() method. Provides scoped access to
   // app services without exposing the raw Vue app or emitter. Registration
   // methods return a disposer so installFeature can roll a failure back.
+  // `onCleanup` likewise returns an idempotent remover, and the registered
+  // callbacks run in reverse order on app destroy.
   const featureCtx = {
     app,
     instanceId,
@@ -135,6 +154,31 @@ const boot = () => {
       panelsRef.value = [...panelsRef.value, config];
       return removeConfig(panelsRef, config);
     },
+    /**
+     * Register a feature-owned cleanup for app destroy.
+     *
+     * Use it for watchers, listeners and timers the feature owns. Shared
+     * composables (`useGeoJSON`, `useLocate`, `useActions`) are app-wide and
+     * must not be disposed from a single feature.
+     *
+     * @param {Function} fn - Cleanup to run once, newest first, on destroy.
+     * @returns {Function} Idempotent remover that does not run the cleanup.
+     */
+    onCleanup: (fn) => {
+      if (typeof fn !== "function") {
+        throw new TypeError("onCleanup() requires a function");
+      }
+
+      const entry = { fn, active: true };
+      cleanups.push(entry);
+
+      return () => {
+        if (!entry.active) return;
+        entry.active = false;
+        const index = cleanups.indexOf(entry);
+        if (index !== -1) cleanups.splice(index, 1);
+      };
+    },
   };
 
   // --- Install core features ---
@@ -150,10 +194,6 @@ const boot = () => {
 
   // --- Mount ---
   app.mount("#app");
-
-  // A successful mount is boot success: tell the static fallback before any
-  // optional post-boot work runs.
-  window.__ogisBoot?.ready?.();
 
   // --- Service worker ---
   // Registers the app-shell worker in production (or when opted in with

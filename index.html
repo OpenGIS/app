@@ -199,7 +199,7 @@
 
         window.__ogisBoot = {
           ready() {
-            if (booted) return;
+            if (booted || failed) return;
             booted = true;
             clearWatchdog();
             if (fallback) fallback.hidden = true;
@@ -254,13 +254,38 @@
 
         reset?.addEventListener("click", async () => {
           try {
-            const escapeRegExp = (value) =>
-              value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            const keyPattern = new RegExp(
-              `^ogis_.*_${escapeRegExp(instanceId)}$`,
-            );
-            for (const key of Object.keys(window.localStorage)) {
-              if (keyPattern.test(key)) window.localStorage.removeItem(key);
+            // Keep this list in sync with the store namespaces in
+            // src/resilience/persistedState.js so reset matches exactly the
+            // current instance and never a suffix-colliding one.
+            var namespaces = [
+              "view",
+              "recordings",
+              "routes",
+              "offline-regions",
+              "locate",
+              "navigation",
+              "recording-active",
+              "sync",
+            ];
+            var isInstanceStateKey = function (key) {
+              for (var i = 0; i < namespaces.length; i += 1) {
+                var namespace = namespaces[i];
+                if (
+                  key === "ogis_" + namespace + "_" + instanceId ||
+                  key === "ogis_quarantine_" + namespace + "_" + instanceId
+                ) {
+                  return true;
+                }
+              }
+              return false;
+            };
+            for (const storage of [
+              window.localStorage,
+              window.sessionStorage,
+            ]) {
+              for (const key of Object.keys(storage)) {
+                if (isInstanceStateKey(key)) storage.removeItem(key);
+              }
             }
           } catch {
             // Storage may be unavailable; reloading is still worthwhile.

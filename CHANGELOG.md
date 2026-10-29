@@ -1,3 +1,15 @@
+# [3.18.0](https://github.com/OpenGIS/app/compare/v3.17.0...v3.18.0) (2026-10-29)
+
+
+### Bug Fixes
+
+* **locate:** restore following on Apple WebKit ([bceaa35](https://github.com/OpenGIS/app/commit/bceaa35d7d8208e662699fe27511b8a6348616e9))
+
+
+### Features
+
+* **resilience:** harden sessions and shared state ([e0cddbb](https://github.com/OpenGIS/app/commit/e0cddbb976b39a2c47f6dc9b887fd5e4da4771f4))
+
 # [3.17.0](https://github.com/OpenGIS/app/compare/v3.16.0...v3.17.0) (2026-10-28)
 
 

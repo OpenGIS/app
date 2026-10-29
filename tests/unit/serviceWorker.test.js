@@ -124,26 +124,26 @@ describe("setupServiceWorker", () => {
     expect(summary.registered).toBe(true);
   });
 
-  it("catches a registration rejection, logs it, and resolves", async () => {
+  it("reports a registration rejection and resolves with registered false", async () => {
     const error = new Error("registration boom");
     const register = vi.fn().mockRejectedValue(error);
     const nav = createNav({ register });
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const report = vi.fn();
 
     await expect(
       setupServiceWorker({
         env: { PROD: true },
         nav,
         cacheStorage: createCacheStorage(),
+        report,
       }),
     ).resolves.toMatchObject({ registered: false });
 
-    expect(consoleError).toHaveBeenCalledWith(
-      "Service worker registration failed:",
-      error,
-    );
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report).toHaveBeenCalledWith(error, {
+      source: "service-worker",
+      phase: "register",
+    });
   });
 
   it("swallows cleanup failures without an unhandled rejection or console.error noise", async () => {

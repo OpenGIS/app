@@ -22,6 +22,20 @@ const MAP_HOSTS = [
 // so every path on the hosts above is covered, whatever the resource type.
 const isMapResource = (url) => MAP_HOSTS.includes(url.hostname);
 
+// Store a successful response without blocking or breaking the response
+// returned to the page. The cache write is tied to the fetch event's lifetime
+// so it is not cancelled when the worker goes idle, and a cache failure is
+// swallowed so it never becomes an unhandled rejection.
+const cacheResponse = (event, cacheName, request, response) => {
+  const copy = response.clone();
+  event.waitUntil(
+    caches
+      .open(cacheName)
+      .then((cache) => cache.put(request, copy))
+      .catch(() => {}),
+  );
+};
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -89,10 +103,7 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           if (response.ok) {
-            const copy = response.clone();
-            caches
-              .open(SHELL_CACHE)
-              .then((cache) => cache.put(SHELL_URL, copy));
+            cacheResponse(event, SHELL_CACHE, SHELL_URL, response);
           }
           return response;
         })
@@ -115,8 +126,7 @@ self.addEventListener("fetch", (event) => {
         if (cached) return cached;
         return fetch(request).then((response) => {
           if (response.ok) {
-            const copy = response.clone();
-            caches.open(MAP_CACHE).then((cache) => cache.put(request, copy));
+            cacheResponse(event, MAP_CACHE, request, response);
           }
           return response;
         });
@@ -132,8 +142,7 @@ self.addEventListener("fetch", (event) => {
       if (cached) return cached;
       return fetch(request).then((response) => {
         if (response.ok) {
-          const copy = response.clone();
-          caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy));
+          cacheResponse(event, SHELL_CACHE, request, response);
         }
         return response;
       });

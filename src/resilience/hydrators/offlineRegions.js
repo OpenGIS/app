@@ -33,10 +33,12 @@ export function hydrateOfflineRegions(data) {
   }
 
   const regions = [];
+  const ids = new Set();
 
   for (const raw of data) {
     if (!isPlainObject(raw)) continue;
     if (typeof raw.id !== "string" || !raw.id.trim()) continue;
+    if (ids.has(raw.id.trim())) continue;
     if (typeof raw.name !== "string" || !raw.name.trim()) continue;
     if (!validBounds(raw.bounds)) continue;
     if (!isFiniteNumber(raw.minZoom) || !isFiniteNumber(raw.maxZoom)) continue;
@@ -45,9 +47,11 @@ export function hydrateOfflineRegions(data) {
     if (!isFiniteNumber(raw.estimatedBytes) || raw.estimatedBytes < 0) continue;
     if (!isFiniteNumber(raw.createdAt)) continue;
 
+    const id = raw.id.trim();
+    ids.add(id);
     regions.push({
       ...raw,
-      id: raw.id.trim(),
+      id,
       name: raw.name,
       bounds: {
         west: raw.bounds.west,

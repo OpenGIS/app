@@ -1,14 +1,19 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetPersistedStateForTests,
   usePersistedState,
 } from "@/resilience/persistedState";
-import { hydrateRecordings } from "@/resilience/hydrators/recordings.js";
+import {
+  hydrateRecordingActive,
+  hydrateRecordings,
+  migrateRecordingsSession,
+} from "@/resilience/hydrators/recordings.js";
 import { hydrateRoutes } from "@/resilience/hydrators/routes.js";
 import { hydrateOfflineRegions } from "@/resilience/hydrators/offlineRegions.js";
 import { hydrateLocate } from "@/resilience/hydrators/locate.js";
 import { hydrateNavigation } from "@/resilience/hydrators/navigation.js";
 import { hydrateSync } from "@/resilience/hydrators/sync.js";
+import { hydrateView } from "@/resilience/hydrators/view.js";
 
 const envelope = (data, version = 1) =>
   JSON.stringify({ __ogisState: 1, version, data });
@@ -90,7 +95,7 @@ afterEach(() => {
 });
 
 describe("recordings hydrator", () => {
-  it("migrates a legacy saved/active value", () => {
+  it("migrates a legacy saved/active value and ignores the active document", () => {
     const active = {
       points: [
         { lat: 5, lng: 6 },
@@ -104,6 +109,7 @@ describe("recordings hydrator", () => {
       active,
     });
 
+    expect(result).toEqual({ saved: expect.any(Array) });
     expect(result.saved).toHaveLength(1);
     expect(result.saved[0]).toMatchObject({
       v: 2,
@@ -119,13 +125,6 @@ describe("recordings hydrator", () => {
       { lat: 1, lng: 2, t: TIMESTAMP },
       { lat: 3, lng: 4 },
     ]);
-
-    expect(result.active).toMatchObject({
-      v: 2,
-      kind: "recording",
-      createdAt: TIMESTAMP,
-    });
-    expect(result.active.segments[0].points).toHaveLength(2);
   });
 
   it("rejects an uninterpretable top level", () => {
@@ -153,19 +152,17 @@ describe("recordings hydrator", () => {
     expect(result.saved.map((doc) => doc.id)).toEqual(["rec-1"]);
   });
 
-  it("returns null for an active recording with fewer than two points", () => {
-    expect(
-      hydrateRecordings({ saved: [], active: { points: [] } }).active,
-    ).toBe(null);
-    expect(
-      hydrateRecordings({
-        saved: [],
-        active: { points: [{ lat: 1, lng: 2 }] },
-      }).active,
-    ).toBe(null);
-    expect(
-      hydrateRecordings({ saved: [], active: { points: "nope" } }).active,
-    ).toBe(null);
+  it("keeps the first document when saved recording ids collide", () => {
+    const result = hydrateRecordings({
+      saved: [
+        { ...v2Recording(), id: "same", name: "First" },
+        { ...v2Recording(), id: "same", name: "Second" },
+      ],
+      active: null,
+    });
+
+    expect(result.saved).toHaveLength(1);
+    expect(result.saved[0].name).toBe("First");
   });
 
   it("preserves waypoint extras and strips invalid optional values", () => {
@@ -234,8 +231,8 @@ describe("recordings hydrator", () => {
     const store = usePersistedState(
       "recordings",
       {
-        version: 1,
-        defaults: { saved: [], active: null },
+        version: 2,
+        defaults: { saved: [] },
         hydrate: hydrateRecordings,
       },
       "hydrator-envelope",
@@ -252,17 +249,202 @@ describe("recordings hydrator", () => {
     const store = usePersistedState(
       "recordings",
       {
-        version: 1,
-        defaults: { saved: [], active: null },
+        version: 2,
+        defaults: { saved: [] },
         hydrate: hydrateRecordings,
       },
       "hydrator-bad",
     );
 
-    expect(store.state).toEqual({ saved: [], active: null });
+    expect(store.state).toEqual({ saved: [] });
     expect(
       localStorage.getItem("ogis_quarantine_recordings_hydrator-bad"),
     ).toBe(raw);
+  });
+});
+
+describe("recording active hydrator", () => {
+  const legacyActive = () => ({
+    points: [
+      { lat: 5, lng: 6 },
+      { lat: 7, lng: 8 },
+    ],
+    startTime: TIMESTAMP,
+  });
+
+  it("migrates a legacy active recording", () => {
+    const result = hydrateRecordingActive({ active: legacyActive() });
+
+    expect(result.active).toMatchObject({
+      v: 2,
+      kind: "recording",
+      createdAt: TIMESTAMP,
+    });
+    expect(result.active.segments[0].points).toHaveLength(2);
+  });
+
+  it("passes a valid v2 active document through", () => {
+    const result = hydrateRecordingActive({ active: v2Recording() });
+
+    expect(result.active).toMatchObject({
+      v: 2,
+      kind: "recording",
+      id: "rec-2",
+      name: "Morning",
+      createdAt: TIMESTAMP,
+    });
+    expect(result.active.segments[0].points).toHaveLength(2);
+  });
+
+  it("returns null for a missing or null active value", () => {
+    expect(hydrateRecordingActive({ active: null })).toEqual({ active: null });
+    expect(hydrateRecordingActive({})).toEqual({ active: null });
+  });
+
+  it("returns null when the active document has fewer than two points", () => {
+    expect(hydrateRecordingActive({ active: { points: [] } })).toEqual({
+      active: null,
+    });
+    expect(
+      hydrateRecordingActive({ active: { points: [{ lat: 1, lng: 2 }] } }),
+    ).toEqual({ active: null });
+    expect(hydrateRecordingActive({ active: { points: "nope" } })).toEqual({
+      active: null,
+    });
+  });
+
+  it("returns null for a malformed active document", () => {
+    expect(hydrateRecordingActive({ active: "junk" })).toEqual({
+      active: null,
+    });
+    expect(hydrateRecordingActive({ active: {} })).toEqual({ active: null });
+  });
+
+  it("rejects a non-object top level", () => {
+    expect(() => hydrateRecordingActive(null)).toThrow();
+    expect(() => hydrateRecordingActive([])).toThrow();
+    expect(() => hydrateRecordingActive("nope")).toThrow();
+  });
+});
+
+describe("migrateRecordingsSession", () => {
+  const saved = () => [{ id: "rec-1", points: [{ lat: 1, lng: 2 }] }];
+  const active = () => ({
+    points: [
+      { lat: 5, lng: 6 },
+      { lat: 7, lng: 8 },
+    ],
+    startTime: TIMESTAMP,
+  });
+
+  it("moves active to session and rewrites local as saved-only", () => {
+    const activeDoc = active();
+    localStorage.setItem(
+      "ogis_recordings_migrate-legacy",
+      JSON.stringify({ saved: saved(), active: activeDoc }),
+    );
+
+    expect(migrateRecordingsSession("migrate-legacy")).toBe(true);
+    expect(
+      JSON.parse(
+        sessionStorage.getItem("ogis_recording-active_migrate-legacy"),
+      ),
+    ).toEqual({ active: activeDoc });
+    expect(
+      JSON.parse(localStorage.getItem("ogis_recordings_migrate-legacy")),
+    ).toEqual({ saved: saved() });
+  });
+
+  it("unwraps an envelope input", () => {
+    localStorage.setItem(
+      "ogis_recordings_migrate-envelope",
+      envelope({ saved: saved(), active: active() }, 1),
+    );
+
+    expect(migrateRecordingsSession("migrate-envelope")).toBe(true);
+    expect(
+      JSON.parse(
+        sessionStorage.getItem("ogis_recording-active_migrate-envelope"),
+      ),
+    ).toEqual({ active: active() });
+    expect(
+      JSON.parse(localStorage.getItem("ogis_recordings_migrate-envelope")),
+    ).toEqual({ saved: saved() });
+  });
+
+  it("keeps an existing session value and still strips local active", () => {
+    localStorage.setItem(
+      "ogis_recordings_migrate-both",
+      JSON.stringify({ saved: saved(), active: active() }),
+    );
+    sessionStorage.setItem(
+      "ogis_recording-active_migrate-both",
+      JSON.stringify({ active: { kept: true } }),
+    );
+
+    expect(migrateRecordingsSession("migrate-both")).toBe(true);
+    expect(
+      JSON.parse(sessionStorage.getItem("ogis_recording-active_migrate-both")),
+    ).toEqual({ active: { kept: true } });
+    expect(
+      JSON.parse(localStorage.getItem("ogis_recordings_migrate-both")),
+    ).toEqual({ saved: saved() });
+  });
+
+  it("leaves malformed or non-object values untouched", () => {
+    for (const [id, raw] of [
+      ["migrate-bad-json", "not-json"],
+      ["migrate-array", JSON.stringify([1, 2])],
+      ["migrate-null", "null"],
+    ]) {
+      localStorage.setItem(`ogis_recordings_${id}`, raw);
+      expect(migrateRecordingsSession(id)).toBe(false);
+      expect(localStorage.getItem(`ogis_recordings_${id}`)).toBe(raw);
+      expect(sessionStorage.getItem(`ogis_recording-active_${id}`)).toBeNull();
+    }
+  });
+
+  it("leaves the local value untouched when the session write fails", () => {
+    const activeDoc = active();
+    const raw = JSON.stringify({ saved: saved(), active: activeDoc });
+    localStorage.setItem("ogis_recordings_migrate-set-fails", raw);
+
+    const setItem = vi
+      .spyOn(sessionStorage, "setItem")
+      .mockImplementation(() => {
+        throw new Error("session storage unavailable");
+      });
+
+    try {
+      expect(migrateRecordingsSession("migrate-set-fails")).toBe(false);
+    } finally {
+      setItem.mockRestore();
+    }
+
+    expect(localStorage.getItem("ogis_recordings_migrate-set-fails")).toBe(raw);
+    expect(
+      JSON.parse(localStorage.getItem("ogis_recordings_migrate-set-fails")),
+    ).toEqual({ saved: saved(), active: activeDoc });
+    expect(
+      sessionStorage.getItem("ogis_recording-active_migrate-set-fails"),
+    ).toBeNull();
+  });
+
+  it("leaves a value without an active property untouched", () => {
+    const raw = JSON.stringify({ saved: saved() });
+    localStorage.setItem("ogis_recordings_migrate-saved-only", raw);
+
+    expect(migrateRecordingsSession("migrate-saved-only")).toBe(false);
+    expect(localStorage.getItem("ogis_recordings_migrate-saved-only")).toBe(
+      raw,
+    );
+    expect(
+      sessionStorage.getItem("ogis_recording-active_migrate-saved-only"),
+    ).toBeNull();
+  });
+
+  it("is a no-op when there is no local value", () => {
+    expect(migrateRecordingsSession("migrate-absent")).toBe(false);
   });
 });
 
@@ -353,6 +535,18 @@ describe("offline-regions hydrator", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("region-1");
+  });
+
+  it("keeps the first region when ids collide", () => {
+    const result = hydrateOfflineRegions([
+      { ...validRegion(), id: "same", name: "First" },
+      { ...validRegion(), id: "same", name: "Second" },
+      { ...validRegion(), id: "other", name: "Other" },
+    ]);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe("First");
+    expect(result[1].name).toBe("Other");
   });
 
   it("rejects a non-array top level", () => {
@@ -559,6 +753,51 @@ describe("navigation hydrator", () => {
     expect(result.routeId).toBeNull();
     expect(result.followOwned).toBe(false);
     expect(result.visible).toEqual(["r1"]);
+  });
+});
+
+describe("view hydrator", () => {
+  const viewWithCentre = (centre) => ({
+    mapView: { center: centre, zoom: 12, pitch: 0, bearing: 0 },
+  });
+
+  it("keeps a valid centre", () => {
+    const result = hydrateView(
+      viewWithCentre({ lat: 48.953134, lng: -55.643057 }),
+    );
+
+    expect(result.mapView.center).toEqual({
+      lat: 48.953134,
+      lng: -55.643057,
+    });
+  });
+
+  it("nulls the centre for an out-of-range lng", () => {
+    expect(
+      hydrateView(viewWithCentre({ lat: 10, lng: 181 })).mapView.center,
+    ).toBeNull();
+    expect(
+      hydrateView(viewWithCentre({ lat: 10, lng: -181 })).mapView.center,
+    ).toBeNull();
+  });
+
+  it("nulls the centre for a non-finite lng", () => {
+    expect(
+      hydrateView(viewWithCentre({ lat: 10, lng: Number.POSITIVE_INFINITY }))
+        .mapView.center,
+    ).toBeNull();
+    expect(
+      hydrateView(viewWithCentre({ lat: 10, lng: Number.NaN })).mapView.center,
+    ).toBeNull();
+  });
+
+  it("still nulls the centre for an out-of-range lat", () => {
+    expect(
+      hydrateView(viewWithCentre({ lat: 91, lng: 10 })).mapView.center,
+    ).toBeNull();
+    expect(
+      hydrateView(viewWithCentre({ lat: -91, lng: 10 })).mapView.center,
+    ).toBeNull();
   });
 });
 

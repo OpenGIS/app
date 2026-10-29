@@ -28,6 +28,8 @@ export const OfflineFeature = {
       version: 1,
       defaults: [],
       hydrate: hydrateOfflineRegions,
+      crossTab: true,
+      onSync: () => reconcileRegions(),
     }).state;
 
     // GeoJSON renderer, used to draw a downloaded region's bounds on the map.
@@ -37,6 +39,10 @@ export const OfflineFeature = {
 
     // Current style sources, refreshed once the map is ready.
     let styleSources = [];
+
+    // The region whose bounds are currently drawn on the map, so its overlay
+    // can be removed if that specific region is deleted.
+    let shownRegionId = null;
 
     onMapReady(({ map }) => {
       styleSources = map.getStyle()?.sources
@@ -96,6 +102,11 @@ export const OfflineFeature = {
       const index = regions.findIndex((r) => r.id === region.id);
       if (index !== -1) regions.splice(index, 1);
 
+      if (shownRegionId === region.id) {
+        geoJSON.removeFeature("offline-region");
+        shownRegionId = null;
+      }
+
       // Best-effort: re-enumerate the region's URLs so we can purge its tiles.
       // If the style/source can't be resolved (e.g. the TileJSON slug changed)
       // or there's no SW, just remove the metadata.
@@ -115,11 +126,9 @@ export const OfflineFeature = {
       if (urls.length > 0) await requestDeleteUrls(urls);
     };
 
-    // Draw the region's bounds on the map as a green polygon and navigate to
-    // it, so the user can see what data they have downloaded.
-    const showRegion = (region) => {
-      if (!region.bounds) return;
-      actions.claimMap();
+    // Draw the region's bounds as a green polygon without touching the camera.
+    const drawRegionOverlay = (region) => {
+      if (!region?.bounds) return;
       const { west, south, east, north } = region.bounds;
       const ring = [
         [west, south],
@@ -138,6 +147,37 @@ export const OfflineFeature = {
           "ogis.opacity": 0.9,
         },
       });
+    };
+
+    /**
+     * Reconcile the shown overlay after another tab replaced the region store.
+     * A deleted region loses its overlay; an updated one is redrawn without
+     * claiming the map or refitting the camera.
+     */
+    const reconcileRegions = () => {
+      if (shownRegionId === null) return;
+
+      const region = Array.isArray(regions)
+        ? regions.find((item) => item.id === shownRegionId)
+        : null;
+      if (!region) {
+        geoJSON.removeFeature("offline-region");
+        shownRegionId = null;
+        return;
+      }
+
+      drawRegionOverlay(region);
+    };
+
+    // Draw the region's bounds on the map as a green polygon and navigate to
+    // it, so the user can see what data they have downloaded.
+    const showRegion = (region) => {
+      if (!region?.bounds) return;
+      actions.claimMap();
+      shownRegionId = region.id;
+      drawRegionOverlay(region);
+
+      const { west, south, east, north } = region.bounds;
       const map = getMap();
       if (map) {
         map.fitBounds(
