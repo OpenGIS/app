@@ -249,7 +249,7 @@ describe("useLocale", () => {
 
       const { useLocale: useFr } = await loadLocale(["fr-FR"]);
       const { result: frResult } = createLocaleInstance(useFr);
-      expect(frResult.t("panel.privacy.title")).toBe("Vos données privées");
+      expect(frResult.t("panel.privacy.title")).toBe("Confidentialité");
     });
   });
 

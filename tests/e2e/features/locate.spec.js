@@ -216,7 +216,7 @@ test.describe("Locate / Confirmation modal", () => {
     await grantGeolocation(page);
     await page.locator("#locate-button").click();
     await expect(page.getByText("Trust")).toBeVisible();
-    await page.getByRole("button", { name: "I Understand" }).click();
+    await page.getByRole("button", { name: "I understand" }).click();
     await expect(page.getByText("Trust")).toBeHidden();
     await expect(page.locator("#locate-button")).toHaveAttribute(
       "aria-pressed",
@@ -543,7 +543,7 @@ test.describe("Locate / Error state", () => {
       timeout: LOCATE_TIMEOUT,
     });
 
-    await expect(page.getByText(/Reloading this page/)).toBeVisible();
+    await expect(page.getByText(/Reload this page/)).toBeVisible();
   });
 
   test("closing the error modal does not clear the error state", async ({

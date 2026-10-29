@@ -21,18 +21,18 @@
   "menu.routes": "Routes",
 
   "panel.about.freePrivate": "Free, private &",
-  "panel.about.openSource": "Open-Source",
+  "panel.about.openSource": "Open Source",
 
-  "panel.privacy.title": "Your Private Data",
-  "panel.privacy.summary": "Your data stays on your device.",
-  "panel.privacy.onDevice": "Your Data Stays Private",
-  "panel.privacy.onDeviceBody": "All data in this app is stored securely on the device. This includes your location information, if permission is granted.",
-  "panel.privacy.thirdParty": "Third-party data sources",
-  "panel.privacy.thirdPartyBody": "This app loads data directly from a number of public data sources. As with any network request, your IP address is visible to their servers.",
+  "panel.privacy.title": "Privacy",
+  "panel.privacy.summary": "Your data stays on your device. No analytics, no tracking.",
+  "panel.privacy.onDevice": "Stored on Your Device",
+  "panel.privacy.onDeviceBody": "Recordings, routes and settings are stored in your browser, on this device — including your last known location, if you grant permission. Nothing you record is uploaded.",
+  "panel.privacy.thirdParty": "Third-party Data Sources",
+  "panel.privacy.thirdPartyBody": "The map is assembled from public sources — OpenFreeMap, Mapterhorn, Esri and ogis.app — all loaded over HTTPS. As with any web request, those servers see your IP address, and the area you are viewing can be inferred from the tiles requested.",
 
   "panel.account.title": "Account",
-  "panel.account.description": "Sign in with a magic link to connect this app to your ogis.app account APIs.",
-  "panel.account.loading": "Checking account session…",
+  "panel.account.description": "Sign in with a magic link to connect this app to your ogis.app account.",
+  "panel.account.loading": "Checking your account session…",
   "panel.account.emailLabel": "Email",
   "panel.account.emailPlaceholder": "you@example.com",
   "panel.account.requestMagicLink": "Email me a magic link",
@@ -65,7 +65,7 @@
 
   "panel.maps.title": "Maps",
   "panel.maps.description": "Browse your maps and render their GeoJSON on the current map.",
-  "panel.maps.loadingSession": "Checking account session…",
+  "panel.maps.loadingSession": "Checking your account session…",
   "panel.maps.signInRequired": "Sign in first to access your private map resources.",
   "panel.maps.openAccount": "Open account panel",
   "panel.maps.refresh": "Refresh maps",
@@ -109,7 +109,7 @@
 
   "panel.collections.title": "Collections",
   "panel.collections.description": "Manage your collections and collection hierarchy.",
-  "panel.collections.loadingSession": "Checking account session…",
+  "panel.collections.loadingSession": "Checking your account session…",
   "panel.collections.signInRequired": "Sign in first to access your private collection resources.",
   "panel.collections.openAccount": "Open account panel",
   "panel.collections.refresh": "Refresh collections",
@@ -235,9 +235,6 @@
   "panel.routes.errorNoRoutes": "No routes found in the file",
   "panel.routes.errorImport": "Unable to import the file.",
 
-  "panel.info.readMore": "Read more",
-  "panel.info.readLess": "Read less",
-
   "panel.view.share": "Share",
   "panel.view.copied": "Copied!",
   "panel.view.improve": "Improve",
@@ -251,12 +248,12 @@
   "modal.locate.permissionTitle": "Trust",
   "modal.locate.permissionBody": "Permission is required to access your current location and compass heading. Your location is only used on this device. When prompted, please permit both.",
   "modal.locate.cancel": "Cancel",
-  "modal.locate.iUnderstand": "I Understand",
+  "modal.locate.iUnderstand": "I understand",
   "modal.locate.deniedTitle": "Unable to Locate",
   "modal.locate.deniedIntro": "The app was unable to acquire your location, possibly due to a previous denial of permission. To re-enable it, try:",
-  "modal.locate.tryOne": "Reloading this page and trying again.",
-  "modal.locate.tryTwo": "Searching the web for: \"allow geolocation after denial <your-browser> <your-device>.\"",
-  "modal.locate.tryThree": "Wait some time, then try again later.",
+  "modal.locate.tryOne": "Reload this page and try again.",
+  "modal.locate.tryTwo": "Search the web for: \"allow geolocation after denial <your-browser> <your-device>\".",
+  "modal.locate.tryThree": "Wait a while, then try again.",
   "modal.locate.close": "Close",
-  "modal.locate.retry": "Try Again"
+  "modal.locate.retry": "Try again"
 }

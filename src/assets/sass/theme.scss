@@ -145,6 +145,11 @@ $font-size-base: 0.9375rem; // 15 px
   // its dismiss backdrop always remain visible. Resolves to the full
   // $offcanvas-horizontal-width (340px) wherever there is room.
   --ogis-panel-width: min(#{$offcanvas-horizontal-width}, calc(100vw - 4rem));
+
+  // Privacy bar affordance. The light value keeps the large +/− glyph at
+  // roughly 3.5:1 on the frosted panel; the dark value can use the brighter
+  // brand green.
+  --ogis-privacy-accent: #1f9d45;
 }
 
 // #6b  Side panel (Bootstrap Offcanvas)
@@ -839,18 +844,15 @@ $font-size-base: 0.9375rem; // 15 px
   pointer-events: none;
 }
 
-// Info panel fills the scroll container so its sticky footer can pin to
-// the bottom edge even when the content is short.
+// Info panel fills the scroll container so its pinned footer can reach the
+// bottom edge even when the content is short.
 .ogis-info-panel {
   min-height: 100%;
 }
 
-// Info panel attribution links — interactive here, unlike the chip.
-.ogis-attribution-section a {
-  color: var(--bs-primary);
-}
-
-.ogis-attribution-section {
+// Privacy bar and attribution share one pinned surface. Two stacked sticky
+// siblings would both resolve to bottom: 0 and double the glass blur.
+.ogis-info-footer {
   margin-top: auto;
   position: sticky;
   bottom: 0;
@@ -860,45 +862,103 @@ $font-size-base: 0.9375rem; // 15 px
   -webkit-backdrop-filter: blur(20px) saturate(160%);
 }
 
-[data-bs-theme="dark"] .ogis-attribution-section {
+[data-bs-theme="dark"] .ogis-info-footer {
   background: rgba(10, 18, 10, 0.92);
 }
 
-// Native <details> disclosure with a simple [+]/[−] marker.
-.ogis-disclosure > summary {
-  display: inline-flex;
+[data-bs-theme="dark"] {
+  --ogis-privacy-accent: #39d353;
+}
+
+// Info panel attribution links — interactive here, unlike the chip.
+.ogis-attribution-section a {
+  color: var(--bs-primary);
+}
+
+// Compact, expandable trust bar. Native <details> supplies the keyboard and
+// assistive-technology behaviour; only the affordance is restyled.
+.ogis-privacy-bar > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1.5rem;
+  grid-template-areas:
+    "title glyph"
+    "summary glyph";
+  column-gap: 1rem;
   align-items: center;
-  gap: 0.35rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 1rem;
   cursor: pointer;
   list-style: none;
-  color: var(--bs-primary);
-  font-size: 0.8125rem;
+}
+
+.ogis-privacy-bar > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ogis-privacy-bar__title {
+  grid-area: title;
+  margin: 0;
+  font-size: 0.9375rem;
   font-weight: 600;
+  line-height: 1.3;
 }
 
-.ogis-disclosure > summary::-webkit-details-marker {
-  display: none;
+.ogis-privacy-bar__summary {
+  grid-area: summary;
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--bs-secondary-color);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  text-wrap: balance;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.ogis-disclosure > summary::before {
-  content: "[+]";
-  font-family: var(--bs-font-monospace);
+// The glyph is generated content, so it never enters the accessibility tree;
+// <summary> already exposes the expanded state.
+.ogis-privacy-bar > summary::after {
+  grid-area: glyph;
+  justify-self: stretch;
+  align-self: center;
+  content: "+";
+  color: var(--ogis-privacy-accent);
+  text-align: center;
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1;
 }
 
-.ogis-disclosure[open] > summary::before {
-  content: "[−]";
+.ogis-privacy-bar[open] > summary::after {
+  content: "−";
 }
 
-.ogis-disclosure-less {
-  display: none;
+.ogis-privacy-bar > summary:focus-visible {
+  outline: 2px solid var(--ogis-privacy-accent);
+  outline-offset: -2px;
 }
 
-.ogis-disclosure[open] .ogis-disclosure-more {
-  display: none;
+.ogis-privacy-bar > summary:hover {
+  background-color: rgba(0, 0, 0, 0.045);
 }
 
-.ogis-disclosure[open] .ogis-disclosure-less {
-  display: inline;
+[data-bs-theme="dark"] .ogis-privacy-bar > summary:hover {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+// Cap the expanded body so the pinned footer can never outgrow the panel on a
+// short viewport, which would defeat sticky positioning.
+.ogis-privacy-bar__body {
+  max-height: min(40vh, 20rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 1rem;
+  padding: 0.75rem 0 0.875rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+[data-bs-theme="dark"] .ogis-privacy-bar__body {
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 // Keep the MapLibre scale control clear of the bottom-left attribution chip.
