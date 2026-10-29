@@ -15,6 +15,7 @@ import {
   waitForCameraSettle,
   withAppleWebKitPromptPermission,
   withGrantedLocateStorage as withGrantedStorage,
+  withHangingPermissionQuery,
   withNoLocateStorage,
 } from "../helpers/locate.js";
 import { readStoredState } from "../helpers/storage.js";
@@ -427,6 +428,34 @@ test.describe("Locate / Transient timeout", () => {
 
     // The watcher was kept rather than torn down and restarted.
     expect(await page.evaluate(() => window.__geo.count())).toBe(1);
+  });
+});
+
+// ─── Locate / Critical flush ────────────────────────────────────────────────
+
+test.describe("Locate / Critical flush", () => {
+  test("starting following and accepting the first fix persist immediately", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await withGrantedStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await btn.click();
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+
+    await btn.click();
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+
+    await emitFix(page, { lat: FIX.latitude, lng: FIX.longitude });
+
+    // No polling: the critical transitions write synchronously, so the stored
+    // envelope must already hold the following session and its first fix.
+    const stored = await readLocateStorage(page);
+    expect(stored?.mode).toBe("following");
+    expect(stored?.lastFix).not.toBeNull();
   });
 });
 
@@ -885,8 +914,14 @@ const RESTORE_FIX = {
 // the restore microtask under load.
 const RESTORE_TIMEOUT = 30000;
 
-/** Seed the locate envelope before the document boots. */
+/** Seed the locate envelope into sessionStorage before the document boots. */
 const withLocateState = (page, state) =>
+  page.addInitScript((stored) => {
+    sessionStorage.setItem("ogis_locate_app", JSON.stringify(stored));
+  }, state);
+
+/** Seed a legacy localStorage locate value so the boot migration moves it. */
+const withLegacyLocateState = (page, state) =>
   page.addInitScript((stored) => {
     localStorage.setItem("ogis_locate_app", JSON.stringify(stored));
   }, state);
@@ -917,7 +952,7 @@ const readLocate = (page) =>
 /** Read the persisted locate envelope, unwrapping the versioned wrapper. */
 const readLocateStorage = async (page) =>
   readStoredState(
-    await page.evaluate(() => localStorage.getItem("ogis_locate_app")),
+    await page.evaluate(() => sessionStorage.getItem("ogis_locate_app")),
   );
 
 /** Read the active map modes through the page's own module graph. */
@@ -965,6 +1000,44 @@ test.describe("Locate / Restore", () => {
     expect(options.enableHighAccuracy).toBe(true);
     expect(Number.isFinite(options.timeout)).toBe(true);
     expect(options.timeout).toBeGreaterThan(0);
+  });
+
+  test("migrates a legacy localStorage session into sessionStorage", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withLegacyLocateState(page, {
+      permissionGranted: true,
+      mode: "active",
+      lastFix: RESTORE_FIX,
+    });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect
+      .poll(async () => (await readLocateStorage(page))?.mode ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe("active");
+
+    expect(
+      await page.evaluate(() => localStorage.getItem("ogis_locate_app")),
+    ).toBeNull();
+    expect(
+      await page.evaluate(() => sessionStorage.getItem("ogis_locate_app")),
+    ).not.toBeNull();
+
+    await expect
+      .poll(async () => (await readLocate(page)).mode, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe("active");
+    const state = await readLocate(page);
+    expect(state.position).not.toBeNull();
+    expect(state.position.lat).toBeCloseTo(RESTORE_FIX.lat, 6);
+    expect(state.position.lng).toBeCloseTo(RESTORE_FIX.lng, 6);
   });
 
   test("restores a following session and keeps following a live fix", async ({
@@ -1038,6 +1111,61 @@ test.describe("Locate / Restore", () => {
     const stored = await readLocateStorage(page);
     expect(stored.mode).toBe("following");
     expect(stored.lastFix).not.toBeNull();
+  });
+
+  test("a hanging permission query times out and clears the restore", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await withHangingPermissionQuery(page);
+    await withLocateState(page, {
+      permissionGranted: true,
+      mode: "following",
+      lastFix: RESTORE_FIX,
+    });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // The bounded query must settle the app's own restore even though the
+    // permission promise never resolves. Reading the E2E hook avoids a second
+    // module instance (and a different promise) created by a dynamic import.
+    // On Chromium an unknown state cannot restore.
+    const settled = await page.evaluate(() => {
+      const promise = window.__ogisLocateRestoreComplete;
+      if (!promise || typeof promise.then !== "function") return "missing";
+
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => resolve("pending"), 15000);
+        promise.then(
+          () => {
+            clearTimeout(timer);
+            resolve("settled");
+          },
+          () => {
+            clearTimeout(timer);
+            resolve("rejected");
+          },
+        );
+      });
+    });
+    expect(settled).toBe("settled");
+
+    await expect
+      .poll(async () => (await readLocateStorage(page))?.mode ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeNull();
+    await expect
+      .poll(async () => (await readLocateStorage(page))?.lastFix ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeNull();
+
+    expect((await readLocate(page)).mode).toBeNull();
+    expect(await page.evaluate(() => window.__geo.count())).toBe(0);
+    await expect(page.getByText("Unable to Locate")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden();
   });
 
   test("does not auto-resume without OS geolocation permission", async ({
@@ -1160,5 +1288,45 @@ test.describe("Locate / Restore", () => {
     expect(stored.mode).toBe("active");
     expect(stored.lastFix.lat).toBeCloseTo(fix.lat, 6);
     expect(stored.lastFix.lng).toBeCloseTo(fix.lng, 6);
+  });
+
+  test("following in one tab is not restored in another tab", async ({
+    context,
+    page: pageA,
+  }) => {
+    await installGeolocationMock(pageA);
+    await grantGeolocation(pageA);
+    await withGrantedStorage(pageA);
+    await pageA.goto("/");
+    await waitForMapReady(pageA);
+
+    const button = pageA.locator("#locate-button");
+    await button.click();
+    await expect(button).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+    await button.click();
+    await expect(button).toContainText("Following", {
+      timeout: LOCATE_TIMEOUT,
+    });
+
+    await expect
+      .poll(async () => (await readLocateStorage(pageA))?.mode ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe("following");
+
+    const pageB = await context.newPage();
+    await pageB.goto("/");
+    await waitForMapReady(pageB);
+
+    await expect
+      .poll(async () => (await readLocate(pageB)).mode, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeNull();
+    expect(
+      await pageB.evaluate(() => sessionStorage.getItem("ogis_locate_app")),
+    ).toBeNull();
+
+    await pageB.close();
   });
 });

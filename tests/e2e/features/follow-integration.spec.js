@@ -49,6 +49,42 @@ const readPersistedCentre = async (page) => {
 };
 
 /**
+ * Wait until the debounced persisted view has gone quiet, then return it.
+ *
+ * The view store bridges camera changes to localStorage through a 300 ms
+ * trailing debounce, while the URL hash is written synchronously on `moveend`.
+ * A settled hash therefore does not prove storage has caught up: a legitimate
+ * pending write can still land after an immediate snapshot. Two reads
+ * separated by more than the debounce window resolve only once that write has
+ * fired and the serialised value is stable.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<string|null>} The settled serialised stored view.
+ */
+const waitForPersistedViewQuiescent = async (page) => {
+  let settled = null;
+  await expect
+    .poll(
+      async () => {
+        const before = await page.evaluate(() =>
+          localStorage.getItem("ogis_view_app"),
+        );
+        // Span the debounce window so a pending trailing write fires between
+        // the two samples.
+        await page.waitForTimeout(350);
+        const after = await page.evaluate(() =>
+          localStorage.getItem("ogis_view_app"),
+        );
+        settled = after;
+        return before === after;
+      },
+      { timeout: 5000 },
+    )
+    .toBe(true);
+  return settled;
+};
+
+/**
  * Wait for the debounced storage write to reach the stopped camera, then return
  * the persisted centre.
  */
@@ -307,10 +343,13 @@ test.describe("Follow / Locate chase", () => {
     // the wide locate flight into the close third-person navigation view,
     // which rests at 45° and is yawed to the compass, while the hash and
     // localStorage stay put — persistence is suppressed until stop.
+    //
+    // The hash settles synchronously on `moveend`, but the view store debounces
+    // its localStorage write by 300 ms, so the last orientation-flight write
+    // can land after the hash. Let storage go quiet before snapshotting it, or
+    // that legitimate write races the snapshot.
     const flightHash = hashOf(page.url());
-    const storedBefore = await page.evaluate(() =>
-      localStorage.getItem("ogis_view_app"),
-    );
+    const storedBefore = await waitForPersistedViewQuiescent(page);
     const restZoom = await navigationZoom(page, 0);
     const fastZoom = await navigationZoom(page, 100);
 

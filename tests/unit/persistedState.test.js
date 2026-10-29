@@ -4,6 +4,7 @@ import { emitter } from "@/emitter.js";
 import {
   usePersistedState,
   resetInstanceState,
+  migrateLocalToSession,
   __resetPersistedStateForTests,
 } from "@/resilience/persistedState";
 
@@ -353,28 +354,70 @@ describe("usePersistedState", () => {
       ).not.toBeNull();
     });
 
-    it("resetInstanceState removes an instance's keys including quarantine", () => {
-      const keys = [
-        "ogis_view_a",
-        "ogis_quarantine_view_a",
-        "ogis_other_a",
-        "ogis_view_b",
-        "ogis_quarantine_view_b",
+    it("resetInstanceState removes the instance's own keys and quarantine from both storages", () => {
+      const removed = [
+        "ogis_view_app",
+        "ogis_locate_app",
+        "ogis_quarantine_view_app",
       ];
-      for (const key of keys) {
+      const kept = ["ogis_view_trip_app", "ogis_locate_trip_app"];
+
+      for (const key of [...removed, ...kept]) {
         localStorage.setItem(key, "x");
+        sessionStorage.setItem(key, "x");
       }
 
-      resetInstanceState("a");
+      resetInstanceState("app");
 
-      expect(localStorage.getItem("ogis_view_a")).toBeNull();
-      expect(localStorage.getItem("ogis_quarantine_view_a")).toBeNull();
-      expect(localStorage.getItem("ogis_other_a")).toBeNull();
-      expect(localStorage.getItem("ogis_view_b")).toBe("x");
-      expect(localStorage.getItem("ogis_quarantine_view_b")).toBe("x");
+      for (const key of removed) {
+        expect(localStorage.getItem(key)).toBeNull();
+        expect(sessionStorage.getItem(key)).toBeNull();
+      }
+      for (const key of kept) {
+        expect(localStorage.getItem(key)).toBe("x");
+        expect(sessionStorage.getItem(key)).toBe("x");
+      }
     });
 
-    it("escapes special characters in the instance id", () => {
+    it("resetInstanceState does not over-match an instance id suffix", () => {
+      localStorage.setItem("ogis_view_trip_app", "x");
+      localStorage.setItem("ogis_locate_trip_app", "x");
+      sessionStorage.setItem("ogis_view_trip_app", "x");
+      sessionStorage.setItem("ogis_locate_trip_app", "x");
+
+      resetInstanceState("app");
+
+      expect(localStorage.getItem("ogis_view_trip_app")).toBe("x");
+      expect(localStorage.getItem("ogis_locate_trip_app")).toBe("x");
+      expect(sessionStorage.getItem("ogis_view_trip_app")).toBe("x");
+      expect(sessionStorage.getItem("ogis_locate_trip_app")).toBe("x");
+    });
+
+    it("resetInstanceState handles an instance id containing an underscore", () => {
+      localStorage.setItem("ogis_view_trip_app", "x");
+      localStorage.setItem("ogis_view_app", "y");
+      sessionStorage.setItem("ogis_view_trip_app", "x");
+      sessionStorage.setItem("ogis_view_app", "y");
+
+      resetInstanceState("trip_app");
+
+      expect(localStorage.getItem("ogis_view_trip_app")).toBeNull();
+      expect(sessionStorage.getItem("ogis_view_trip_app")).toBeNull();
+      expect(localStorage.getItem("ogis_view_app")).toBe("y");
+      expect(sessionStorage.getItem("ogis_view_app")).toBe("y");
+    });
+
+    it("resetInstanceState only removes known store namespaces", () => {
+      localStorage.setItem("ogis_other_app", "x");
+      sessionStorage.setItem("ogis_other_app", "x");
+
+      resetInstanceState("app");
+
+      expect(localStorage.getItem("ogis_other_app")).toBe("x");
+      expect(sessionStorage.getItem("ogis_other_app")).toBe("x");
+    });
+
+    it("matches instance ids containing special characters exactly", () => {
       localStorage.setItem("ogis_view_a+b", "x");
       localStorage.setItem("ogis_view_aaab", "y");
 
@@ -490,6 +533,49 @@ describe("usePersistedState", () => {
         localStorage.getItem("ogis_quarantine_invalid-sync_invalid-sync-id"),
       ).toBeNull();
 
+      warn.mockRestore();
+    });
+  });
+
+  describe("migrateLocalToSession", () => {
+    it("moves a local value to session and removes the local copy", () => {
+      const raw = JSON.stringify({ permissionGranted: true });
+      localStorage.setItem("ogis_locate_move-id", raw);
+
+      expect(migrateLocalToSession("locate", "move-id")).toBe(true);
+      expect(sessionStorage.getItem("ogis_locate_move-id")).toBe(raw);
+      expect(localStorage.getItem("ogis_locate_move-id")).toBeNull();
+    });
+
+    it("lets an existing session value win and removes the local copy", () => {
+      localStorage.setItem("ogis_locate_both-id", JSON.stringify({ a: 1 }));
+      sessionStorage.setItem("ogis_locate_both-id", JSON.stringify({ a: 2 }));
+
+      expect(migrateLocalToSession("locate", "both-id")).toBe(false);
+      expect(JSON.parse(sessionStorage.getItem("ogis_locate_both-id"))).toEqual(
+        { a: 2 },
+      );
+      expect(localStorage.getItem("ogis_locate_both-id")).toBeNull();
+    });
+
+    it("is a no-op when neither storage has the key", () => {
+      expect(migrateLocalToSession("locate", "empty-id")).toBe(false);
+      expect(sessionStorage.getItem("ogis_locate_empty-id")).toBeNull();
+      expect(localStorage.getItem("ogis_locate_empty-id")).toBeNull();
+    });
+
+    it("never throws when storage is unavailable", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const getItem = vi
+        .spyOn(Storage.prototype, "getItem")
+        .mockImplementation(() => {
+          throw new Error("storage unavailable");
+        });
+
+      expect(() => migrateLocalToSession("locate", "throws-id")).not.toThrow();
+      expect(migrateLocalToSession("locate", "throws-id")).toBe(false);
+
+      getItem.mockRestore();
       warn.mockRestore();
     });
   });

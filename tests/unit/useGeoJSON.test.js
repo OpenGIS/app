@@ -55,8 +55,16 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  mockMap.hasImage.mockReturnValue(false);
+  mockMap.addSource.mockReset();
+  mockMap.addLayer.mockReset();
+  mockMap.addImage.mockReset();
+  mockMap.hasImage.mockReset();
+  mockMap.getSource.mockReset();
   mockMap.getLayer.mockReset();
+  mockMap.removeLayer.mockReset();
+  mockMap.removeSource.mockReset();
+  mockMap.hasImage.mockReturnValue(false);
+  mockMap.getSource.mockImplementation(() => ({ setData: mockSetData }));
 });
 
 const mockSetData = vi.fn();
@@ -65,6 +73,9 @@ mockMap.getSource.mockImplementation(() => ({ setData: mockSetData }));
 const mockEmitter = {
   once: vi.fn((event, cb) => {
     emitterCallbacks[event] = cb;
+  }),
+  off: vi.fn((event, cb) => {
+    if (emitterCallbacks[event] === cb) delete emitterCallbacks[event];
   }),
 };
 
@@ -722,6 +733,111 @@ describe("useGeoJSON / instance isolation", () => {
 
     expect(countA).toBe(1);
     expect(lastFC.features).toHaveLength(0);
+  });
+});
+
+describe("useGeoJSON / setup failure and teardown", () => {
+  it("rolls back a partial setup and does not throw when a layer fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const geoJSON = await freshUseGeoJSON();
+
+    const addedLayers = new Set();
+    const addedSources = new Set();
+    mockMap.addSource.mockImplementation((id) => {
+      addedSources.add(id);
+    });
+    mockMap.addLayer.mockImplementation((config) => {
+      if (config.id === "ogis-geojson-line") {
+        throw new Error("addLayer boom");
+      }
+      addedLayers.add(config.id);
+    });
+    mockMap.getLayer.mockImplementation((id) => addedLayers.has(id));
+    mockMap.getSource.mockImplementation((id) =>
+      addedSources.has(id) ? { setData: mockSetData } : null,
+    );
+
+    expect(() => simulateMapReady(geoJSON)).not.toThrow();
+
+    expect(mockMap.addSource).toHaveBeenCalledWith(
+      "ogis-geojson",
+      expect.objectContaining({ type: "geojson" }),
+    );
+    expect(mockMap.removeLayer).toHaveBeenCalledWith(
+      "ogis-geojson-polygon-outline",
+    );
+    expect(mockMap.removeLayer).toHaveBeenCalledWith(
+      "ogis-geojson-polygon-fill",
+    );
+    expect(mockMap.removeLayer).not.toHaveBeenCalledWith("ogis-geojson-line");
+    expect(mockMap.removeSource).toHaveBeenCalledWith("ogis-geojson");
+
+    // The failed manager stays inert rather than throwing on later calls.
+    expect(() => geoJSON.setFeature(lineFeature())).not.toThrow();
+    expect(mockSetData).not.toHaveBeenCalled();
+
+    warn.mockRestore();
+  });
+
+  it("cleanup tolerates map accessors throwing", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const geoJSON = await freshUseGeoJSON();
+    simulateMapReady(geoJSON);
+
+    mockMap.getLayer.mockImplementation(() => {
+      throw new Error("getLayer boom");
+    });
+    mockMap.getSource.mockImplementation(() => {
+      throw new Error("getSource boom");
+    });
+
+    expect(() => geoJSON.dispose()).not.toThrow();
+    expect(() => geoJSON.dispose()).not.toThrow();
+    warn.mockRestore();
+  });
+
+  it("cleanup tolerates removeLayer and removeSource throwing", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const geoJSON = await freshUseGeoJSON();
+    simulateMapReady(geoJSON);
+
+    mockMap.getLayer.mockReturnValue(true);
+    mockMap.getSource.mockReturnValue({ setData: mockSetData });
+    mockMap.removeLayer.mockImplementation(() => {
+      throw new Error("removeLayer boom");
+    });
+    mockMap.removeSource.mockImplementation(() => {
+      throw new Error("removeSource boom");
+    });
+
+    expect(() => geoJSON.dispose()).not.toThrow();
+    expect(mockMap.removeLayer).toHaveBeenCalledTimes(5);
+    expect(mockMap.removeSource).toHaveBeenCalledWith("ogis-geojson");
+    warn.mockRestore();
+  });
+
+  it("dispose removes pending listeners, clears the cache and allows a fresh manager", async () => {
+    injectReturn = "dispose-test";
+    mockMapInstance = null;
+    emitterCallbacks = {};
+    vi.clearAllMocks();
+    mockMap.getSource.mockImplementation(() => ({ setData: mockSetData }));
+    vi.resetModules();
+    const { useGeoJSON } = await import("../../src/composables/useGeoJSON.js");
+
+    const geoJSON = useGeoJSON();
+    expect(emitterCallbacks["map:ready"]).toBeTypeOf("function");
+    expect(emitterCallbacks["destroy"]).toBeTypeOf("function");
+
+    geoJSON.dispose();
+
+    expect(emitterCallbacks["map:ready"]).toBeUndefined();
+    expect(emitterCallbacks["destroy"]).toBeUndefined();
+
+    const fresh = useGeoJSON();
+    expect(fresh).not.toBe(geoJSON);
+    expect(emitterCallbacks["map:ready"]).toBeTypeOf("function");
+    expect(emitterCallbacks["destroy"]).toBeTypeOf("function");
   });
 });
 

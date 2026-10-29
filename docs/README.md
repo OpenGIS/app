@@ -18,7 +18,7 @@ Developer documentation for the ogis.app codebase.
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | [1. Terminology](./1.terminology.md)                     | Shared project language: demo area, fixture set, core and CI terms                                                               |
 | [2. Setup](./2.setup.md)                                 | Dev server, production preview, build, URL parameters, iframe isolation                                                          |
-| [3. Instances](./3.instances.md)                         | Instance ID, localStorage key format, iframe use case                                                                            |
+| [3. Instances](./3.instances.md)                         | Instance ID, storage key format (localStorage and sessionStorage), iframe use case                                               |
 | [4. Map](./4.map.md)                                     | `useMap` API: lifecycle, readiness signals, view persistence, URL hash, globe, country focus, view orientation and follow camera |
 | [5. UI](./5.ui.md)                                       | `useUI` and `useActions` APIs: responsive breakpoints, panel, corner controls, actions and map modes, wake lock                  |
 | [6. GeoJSON](./6.geojson.md)                             | `useGeoJSON` API: rendering features with styles and direction chevrons                                                          |
@@ -31,4 +31,4 @@ Developer documentation for the ogis.app codebase.
 | [13. CI](./13.ci.md)                                     | GitHub Actions: jobs, artefacts, screenshot-matrix verification, conventional commits, release, deploy                           |
 | [14. Icons](./14.icons.md)                               | End-to-end icon pipeline: sources, generated bundle, `icons:build`, codepoints                                                   |
 | [15. Tracks](./15.tracks.md)                             | Canonical v2 track model: segments, waypoints, import/export, migration, caveats                                                 |
-| [16. State and resilience](./16.state-and-resilience.md) | Persisted state, hydration, crash containment, locate and navigation restore, map recovery, deliberate exclusions                |
+| [16. State and resilience](./16.state-and-resilience.md) | Persisted state, cross-tab sync, hydration, crash containment, locate/navigation restore, map recovery, exclusions               |

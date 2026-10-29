@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   installGlobalErrorHandlers,
   installVueErrorHandler,
@@ -184,5 +184,98 @@ describe("installVueErrorHandler", () => {
 
   it("is safe without a Vue config", () => {
     expect(() => installVueErrorHandler(null)).not.toThrow();
+  });
+});
+
+describe("installVueErrorHandler boot signalling", () => {
+  let originalBoot;
+
+  beforeEach(() => {
+    originalBoot = window.__ogisBoot;
+  });
+
+  afterEach(() => {
+    if (originalBoot === undefined) {
+      delete window.__ogisBoot;
+    } else {
+      window.__ogisBoot = originalBoot;
+    }
+  });
+
+  const install = (report = vi.fn()) => {
+    const app = { config: {} };
+    installVueErrorHandler(app, { report });
+    return { app, report };
+  };
+
+  const rootInstance = () => {
+    const root = { $root: null, parent: null };
+    root.$root = root;
+    return root;
+  };
+
+  it("signals boot failure for a root-instance error", () => {
+    const fail = vi.fn();
+    window.__ogisBoot = { fail };
+    const { app, report } = install();
+
+    const error = new Error("root boom");
+    const root = rootInstance();
+    app.config.errorHandler(error, root, "setup");
+
+    expect(report).toHaveBeenCalledWith(error, {
+      source: "vue",
+      info: "setup",
+    });
+    expect(fail).toHaveBeenCalledWith(error);
+  });
+
+  it("does not signal boot failure for a child-instance error", () => {
+    const fail = vi.fn();
+    window.__ogisBoot = { fail };
+    const { app } = install();
+
+    const root = rootInstance();
+    const child = { $root: root, parent: root };
+    app.config.errorHandler(new Error("child boom"), child, "render");
+
+    expect(fail).not.toHaveBeenCalled();
+  });
+
+  it("signals boot failure when no instance is available", () => {
+    const fail = vi.fn();
+    window.__ogisBoot = { fail };
+    const { app } = install();
+
+    app.config.errorHandler(new Error("no instance"), null, "setup");
+
+    expect(fail).toHaveBeenCalledTimes(1);
+  });
+
+  it("still signals boot failure when the reporter throws", () => {
+    const fail = vi.fn();
+    window.__ogisBoot = { fail };
+    const report = vi.fn(() => {
+      throw new Error("report boom");
+    });
+    const { app } = install(report);
+
+    expect(() =>
+      app.config.errorHandler(new Error("root boom"), rootInstance(), "setup"),
+    ).not.toThrow();
+    expect(fail).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not let a throwing fail escape", () => {
+    window.__ogisBoot = {
+      fail: vi.fn(() => {
+        throw new Error("fail boom");
+      }),
+    };
+    const { app } = install();
+
+    expect(() =>
+      app.config.errorHandler(new Error("root boom"), rootInstance(), "setup"),
+    ).not.toThrow();
   });
 });

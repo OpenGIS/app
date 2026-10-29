@@ -1,6 +1,7 @@
 import { inject } from "vue";
 import { getMapInstance } from "@/composables/useMap.js";
 import { emitter } from "@/emitter.js";
+import { reportError } from "@/resilience/errors.js";
 import { BRIGHT_COLORS } from "@/utils/track/colors.js";
 
 const SOURCE_ID = "ogis-geojson";
@@ -120,7 +121,7 @@ function createManager(instanceId) {
     });
   };
 
-  const setup = (mapInstance) => {
+  const setupLayers = (mapInstance) => {
     map = mapInstance;
     mapInstance.addSource(SOURCE_ID, {
       type: "geojson",
@@ -272,28 +273,90 @@ function createManager(instanceId) {
     updateSource();
   };
 
-  const cleanup = () => {
-    if (!map) return;
-    for (const layerId of Object.values(LAYER_IDS).reverse()) {
-      if (map.getLayer?.(layerId)) map.removeLayer(layerId);
+  const setup = (mapInstance) => {
+    try {
+      setupLayers(mapInstance);
+      return true;
+    } catch (error) {
+      cleanup();
+      reportError(error, { source: "geojson-setup", instanceId });
+      return false;
     }
-    if (map.getSource?.(SOURCE_ID)) map.removeSource(SOURCE_ID);
+  };
+
+  const cleanup = () => {
+    const mapInstance = map;
     map = null;
+    if (!mapInstance) return;
+
+    for (const layerId of Object.values(LAYER_IDS).reverse()) {
+      try {
+        if (mapInstance.getLayer?.(layerId)) mapInstance.removeLayer(layerId);
+      } catch (error) {
+        reportError(error, {
+          source: "geojson-cleanup",
+          instanceId,
+          layerId,
+        });
+      }
+    }
+
+    try {
+      if (mapInstance.getSource?.(SOURCE_ID))
+        mapInstance.removeSource(SOURCE_ID);
+    } catch (error) {
+      reportError(error, {
+        source: "geojson-cleanup",
+        instanceId,
+        sourceId: SOURCE_ID,
+      });
+    }
   };
 
   // Hook into map lifecycle
   const existingMap = getMapInstance(instanceId);
+  let readyListener = null;
+  let destroyListener = null;
 
   if (existingMap) {
     setup(existingMap);
   } else {
-    emitter.once("map:ready", ({ map: m }) => setup(m));
+    readyListener = ({ map: m }) => {
+      readyListener = null;
+      setup(m);
+    };
+    emitter.once("map:ready", readyListener);
   }
 
-  emitter.once("destroy", () => {
+  let manager = null;
+
+  /**
+   * Terminal teardown for one instance.
+   *
+   * Removes both lifecycle listeners, tears down the map source and layers,
+   * clears the in-memory feature sets and drops the cached manager only when
+   * this manager is still the cached one. Idempotent.
+   */
+  const dispose = () => {
+    if (readyListener) {
+      emitter.off("map:ready", readyListener);
+      readyListener = null;
+    }
+    if (destroyListener) {
+      emitter.off("destroy", destroyListener);
+      destroyListener = null;
+    }
+
     cleanup();
-    cache.delete(instanceId);
-  });
+    features.clear();
+    originalFeatures.clear();
+    assignedColors.clear();
+
+    if (cache.get(instanceId) === manager) cache.delete(instanceId);
+  };
+
+  destroyListener = () => dispose();
+  emitter.once("destroy", destroyListener);
 
   /**
    * Add or update a GeoJSON feature on the map.
@@ -385,7 +448,15 @@ function createManager(instanceId) {
     updateSource();
   };
 
-  return { setFeature, removeFeature, clearFeatures, setDefaults };
+  manager = {
+    setFeature,
+    removeFeature,
+    clearFeatures,
+    setDefaults,
+    dispose,
+  };
+
+  return manager;
 }
 
 /**
@@ -399,7 +470,11 @@ function createManager(instanceId) {
  * Pass `instanceId` explicitly when calling from outside Vue (e.g. a plugin).
  *
  * @param {string|null} [instanceId]
- * @returns {{ setFeature, removeFeature, clearFeatures, setDefaults }}
+ * @returns {{ setFeature, removeFeature, clearFeatures, setDefaults, dispose }}
+ *   `dispose()` is terminal teardown for one instance: it removes the
+ *   lifecycle listeners, cleans up the map source and layers, clears the
+ *   in-memory feature sets and drops the cached manager. It is shared by
+ *   routes, recordings and offline, so a single feature must not call it.
  *
  * @example
  * // In a Vue component
@@ -417,7 +492,11 @@ function createManager(instanceId) {
 export const useGeoJSON = (instanceId = null) => {
   const id = instanceId ?? inject("ogisAppId", "app");
   if (!cache.has(id)) {
-    cache.set(id, createManager(id));
+    // Publish only a fully created manager, so a creation failure cannot leave
+    // a partial cache entry behind.
+    const manager = createManager(id);
+    cache.set(id, manager);
+    return manager;
   }
   return cache.get(id);
 };

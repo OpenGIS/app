@@ -32,7 +32,9 @@ export function hydrateView(data, { version } = {}) {
     isFiniteNumber(rawCenter.lat) &&
     isFiniteNumber(rawCenter.lng) &&
     rawCenter.lat >= -90 &&
-    rawCenter.lat <= 90
+    rawCenter.lat <= 90 &&
+    rawCenter.lng >= -180 &&
+    rawCenter.lng <= 180
       ? { lat: rawCenter.lat, lng: rawCenter.lng }
       : null;
 

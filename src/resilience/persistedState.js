@@ -36,7 +36,34 @@ const storeKey = (namespace, instanceId) => `ogis_${namespace}_${instanceId}`;
 const quarantineKey = (namespace, instanceId) =>
   `ogis_quarantine_${namespace}_${instanceId}`;
 
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const INSTANCE_NAMESPACES = [
+  "view",
+  "recordings",
+  "routes",
+  "offline-regions",
+  "locate",
+  "navigation",
+  "recording-active",
+  "sync",
+];
+
+/**
+ * Whether a storage key belongs to exactly this instance and one of the app's
+ * known store namespaces, including its quarantine copy.
+ *
+ * Exact comparison avoids over-matching instance ids that end with another id,
+ * e.g. resetting `app` must not touch `trip_app`.
+ *
+ * @param {string} key
+ * @param {string} instanceId
+ * @returns {boolean}
+ */
+export const isInstanceStateKey = (key, instanceId) =>
+  INSTANCE_NAMESPACES.some(
+    (namespace) =>
+      key === storeKey(namespace, instanceId) ||
+      key === quarantineKey(namespace, instanceId),
+  );
 
 const storageFor = (kind) => {
   try {
@@ -192,31 +219,70 @@ const replaceState = (state, data) => {
 };
 
 /**
- * Remove every localStorage key belonging to one app instance, including
- * quarantine copies. Other instances are untouched.
+ * Copy a legacy localStorage value into sessionStorage once, then remove the
+ * local copy. Session storage wins when both exist.
+ *
+ * This is a one-time boot migration for stores that moved from shared
+ * localStorage to tab-owned sessionStorage. It copies the raw string without
+ * hydrating it; the store's normal boot path hydrates it afterwards. It is
+ * safe when storage is unavailable or throws, and never throws itself.
+ *
+ * @param {string} namespace
+ * @param {string} instanceId
+ * @returns {boolean} true when a local value was moved.
+ */
+export const migrateLocalToSession = (namespace, instanceId) => {
+  const key = storeKey(namespace, instanceId);
+
+  try {
+    const sessionRaw = safeGetItem("session", key);
+    if (sessionRaw !== null) {
+      if (safeGetItem("local", key) !== null) safeRemoveItem("local", key);
+      return false;
+    }
+
+    const localRaw = safeGetItem("local", key);
+    if (localRaw === null) return false;
+
+    if (!safeSetItem("session", key, localRaw)) return false;
+    safeRemoveItem("local", key);
+    return true;
+  } catch (error) {
+    debug.warn(`could not migrate [${key}] to session storage`, error);
+    return false;
+  }
+};
+
+/**
+ * Remove every key belonging to one app instance from both localStorage and
+ * sessionStorage, including quarantine copies.
+ *
+ * Only the app's known namespaces are matched, with an exact key comparison, so
+ * another instance whose id ends with this one (for example `trip_app` when
+ * resetting `app`) is left untouched.
  *
  * @param {string} instanceId
  */
 export const resetInstanceState = (instanceId) => {
-  const storage = storageFor("local");
-  if (!storage) return;
+  for (const kind of ["local", "session"]) {
+    const storage = storageFor(kind);
+    if (!storage) continue;
 
-  const suffix = new RegExp(`^ogis_.*_${escapeRegExp(instanceId)}$`);
-
-  let keys;
-  try {
-    keys = Object.keys(storage);
-  } catch (error) {
-    debug.warn("could not enumerate storage keys", error);
-    return;
-  }
-
-  for (const key of keys) {
-    if (!suffix.test(key)) continue;
+    let keys;
     try {
-      storage.removeItem(key);
+      keys = Object.keys(storage);
     } catch (error) {
-      debug.warn(`could not remove [${key}]`, error);
+      debug.warn(`could not enumerate ${kind} storage keys`, error);
+      continue;
+    }
+
+    for (const key of keys) {
+      if (!isInstanceStateKey(key, instanceId)) continue;
+      try {
+        storage.removeItem(key);
+      } catch (error) {
+        debug.warn(`could not remove [${key}]`, error);
+      }
     }
   }
 };

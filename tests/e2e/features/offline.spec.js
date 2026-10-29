@@ -5,6 +5,8 @@ import {
 } from "../helpers/console.js";
 import { projectionType } from "../helpers/mapProjection.js";
 import { isSwiftShaderRun } from "../helpers/determinism.js";
+import { waitForMapReady } from "../helpers/panel";
+import { writeStoredEnvelope, openPeerPage } from "../helpers/storage.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
@@ -396,6 +398,37 @@ test.describe("Offline / Show", () => {
 
     await expect.poll(isWithinRegion, { timeout: 15000 }).toBe(true);
   });
+
+  test("deleting the shown region removes its overlay", async ({ page }) => {
+    const overlayFeatureCount = () =>
+      page.evaluate(async () => {
+        const { getMapInstance } = await import("/src/composables/useMap.js");
+        const map = getMapInstance("app");
+        const data = map?.getSource("ogis-geojson")?.serialize()?.data;
+        const features =
+          data && typeof data === "object" && Array.isArray(data.features)
+            ? data.features
+            : [];
+        return features.filter(
+          (feature) => String(feature.id) === "offline-region",
+        ).length;
+      });
+
+    await page
+      .locator(".ogis-panel")
+      .getByRole("button", { name: "Show", exact: true })
+      .click();
+
+    await expect.poll(overlayFeatureCount, { timeout: 15000 }).toBe(1);
+
+    page.on("dialog", (dialog) => dialog.accept());
+    await page
+      .locator(".ogis-panel")
+      .getByRole("button", { name: "Delete" })
+      .click();
+
+    await expect.poll(overlayFeatureCount, { timeout: 15000 }).toBe(0);
+  });
 });
 
 // ─── Offline / Mobile (touch) ────────────────────────────────────────────────
@@ -496,5 +529,71 @@ test.describe("Offline / Mobile (touch)", () => {
     // A <4px tap aborts the draw: the panel stays closed, no region shown.
     await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
     await expect(page.getByText("Selected region")).toHaveCount(0);
+  });
+});
+
+// ─── Offline / Cross-tab sync ───────────────────────────────────────────────
+
+test.describe("Offline / Cross-tab sync", () => {
+  const REGION_ID = "xtab-region";
+  const REGION_NAME = "Cross-tab Region";
+
+  const regionDoc = () => ({
+    id: REGION_ID,
+    name: REGION_NAME,
+    createdAt: Date.UTC(2025, 0, 15, 9, 30, 0),
+    bounds: SHOW_REGION,
+    minZoom: 10,
+    maxZoom: 11,
+    tileCount: 12,
+    estimatedBytes: 720000,
+  });
+
+  const overlayFeatureCount = (page) =>
+    page.evaluate(async () => {
+      const { getMapInstance } = await import("/src/composables/useMap.js");
+      const map = getMapInstance("app");
+      const data = map?.getSource("ogis-geojson")?.serialize()?.data;
+      const features =
+        data && typeof data === "object" && Array.isArray(data.features)
+          ? data.features
+          : [];
+      return features.filter(
+        (feature) => String(feature.id) === "offline-region",
+      ).length;
+    });
+
+  test.beforeEach(async ({ page }) => {
+    await withViewStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+    await openOfflinePanel(page);
+  });
+
+  test("an external add and removal reconcile the region row and overlay", async ({
+    page,
+    context,
+  }) => {
+    const peer = await openPeerPage(context);
+    trackConsoleErrors(peer);
+
+    await writeStoredEnvelope(peer, "ogis_offline-regions_app", 1, [
+      regionDoc(),
+    ]);
+
+    await expect(page.getByText(REGION_NAME)).toBeVisible();
+    await page
+      .locator(".ogis-panel")
+      .getByRole("button", { name: "Show", exact: true })
+      .click();
+    await expect.poll(() => overlayFeatureCount(page)).toBe(1);
+
+    await writeStoredEnvelope(peer, "ogis_offline-regions_app", 1, []);
+
+    await expect(page.getByText(REGION_NAME)).toHaveCount(0);
+    await expect.poll(() => overlayFeatureCount(page)).toBe(0);
+
+    expectNoConsoleErrors(peer);
+    await peer.close();
   });
 });

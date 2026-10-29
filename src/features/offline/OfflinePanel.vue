@@ -250,9 +250,12 @@ const isLarge = computed(() =>
 const downloading = ref(false);
 const progress = ref({ done: 0, total: 0 });
 const downloadError = ref("");
+const downloadWarning = ref("");
 const abortController = ref(null);
 
 const runDownload = async () => {
+  downloadError.value = "";
+  downloadWarning.value = "";
   if (!estimateState.value) {
     await estimateNow();
     if (!estimateState.value) return;
@@ -275,7 +278,6 @@ const runDownload = async () => {
   abortController.value = new AbortController();
 
   downloading.value = true;
-  downloadError.value = "";
   progress.value = { done: 0, total: 0 };
 
   try {
@@ -294,13 +296,23 @@ const runDownload = async () => {
       minZoom: lo,
       maxZoom: hi,
       tileCount: result.tileCount,
+      failedCount: result.failedCount,
+      requestedCount: result.requestedCount,
       estimatedBytes: estimateState.value.estimatedBytes,
     });
+    if (result.failedCount > 0) {
+      downloadWarning.value = t("panel.offline.partial", {
+        succeeded: result.totalCount,
+        total: result.requestedCount,
+      });
+    }
     await persistPromise;
     refreshStorage();
   } catch (err) {
     if (err.name === "AbortError") {
       downloadError.value = t("panel.offline.cancelled");
+    } else if (err.code === "download-empty") {
+      downloadError.value = t("panel.offline.empty");
     } else if (err.code === "map-not-ready") {
       downloadError.value = t("panel.offline.errorMapNotReady");
     } else {
@@ -501,6 +513,9 @@ const removeRegion = async (region) => {
     <div v-if="downloadError" class="small text-danger mt-2">
       {{ downloadError }}
     </div>
+    <div v-if="downloadWarning" class="small text-warning mt-2" role="status">
+      {{ downloadWarning }}
+    </div>
 
     <!-- Storage summary -->
     <hr class="my-3 opacity-25" />
@@ -536,7 +551,7 @@ const removeRegion = async (region) => {
     </h6>
 
     <p v-if="!regions.length" class="text-body-tertiary small">
-      {{ t("panel.offline.empty") }}
+      {{ t("panel.offline.noRegions") }}
     </p>
 
     <div v-for="region in regions" :key="region.id" class="border-top py-2">

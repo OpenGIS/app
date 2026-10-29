@@ -80,7 +80,10 @@ if (isDesktop.value) {
 
 const rootEl = ref(null);
 const { init: initWakeLock } = useWakeLock();
-onMounted(() => initWakeLock());
+onMounted(() => {
+  window.__ogisBoot?.ready?.();
+  initWakeLock();
+});
 </script>
 
 <template>

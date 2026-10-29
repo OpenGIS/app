@@ -64,6 +64,118 @@ test.describe("Boot fallback", () => {
     await expect(fallback.locator("[data-ogis-boot-reload]")).toBeVisible();
     await expect(fallback.locator("[data-ogis-boot-reset]")).toBeVisible();
   });
+
+  test("keeps the static fallback when the root component fails to mount", async ({
+    page,
+  }) => {
+    await page.route("**/src/App.vue*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/javascript",
+        body: `window.__ogisRootFailure = "loaded"; export default { name: "BrokenRoot", setup() { window.__ogisRootFailure = "setup"; throw new Error("root setup failed"); } };`,
+      }),
+    );
+
+    await page.goto("/");
+
+    const fallback = page.locator("[data-ogis-boot-fallback]");
+    // The default 30 s watchdog is in force: a prompt appearance proves the
+    // Vue error handler's immediate fail() signal, not the watchdog.
+    await expect(fallback).toBeVisible({ timeout: 5000 });
+    await expect(fallback.locator("[data-ogis-boot-reload]")).toBeVisible();
+    await expect(fallback.locator("[data-ogis-boot-reset]")).toBeVisible();
+    await expect(page.locator(".ogis-root")).toHaveCount(0);
+    await expect(page.locator("#app")).toBeEmpty();
+    expect(await page.evaluate(() => window.__ogisRootFailure)).toBe("setup");
+
+    // A late ready signal must not hide a fallback already shown.
+    await page.evaluate(() => window.__ogisBoot?.ready?.());
+    await page.waitForTimeout(1000);
+    await expect(fallback).toBeVisible();
+  });
+
+  test("reset clears only the current instance's keys", async ({ page }) => {
+    trackConsoleErrors(page);
+
+    await page.route("**/src/App.vue*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/javascript",
+        body: `export default { name: "BrokenRoot", setup() { throw new Error("root setup failed"); } };`,
+      }),
+    );
+
+    await page.addInitScript(() => {
+      // Seed only on the first load: the reset reloads the page, and the
+      // seeded values must not come back for the post-reset assertions.
+      if (localStorage.getItem("__ogisE2eSeeded")) return;
+      localStorage.setItem("__ogisE2eSeeded", "1");
+      localStorage.setItem("ogis_view_app", "x");
+      localStorage.setItem("ogis_view_trip_app", "x");
+      sessionStorage.setItem("ogis_locate_app", "x");
+      sessionStorage.setItem("ogis_locate_trip_app", "x");
+    });
+
+    await page.goto("/");
+
+    const fallback = page.locator("[data-ogis-boot-fallback]");
+    await expect(fallback).toBeVisible({ timeout: 5000 });
+
+    const reloaded = page.waitForEvent("load", { timeout: 20000 });
+    await fallback.locator("[data-ogis-boot-reset]").click();
+    await reloaded;
+
+    // The reload boots into the same root failure, so the fallback returns.
+    await expect(fallback).toBeVisible({ timeout: 5000 });
+
+    const storage = await page.evaluate(() => ({
+      localApp: localStorage.getItem("ogis_view_app"),
+      localTripApp: localStorage.getItem("ogis_view_trip_app"),
+      sessionApp: sessionStorage.getItem("ogis_locate_app"),
+      sessionTripApp: sessionStorage.getItem("ogis_locate_trip_app"),
+    }));
+
+    expect(storage.localApp).toBeNull();
+    expect(storage.sessionApp).toBeNull();
+    expect(storage.localTripApp).toBe("x");
+    expect(storage.sessionTripApp).toBe("x");
+
+    expectNoConsoleErrors(page);
+  });
+});
+
+test.describe("Feature install isolation", () => {
+  test("a feature whose install throws is contained", async ({ page }) => {
+    trackConsoleErrors(page);
+
+    // Serve a deterministic stand-in for one feature module. Vite requests the
+    // source path directly in dev, so the interception is reliable and the
+    // replacement has no imports of its own.
+    await page.route("**/src/features/offline/index.js*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/javascript",
+        body: `export const OfflineFeature = { install() { throw new Error("offline install failed"); } };`,
+      }),
+    );
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect(page.locator(".ogis-root")).toBeVisible();
+    await expect(page.locator("[data-ogis-boot-fallback]")).toBeHidden();
+
+    // Later features still installed and the panel chrome is intact.
+    await openMenuTab(page, "Recordings");
+    await expect(page.getByText("No recordings yet.")).toBeVisible();
+    await expect(
+      page.locator(".panel-nav").getByRole("button", { name: "Routes" }),
+    ).toBeVisible();
+
+    // The failure is contained and reported through the debug channel, not
+    // surfaced as a console or page error.
+    expectNoConsoleErrors(page);
+  });
 });
 
 test.describe("Corrupt stored state", () => {

@@ -6,7 +6,11 @@ import {
 import { waitForMapReady } from "../helpers/panel";
 import { waitForMapIdle } from "../helpers/mapIdle.js";
 import { isSwiftShaderRun } from "../helpers/determinism.js";
-import { readStoredState } from "../helpers/storage.js";
+import {
+  readStoredState,
+  writeStoredEnvelope,
+  openPeerPage,
+} from "../helpers/storage.js";
 import { emitFix, installGeolocationMock } from "../helpers/locate.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 import { readFileSync } from "node:fs";
@@ -60,10 +64,10 @@ const GEOJSON_ROUTE = {
   ],
 };
 
-/** Seed localStorage with permission granted and a known map view. */
+/** Seed sessionStorage with permission granted and localStorage with a view. */
 const withGrantedStorage = (page) =>
   page.addInitScript((center) => {
-    localStorage.setItem(
+    sessionStorage.setItem(
       "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
     );
@@ -122,7 +126,7 @@ const storedRoutes = async (page) =>
 /** Read the persisted navigation document (envelope or legacy). */
 const storedNavigation = async (page) =>
   readStoredState(
-    await page.evaluate(() => localStorage.getItem("ogis_navigation_app")),
+    await page.evaluate(() => sessionStorage.getItem("ogis_navigation_app")),
   );
 
 /** Read the live locate mode through the page's own module graph. */
@@ -166,13 +170,13 @@ const seedRestoreState = (page, state) =>
       localStorage.setItem("ogis_routes_app", JSON.stringify(stored.routes));
     }
     if (stored.navigation) {
-      localStorage.setItem(
+      sessionStorage.setItem(
         "ogis_navigation_app",
         JSON.stringify(stored.navigation),
       );
     }
     if (stored.locate) {
-      localStorage.setItem("ogis_locate_app", JSON.stringify(stored.locate));
+      sessionStorage.setItem("ogis_locate_app", JSON.stringify(stored.locate));
     }
   }, state);
 
@@ -182,8 +186,8 @@ const seedRestoreState = (page, state) =>
  */
 const withLocatePermission = (page) =>
   page.addInitScript(() => {
-    if (!localStorage.getItem("ogis_locate_app")) {
-      localStorage.setItem(
+    if (!sessionStorage.getItem("ogis_locate_app")) {
+      sessionStorage.setItem(
         "ogis_locate_app",
         JSON.stringify({ permissionGranted: true }),
       );
@@ -1047,7 +1051,9 @@ test.describe("Routes / Navigate", () => {
     await expect(navControl(page)).toHaveCount(0);
     await expect(navConnector(page)).toHaveCount(0);
     await expect(locateLabel(page)).toHaveText("Locate");
-    expect(await storedRoutes(page)).toEqual([]);
+    await expect
+      .poll(() => storedRoutes(page), { timeout: NAV_TIMEOUT })
+      .toEqual([]);
   });
 
   test("pressing Locate while following stops navigation and clears the indicator", async ({
@@ -1131,6 +1137,19 @@ test.describe("Routes / Navigate", () => {
     const centre = await readMapCentre(page);
     expect(centreDelta(centre, ROUTE_CENTRE)).toBeGreaterThan(0.01);
   });
+
+  test("starting navigation persists immediately", async ({ page }) => {
+    await bootRoutes(page, { fix: OFF_ROUTE_FIX });
+    await showRoute(page);
+    await startNavigation(page);
+
+    // No polling: navigation persistence is a critical write, so the stored
+    // envelope must already carry the route id.
+    const [route] = await storedRoutes(page);
+    const stored = await storedNavigation(page);
+    expect(stored).not.toBeNull();
+    expect(stored.routeId).toBe(route.id);
+  });
 });
 
 // ─── Routes / Persist across reload ──────────────────────────────────────────
@@ -1209,6 +1228,40 @@ test.describe("Routes / Restore across reload", () => {
     await openRoutesPanel(page);
     await importFixture(page);
   };
+
+  test("migrates a legacy localStorage navigation value into sessionStorage", async ({
+    page,
+  }) => {
+    const routeId = "migrate-route";
+
+    await page.addInitScript(
+      ({ route, navigation }) => {
+        localStorage.setItem("ogis_routes_app", JSON.stringify([route]));
+        localStorage.setItem("ogis_navigation_app", JSON.stringify(navigation));
+      },
+      {
+        route: restoreRoute(routeId),
+        navigation: { routeId: null, visible: [routeId], followOwned: false },
+      },
+    );
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect
+      .poll(async () => (await storedNavigation(page))?.visible ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toEqual([routeId]);
+    expect(
+      await page.evaluate(() => localStorage.getItem("ogis_navigation_app")),
+    ).toBeNull();
+    await expect
+      .poll(() => mapFeatureIds(page, "routes-route-"), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toEqual([`routes-route-${routeId}`]);
+  });
 
   test("visible route restores without fitting the stored user view", async ({
     page,
@@ -1320,6 +1373,40 @@ test.describe("Routes / Restore across reload", () => {
         timeout: RESTORE_TIMEOUT,
       })
       .toBe(false);
+  });
+
+  test("navigation in one tab is not restored in another tab", async ({
+    context,
+    page: pageA,
+  }) => {
+    await bootRestoreRoutes(pageA);
+    await showRoute(pageA);
+
+    const [stored] = await storedRoutes(pageA);
+    const routeId = stored.id;
+
+    await startNavigation(pageA);
+    await expect
+      .poll(async () => (await storedNavigation(pageA))?.routeId ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(routeId);
+
+    const pageB = await context.newPage();
+    await pageB.goto("/");
+    await waitForMapReady(pageB);
+
+    await expect
+      .poll(async () => (await storedNavigation(pageB))?.routeId ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBeNull();
+    expect(
+      await pageB.evaluate(() => sessionStorage.getItem("ogis_navigation_app")),
+    ).toBeNull();
+    await expect(navControl(pageB)).toHaveCount(0);
+
+    await pageB.close();
   });
 
   test("a follow the user owned before navigation survives stopping the restore", async ({
@@ -1440,5 +1527,103 @@ test.describe("Routes / Restore across reload", () => {
 
     await expect(navControl(page)).toHaveCount(0);
     expect(await mapFeatureIds(page, "routes-route-")).toEqual([]);
+  });
+});
+
+// ─── Routes / Cross-tab sync ────────────────────────────────────────────────
+
+test.describe("Routes / Cross-tab sync", () => {
+  test.setTimeout(isSwiftShaderRun() ? 180000 : 60000);
+
+  const ROUTE_ID = "xtab-route";
+  const ROUTE_NAME = "Cross-tab Loop";
+
+  test.beforeEach(async ({ page }) => {
+    trackConsoleErrors(page);
+    await withGrantedStorage(page);
+    await installGeolocationMock(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+    await openRoutesPanel(page);
+  });
+
+  test.afterEach(({ page }) => expectNoConsoleErrors(page));
+
+  test("an external add and removal reconcile visibility and navigation", async ({
+    page,
+    context,
+  }) => {
+    const peer = await openPeerPage(context);
+    trackConsoleErrors(peer);
+
+    await writeStoredEnvelope(peer, "ogis_routes_app", 1, [
+      { ...restoreRoute(ROUTE_ID), name: ROUTE_NAME },
+    ]);
+
+    const row = routeRow(page, ROUTE_NAME);
+    await expect(row).toBeVisible();
+    await row.getByRole("button", { name: "Show", exact: true }).click();
+    await expect
+      .poll(() => mapFeatureIds(page, "routes-route-"))
+      .toEqual([`routes-route-${ROUTE_ID}`]);
+
+    await row.getByRole("button", { name: "Navigate", exact: true }).click();
+    await expect(navControl(page)).toBeVisible();
+    await expect(locateLabel(page)).toHaveText("Following");
+    expect(await readLocateMode(page)).toBe("following");
+
+    await writeStoredEnvelope(peer, "ogis_routes_app", 1, []);
+
+    await expect(row).toHaveCount(0);
+    await expect.poll(() => mapFeatureIds(page, "routes-route-")).toEqual([]);
+    await expect(navControl(page)).toHaveCount(0);
+    await expect.poll(() => readLocateMode(page)).toBeNull();
+
+    expectNoConsoleErrors(peer);
+    await peer.close();
+  });
+
+  test("an external geometry loss hides the route and stops navigation", async ({
+    page,
+    context,
+  }) => {
+    const peer = await openPeerPage(context);
+    trackConsoleErrors(peer);
+
+    await writeStoredEnvelope(peer, "ogis_routes_app", 1, [
+      restoreRoute(ROUTE_ID),
+    ]);
+
+    const row = routeRow(page, "Restore Loop");
+    await expect(row).toBeVisible();
+    await row.getByRole("button", { name: "Show", exact: true }).click();
+    await expect
+      .poll(() => mapFeatureIds(page, "routes-route-"))
+      .toEqual([`routes-route-${ROUTE_ID}`]);
+
+    await row.getByRole("button", { name: "Navigate", exact: true }).click();
+    await expect(navControl(page)).toBeVisible();
+
+    const geometryless = {
+      ...restoreRoute(ROUTE_ID),
+      segments: [{ points: [{ lat: DEMO.center.lat, lng: DEMO.center.lng }] }],
+    };
+    await writeStoredEnvelope(peer, "ogis_routes_app", 1, [geometryless]);
+
+    // The document stays, but it can no longer be shown.
+    await openRoutesPanel(page);
+    await expect(row).toBeVisible();
+    await expect(
+      row.getByRole("button", { name: "Show", exact: true }),
+    ).toBeVisible();
+    await expect.poll(() => mapFeatureIds(page, "routes-route-")).toEqual([]);
+    await expect(navControl(page)).toHaveCount(0);
+    await expect
+      .poll(async () => (await storedNavigation(page))?.visible ?? null)
+      .toEqual([]);
+    await expect.poll(() => readLocateMode(page)).toBeNull();
+
+    expectNoConsoleErrors(peer);
+    await peer.close();
   });
 });

@@ -161,6 +161,35 @@ describe("useActions / claimMap", () => {
   });
 });
 
+// ─── Disposal ───────────────────────────────────────────────────────────────
+
+describe("useActions / disposal", () => {
+  it("dispose drops only this instance's cached registry", () => {
+    const id = nextInstanceId();
+    const first = useActions(id);
+    first.registerMode("follow", activeMode());
+
+    first.dispose();
+
+    const second = useActions(id);
+    expect(second).not.toBe(first);
+    expect(second.activeModes.value).toEqual([]);
+  });
+
+  it("does not cache a registry when creation throws", () => {
+    const id = nextInstanceId();
+    useUI.mockImplementationOnce(() => {
+      throw new Error("ui boom");
+    });
+
+    expect(() => useActions(id)).toThrow("ui boom");
+
+    // The failed creation left no poisoned cache entry.
+    const actions = useActions(id);
+    expect(actions.registerMode).toBeTypeOf("function");
+  });
+});
+
 // ─── Performing an action ────────────────────────────────────────────────────
 
 describe("useActions / perform", () => {

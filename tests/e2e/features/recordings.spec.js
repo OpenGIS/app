@@ -4,7 +4,16 @@ import {
   expectNoConsoleErrors,
 } from "../helpers/console.js";
 import { waitForMapReady, openMenuTab } from "../helpers/panel";
-import { readStoredState } from "../helpers/storage.js";
+import {
+  installGeolocationMock,
+  emitFix,
+  emitGeoError,
+} from "../helpers/locate.js";
+import {
+  readStoredState,
+  writeStoredEnvelope,
+  openPeerPage,
+} from "../helpers/storage.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 
 /**
@@ -28,10 +37,10 @@ test.afterEach(({ page }) => expectNoConsoleErrors(page));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Seed localStorage with permission granted and a known map view. */
+/** Seed sessionStorage with permission granted and localStorage with a view. */
 const withGrantedStorage = (page) =>
   page.addInitScript((center) => {
-    localStorage.setItem(
+    sessionStorage.setItem(
       "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
     );
@@ -47,8 +56,10 @@ const withGrantedStorage = (page) =>
 const withNoStorage = (page) =>
   page.addInitScript(() => {
     localStorage.removeItem("ogis_locate_app");
+    sessionStorage.removeItem("ogis_locate_app");
     localStorage.removeItem("ogis_view_app");
     localStorage.removeItem("ogis_recordings_app");
+    sessionStorage.removeItem("ogis_recording-active_app");
   });
 
 /** Grant browser geolocation permission and set a fixed position. */
@@ -91,11 +102,20 @@ const handleConfirm = (page, action, messages) => {
   });
 };
 
-/** Read the persisted recordings storage object (envelope or legacy). */
-const storedRecordings = async (page) =>
-  readStoredState(
-    await page.evaluate(() => localStorage.getItem("ogis_recordings_app")),
-  ) ?? {};
+/**
+ * Read the persisted recordings: saved documents from localStorage and the
+ * tab-owned active recording from sessionStorage.
+ */
+const storedRecordings = async (page) => {
+  const { saved, active } = await page.evaluate(() => ({
+    saved: localStorage.getItem("ogis_recordings_app"),
+    active: sessionStorage.getItem("ogis_recording-active_app"),
+  }));
+  return {
+    ...(readStoredState(saved) ?? {}),
+    active: readStoredState(active)?.active ?? null,
+  };
+};
 
 /**
  * Read the sorted ids of features currently held by the app's GeoJSON source,
@@ -222,6 +242,16 @@ test.describe("Recordings / Start and Pause", () => {
     );
   });
 
+  test("starting a recording persists immediately", async ({ page }) => {
+    await openMenuTab(page, "Recordings");
+    await page.locator("#recordings-start-button").click();
+
+    // No polling: recording start is a critical write, so the stored envelope
+    // must already carry the active recording.
+    const stored = await storedRecordings(page);
+    expect(stored.active).not.toBeNull();
+  });
+
   test("starting a recording shows Duration and Distance in the panel", async ({
     page,
   }) => {
@@ -265,6 +295,114 @@ test.describe("Recordings / Start and Pause", () => {
       "data-state",
       "recording",
     );
+  });
+});
+
+// ─── Recordings / GPS failure ────────────────────────────────────────────────
+
+test.describe("Recordings / GPS failure", () => {
+  test.beforeEach(async ({ page }) => {
+    await withGrantedStorage(page);
+    await installGeolocationMock(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+  });
+
+  test("pauses and preserves points when location fails after fixes", async ({
+    page,
+  }) => {
+    await openRecordingsPanel(page);
+    await page.locator("#recordings-start-button").click();
+    await expect(page.getByText("Current Recording")).toBeVisible();
+
+    await emitFix(page, { lat: DEMO.route[0].lat, lng: DEMO.route[0].lng });
+    await emitFix(page, { lat: DEMO.route[1].lat, lng: DEMO.route[1].lng });
+    await emitGeoError(page, 1);
+
+    await expect(
+      page.getByText("Location access was denied. Recording paused."),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
+    await expect(page.locator("#recordings-start-button")).toBeHidden();
+
+    const stored = await storedRecordings(page);
+    expect(stored.active.segments[0].points).toHaveLength(2);
+  });
+
+  test("reports a location failure before the first fix", async ({ page }) => {
+    await openRecordingsPanel(page);
+    await page.locator("#recordings-start-button").click();
+    await expect(page.getByText("Current Recording")).toBeVisible();
+
+    await emitGeoError(page, 1);
+
+    await expect(
+      page.getByText("Location access was denied. Recording paused."),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
+    await expect(page.locator("#recordings-start-button")).toBeHidden();
+
+    const stored = await storedRecordings(page);
+    expect(stored.active).not.toBeNull();
+    expect(stored.active.segments[0].points).toHaveLength(0);
+  });
+});
+
+// ─── Recordings / Restored elapsed ───────────────────────────────────────────
+
+test.describe("Recordings / Restored elapsed", () => {
+  const CREATED_AT = Date.UTC(2025, 0, 15, 9, 30, 0);
+
+  /** Seed a v2 active recording whose last point is five minutes in. */
+  const withRestoredRecording = (page) =>
+    page.addInitScript(
+      ({ center, createdAt, points }) => {
+        sessionStorage.setItem(
+          "ogis_locate_app",
+          JSON.stringify({ permissionGranted: true }),
+        );
+        localStorage.setItem(
+          "ogis_view_app",
+          JSON.stringify({ mapView: { center, zoom: 14 } }),
+        );
+        localStorage.setItem(
+          "ogis_recordings_app",
+          JSON.stringify({ saved: [] }),
+        );
+        sessionStorage.setItem(
+          "ogis_recording-active_app",
+          JSON.stringify({
+            active: {
+              v: 2,
+              kind: "recording",
+              name: null,
+              gpxType: null,
+              createdAt,
+              source: { format: "gps" },
+              segments: [{ points }],
+              waypoints: [],
+            },
+          }),
+        );
+      },
+      {
+        center: DEMO.center,
+        createdAt: CREATED_AT,
+        points: [
+          { ...DEMO.route[0], t: CREATED_AT },
+          { ...DEMO.route[1], t: CREATED_AT + 5 * 60 * 1000 },
+        ],
+      },
+    );
+
+  test("restores elapsed from the last recorded point", async ({ page }) => {
+    await withRestoredRecording(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+    await openRecordingsPanel(page);
+
+    await expect(page.getByText("5:00", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
   });
 });
 
@@ -357,7 +495,7 @@ test.describe("Recordings / Saved list management", () => {
   const withOneSavedRecording = (page) =>
     page.addInitScript(
       ({ center, points, savedAt }) => {
-        localStorage.setItem(
+        sessionStorage.setItem(
           "ogis_locate_app",
           JSON.stringify({ permissionGranted: true }),
         );
@@ -545,6 +683,64 @@ test.describe("Recordings / Saved list management", () => {
   });
 });
 
+// ─── Recordings / Migration ──────────────────────────────────────────────────
+
+test.describe("Recordings / Migration", () => {
+  const CREATED_AT = Date.UTC(2025, 0, 15, 9, 30, 0);
+
+  test("moves a legacy active recording from localStorage into sessionStorage", async ({
+    page,
+  }) => {
+    await page.addInitScript(
+      ({ createdAt, points }) => {
+        localStorage.setItem(
+          "ogis_recordings_app",
+          JSON.stringify({
+            saved: [],
+            active: {
+              v: 2,
+              kind: "recording",
+              name: null,
+              gpxType: null,
+              createdAt,
+              source: { format: "gps" },
+              segments: [{ points }],
+              waypoints: [],
+            },
+          }),
+        );
+      },
+      {
+        createdAt: CREATED_AT,
+        points: [
+          { ...DEMO.route[0], t: CREATED_AT },
+          { ...DEMO.route[1], t: CREATED_AT + 1000 },
+        ],
+      },
+    );
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect
+      .poll(async () => {
+        const raw = await page.evaluate(() =>
+          sessionStorage.getItem("ogis_recording-active_app"),
+        );
+        return (
+          readStoredState(raw)?.active?.segments?.[0]?.points?.length ?? null
+        );
+      })
+      .toBe(2);
+
+    const local = readStoredState(
+      await page.evaluate(() => localStorage.getItem("ogis_recordings_app")),
+    );
+    expect(local).toEqual({ saved: [] });
+    expect(local).not.toHaveProperty("active");
+  });
+});
+
 // ─── Recordings / Saved list order ───────────────────────────────────────────
 
 test.describe("Recordings / Saved list order", () => {
@@ -568,7 +764,7 @@ test.describe("Recordings / Saved list order", () => {
             t: timestamp - (points.length - 1 - index) * duration,
           })),
         });
-        localStorage.setItem(
+        sessionStorage.setItem(
           "ogis_locate_app",
           JSON.stringify({ permissionGranted: true }),
         );
@@ -672,5 +868,70 @@ test.describe("Recordings / Saved list order", () => {
     await expect(
       olderRow.getByRole("button", { name: "Show", exact: true }),
     ).toHaveAttribute("aria-pressed", "false");
+  });
+});
+
+// ─── Recordings / Cross-tab sync ────────────────────────────────────────────
+
+test.describe("Recordings / Cross-tab sync", () => {
+  const RECORDING_ID = "xtab-recording";
+  const CREATED_AT = Date.UTC(2025, 0, 15, 9, 30, 0);
+
+  const recordingDoc = () => ({
+    v: 2,
+    id: RECORDING_ID,
+    kind: "recording",
+    name: null,
+    gpxType: null,
+    createdAt: CREATED_AT,
+    source: { format: "gps" },
+    segments: [
+      {
+        points: DEMO.route.slice(0, 3).map(({ lat, lng }, index) => ({
+          lat,
+          lng,
+          t: CREATED_AT + index * 1000,
+        })),
+      },
+    ],
+    waypoints: [],
+    color: "#3498db",
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await withGrantedStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+    await openRecordingsPanel(page);
+  });
+
+  test("an external add and removal reconcile the saved list and map", async ({
+    page,
+    context,
+  }) => {
+    const peer = await openPeerPage(context);
+    trackConsoleErrors(peer);
+
+    await writeStoredEnvelope(peer, "ogis_recordings_app", 2, {
+      saved: [recordingDoc()],
+    });
+
+    const row = page.locator(".border-top");
+    await expect(row).toBeVisible();
+    await row.getByRole("button", { name: "Show", exact: true }).click();
+    await expect
+      .poll(() => mapFeatureIds(page, "recordings-saved-"))
+      .toEqual([`recordings-saved-${RECORDING_ID}`]);
+
+    await writeStoredEnvelope(peer, "ogis_recordings_app", 2, { saved: [] });
+
+    await expect(row).toHaveCount(0);
+    await expect(page.getByText("No recordings yet.")).toBeVisible();
+    await expect
+      .poll(() => mapFeatureIds(page, "recordings-saved-"))
+      .toEqual([]);
+
+    expectNoConsoleErrors(peer);
+    await peer.close();
   });
 });

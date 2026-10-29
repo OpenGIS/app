@@ -17,7 +17,11 @@ import {
   trackFilename,
   trackMime,
 } from "@/utils/track/index.js";
-import { hydrateRecordings } from "@/resilience/hydrators/recordings.js";
+import {
+  hydrateRecordingActive,
+  hydrateRecordings,
+  migrateRecordingsSession,
+} from "@/resilience/hydrators/recordings.js";
 import RecordingsPanel from "./RecordingsPanel.vue";
 
 export { formatDuration, formatDistance };
@@ -29,6 +33,9 @@ export { formatDuration, formatDistance };
 const COLOR_ACTIVE = "#39d353"; // app green
 const COLOR_PAUSED = "#6c757d"; // Bootstrap secondary grey
 const TRACK_ID = "recordings-active-track";
+
+// A watch with no fix must fail rather than record silently forever.
+const RECORDING_GPS_TIMEOUT_MS = 15000;
 
 const lineFeatureId = (id) => `recordings-saved-${id}`;
 const waypointFeatureId = (id, index) => `recordings-waypoint-${id}-${index}`;
@@ -45,13 +52,33 @@ export const RecordingsFeature = {
     instanceId,
     provide,
     addPanel,
+    onCleanup,
     useLocale,
   }) {
-    const stored = useStorage("recordings", {
-      version: 1,
-      defaults: { saved: [], active: null },
+    migrateRecordingsSession(instanceId);
+
+    const recordingsStore = useStorage("recordings", {
+      version: 2,
+      defaults: { saved: [] },
       hydrate: hydrateRecordings,
-    }).state;
+      crossTab: true,
+      onSync: () => reconcileSavedRecordings(),
+    });
+    const stored = recordingsStore.state;
+
+    const activeStore = useStorage("recording-active", {
+      version: 1,
+      storage: "session",
+      defaults: { active: null },
+      hydrate: hydrateRecordingActive,
+    });
+    const active = activeStore.state;
+
+    const flushStorage = () => {
+      recordingsStore.flush();
+      activeStore.flush();
+    };
+
     assignTrackColors(stored.saved);
 
     const { isMetric } = useSettings();
@@ -62,12 +89,22 @@ export const RecordingsFeature = {
     const state = reactive({
       isRecording: false,
       isPaused: false,
-      points: stored.active?.segments?.[0]?.points ?? [],
-      startTime: stored.active?.createdAt ?? null,
+      points: active.active?.segments?.[0]?.points ?? [],
+      startTime: active.active?.createdAt ?? null,
       saved: stored.saved,
     });
 
-    const elapsed = ref(0);
+    // A restored paused recording starts its clock at the last recorded point,
+    // so the panel reflects the elapsed capture rather than 0:00.
+    const lastRestoredPoint = state.points.at(-1);
+    const restoredElapsed =
+      Number.isFinite(lastRestoredPoint?.t) &&
+      Number.isFinite(active.active?.createdAt)
+        ? Math.max(0, lastRestoredPoint.t - active.active.createdAt)
+        : 0;
+
+    const elapsed = ref(restoredElapsed);
+    const locationError = ref(null);
     const distance = computed(() => totalDistance(state.points));
     const visible = reactive(new Set());
 
@@ -96,7 +133,7 @@ export const RecordingsFeature = {
     };
 
     const persist = () => {
-      const active =
+      const activeDoc =
         state.isRecording || state.isPaused
           ? {
               v: 2,
@@ -110,25 +147,53 @@ export const RecordingsFeature = {
             }
           : null;
       stored.saved = state.saved;
-      stored.active = active;
+      active.active = activeDoc;
     };
 
     const startGeo = () => {
-      if (watchId !== null) return;
-      watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          if (!state.isRecording) return;
-          state.points.push({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            t: Date.now(),
-          });
-          persist();
-          updateLine();
-        },
-        null,
-        { enableHighAccuracy: true, maximumAge: 2000 },
-      );
+      if (watchId !== null) return true;
+      if (typeof navigator.geolocation?.watchPosition !== "function") {
+        onGeoError({ code: 2 });
+        return false;
+      }
+      try {
+        watchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            if (!state.isRecording) return;
+            state.points.push({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              t: Date.now(),
+            });
+            persist();
+            updateLine();
+          },
+          (error) => onGeoError(error),
+          {
+            enableHighAccuracy: true,
+            maximumAge: 2000,
+            timeout: RECORDING_GPS_TIMEOUT_MS,
+          },
+        );
+      } catch (error) {
+        onGeoError(error);
+        return false;
+      }
+      return true;
+    };
+
+    // A denied, revoked or unavailable GPS pauses the session instead of
+    // leaving a running recording with no points. Pausing flushes the points
+    // captured so far; zero-point sessions are preserved too.
+    const onGeoError = (error) => {
+      if (!state.isRecording) return;
+      locationError.value =
+        error?.code === 1
+          ? "denied"
+          : error?.code === 3
+            ? "timeout"
+            : "unavailable";
+      pause();
     };
 
     const stopGeo = () => {
@@ -153,12 +218,14 @@ export const RecordingsFeature = {
     };
 
     const doStart = () => {
+      locationError.value = null;
       state.isRecording = true;
       state.isPaused = false;
       if (!state.startTime) state.startTime = Date.now();
-      startGeo();
+      if (!startGeo()) return;
       startTimer();
       persist();
+      flushStorage();
       updateLine();
     };
 
@@ -170,6 +237,7 @@ export const RecordingsFeature = {
       stopGeo();
       stopTimer();
       persist();
+      flushStorage();
       updateLine();
     };
 
@@ -181,9 +249,11 @@ export const RecordingsFeature = {
       state.points = [];
       state.startTime = null;
       elapsed.value = 0;
+      locationError.value = null;
       stopGeo();
       stopTimer();
       persist();
+      flushStorage();
       geoJSON.removeFeature(TRACK_ID);
     };
 
@@ -206,7 +276,28 @@ export const RecordingsFeature = {
       discard();
     };
 
+    // Feature ids rendered for each visible saved recording, so a re-render or
+    // removal can clean up exactly the waypoints that were drawn.
+    const renderedWaypoints = new Map();
+
+    const removeRecordingFeatures = (recordingOrId) => {
+      const id =
+        typeof recordingOrId === "object" && recordingOrId !== null
+          ? recordingOrId.id
+          : recordingOrId;
+      if (id === null || id === undefined) return;
+
+      geoJSON.removeFeature(lineFeatureId(id));
+      for (const featureId of renderedWaypoints.get(id) ?? []) {
+        geoJSON.removeFeature(featureId);
+      }
+      renderedWaypoints.delete(id);
+    };
+
     const renderRecording = (recording) => {
+      removeRecordingFeatures(recording);
+
+      const waypointIds = [];
       const geometry = lineGeometry(recording);
       if (geometry) {
         geoJSON.setFeature({
@@ -227,9 +318,11 @@ export const RecordingsFeature = {
         if (!point) return;
         const coordinates = [point.lng, point.lat];
         if (point.ele !== undefined) coordinates.push(point.ele);
+        const featureId = waypointFeatureId(recording.id, index);
+        waypointIds.push(featureId);
         geoJSON.setFeature({
           type: "Feature",
-          id: waypointFeatureId(recording.id, index),
+          id: featureId,
           geometry: { type: "Point", coordinates },
           properties: {
             "ogis.color": recording.color,
@@ -237,13 +330,8 @@ export const RecordingsFeature = {
           },
         });
       });
-    };
 
-    const removeRecordingFeatures = (recording) => {
-      geoJSON.removeFeature(lineFeatureId(recording.id));
-      (recording.waypoints ?? []).forEach((_waypoint, index) => {
-        geoJSON.removeFeature(waypointFeatureId(recording.id, index));
-      });
+      renderedWaypoints.set(recording.id, waypointIds);
     };
 
     const isVisible = (id) => visible.has(id);
@@ -281,6 +369,34 @@ export const RecordingsFeature = {
       removeRecordingFeatures(recording);
       visible.delete(id);
       persist();
+      flushStorage();
+    };
+
+    /**
+     * Reconcile the in-memory saved list and map after another tab replaced
+     * the shared recordings store. The object store replaces its properties,
+     * so `state.saved` must be re-pointed at the new array before the UI reads
+     * it. Visibility is last-writer-wins and stays in-memory only.
+     */
+    const reconcileSavedRecordings = () => {
+      if (!Array.isArray(stored.saved)) return;
+      state.saved = stored.saved;
+
+      assignTrackColors(state.saved);
+      const ids = new Set(state.saved.map((recording) => recording.id));
+
+      for (const id of [...visible]) {
+        const recording = ids.has(id)
+          ? state.saved.find((item) => item.id === id)
+          : null;
+        if (!recording) {
+          removeRecordingFeatures(id);
+          visible.delete(id);
+          continue;
+        }
+
+        renderRecording(recording);
+      }
     };
 
     const shareRecording = async (recording, format) => {
@@ -298,7 +414,7 @@ export const RecordingsFeature = {
     };
 
     // Crash recovery: restore paused line if the app was closed mid-recording.
-    if (stored.active?.segments?.[0]?.points?.length >= 2) {
+    if (active.active?.segments?.[0]?.points?.length >= 2) {
       state.isPaused = true;
       updateLine();
     }
@@ -306,7 +422,7 @@ export const RecordingsFeature = {
     // Surface the recording state on the always-mounted menu chip (via useUI's
     // generic badge signal) so it shows even while the panel is closed.
     const { setMenuBadge } = useUI(instanceId);
-    watch(
+    const stopMenuBadgeWatch = watch(
       () => {
         if (state.isRecording) return "recording";
         if (state.isPaused) return "paused";
@@ -315,10 +431,19 @@ export const RecordingsFeature = {
       (value) => setMenuBadge(value),
       { immediate: true },
     );
+    onCleanup(stopMenuBadgeWatch);
+
+    // Feature-owned recording resources: the GPS watch and elapsed timer only
+    // run while recording, but app destroy must still release them.
+    onCleanup(() => {
+      stopGeo();
+      stopTimer();
+    });
 
     provide("recordings", {
       state,
       elapsed,
+      locationError,
       distance,
       isMetric,
       start,

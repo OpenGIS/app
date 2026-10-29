@@ -20,17 +20,24 @@ export const LOCATE_FIX = {
 export const withNoLocateStorage = (page) =>
   page.addInitScript(() => {
     localStorage.removeItem("ogis_locate_app");
+    sessionStorage.removeItem("ogis_locate_app");
     localStorage.removeItem("ogis_view_app");
   });
 
 /** Seed a stored locate grant so the confirmation modal is skipped. */
 export const withGrantedLocateStorage = (page) =>
   page.addInitScript(() => {
-    localStorage.setItem(
+    sessionStorage.setItem(
       "ogis_locate_app",
       JSON.stringify({ permissionGranted: true }),
     );
   });
+
+/** Seed an arbitrary locate value into sessionStorage before boot. */
+export const withLocateSession = (page, value) =>
+  page.addInitScript((stored) => {
+    sessionStorage.setItem("ogis_locate_app", JSON.stringify(stored));
+  }, value);
 
 /**
  * Simulate Apple WebKit's inaccurate geolocation permission reporting.
@@ -56,6 +63,33 @@ export const withAppleWebKitPromptPermission = (page) =>
       value: async () => ({ state: "prompt" }),
     });
   });
+
+/**
+ * Simulate a stalled geolocation permission query.
+ *
+ * `navigator.permissions.query` returns a promise that never resolves, so the
+ * app's bounded permission query is the only thing that can settle a restore.
+ * The timeout override is exposed as
+ * `window.__ogisLocatePermissionTimeoutMs`. Must be installed before the
+ * document boots.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {number} [timeoutMs]
+ */
+export const withHangingPermissionQuery = (page, timeoutMs = 50) =>
+  page.addInitScript((timeout) => {
+    window.__ogisLocatePermissionTimeoutMs = timeout;
+    if (!navigator.permissions) {
+      Object.defineProperty(navigator, "permissions", {
+        configurable: true,
+        value: {},
+      });
+    }
+    Object.defineProperty(navigator.permissions, "query", {
+      configurable: true,
+      value: () => new Promise(() => {}),
+    });
+  }, timeoutMs);
 
 /** Escape a literal string so it can be matched exactly inside a RegExp. */
 export const escapeRegExp = (value) =>
