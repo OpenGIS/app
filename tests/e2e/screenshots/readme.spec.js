@@ -40,6 +40,10 @@ const HERO_URL = "/?country=random";
  * resolved theme, snapshot to the repo root.
  */
 const captureHero = async (page, testInfo, name, theme) => {
+  // Heroes show the app as a returning user sees it: no onboarding hints.
+  await page.addInitScript(() => {
+    window.__ogisDisableHints = true;
+  });
   await page.goto(HERO_URL);
 
   await waitForMapIdle(page, testInfo);
