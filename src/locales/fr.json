@@ -260,5 +260,8 @@
   "modal.locate.tryTwo": "Recherchez sur le web : « autoriser la géolocalisation après refus <votre-navigateur> <votre-appareil> ».",
   "modal.locate.tryThree": "Attendez un moment, puis réessayez.",
   "modal.locate.close": "Fermer",
-  "modal.locate.retry": "Réessayer"
+  "modal.locate.retry": "Réessayer",
+  "modal.welcome.title": "Trouvez votre chemin, où que vous soyez",
+  "modal.welcome.body": "Voyez où vous êtes, enregistrez vos itinéraires et utilisez les cartes hors ligne. Pour cela, autorisez la localisation et la boussole lorsque votre navigateur vous le demande. Toutes les informations restent sur votre appareil.",
+  "modal.welcome.continue": "Continuer"
 }
