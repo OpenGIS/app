@@ -465,7 +465,7 @@ test.describe("Map actions / Random while following / desktop", () => {
     await expect(show).toBeVisible({ timeout: ACTION_TIMEOUT });
     await show.click();
     await expect(
-      page.getByRole("button", { name: "Hide", exact: true }),
+      page.getByRole("button", { name: "On map", exact: true }),
     ).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     await startFollowing(page);
@@ -477,7 +477,7 @@ test.describe("Map actions / Random while following / desktop", () => {
     await openMenuTab(page, "Routes");
     await waitForPanelSettled(page);
 
-    const navigate = page.getByRole("button", { name: "Navigate" });
+    const navigate = page.getByRole("button", { name: "Guide me" });
     await expect(navigate).toBeVisible({ timeout: ACTION_TIMEOUT });
     await navigate.click();
 

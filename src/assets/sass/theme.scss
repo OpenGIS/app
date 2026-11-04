@@ -287,6 +287,185 @@ $font-size-base: 0.9375rem; // 15 px
   margin-top: 0.25rem;
 }
 
+// #6f2  Routes panel cards ("Trailhead" style)
+// ─────────────────────────────────────────────────────────────
+// Friendlier, touch-sized route cards: one soft card per route, the name and
+// distance on one line, and Show / Guide me / Send in a single row of
+// labelled buttons. Remove is a quiet bin icon on the card, away from the
+// main buttons. Colours are scoped tokens so dark mode only redefines them.
+
+.ogis-routes-titlebar,
+.ogis-routes-list {
+  --ogis-trail: #2f6b3a;
+  --ogis-trail-ink: #ffffff;
+  --ogis-trail-soft: #e3efe4;
+  --ogis-trail-soft-ink: #2f6b3a;
+  --ogis-route-card-bg: #ffffff;
+  --ogis-route-btn-bg: #f0f4ef;
+  --ogis-route-btn-ink: #2f4a35;
+  --ogis-route-muted: #5b6b5e;
+}
+
+[data-bs-theme="dark"] .ogis-routes-titlebar,
+[data-bs-theme="dark"] .ogis-routes-list {
+  --ogis-trail: #5fae6c;
+  --ogis-trail-ink: #0c1a0f;
+  --ogis-trail-soft: rgba(95, 174, 108, 0.18);
+  --ogis-trail-soft-ink: #9fd8a8;
+  --ogis-route-card-bg: rgba(255, 255, 255, 0.06);
+  --ogis-route-btn-bg: rgba(255, 255, 255, 0.08);
+  --ogis-route-btn-ink: #dbe7dd;
+  --ogis-route-muted: #9aa89e;
+}
+
+.ogis-routes-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ogis-routes-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.25rem;
+  padding: 0 0.9rem 0 0.7rem;
+  border-radius: 999px;
+  font-weight: 700;
+  --bs-btn-color: var(--ogis-trail-ink);
+  --bs-btn-bg: var(--ogis-trail);
+  --bs-btn-border-color: var(--ogis-trail);
+  --bs-btn-active-color: var(--ogis-trail-ink);
+  --bs-btn-active-bg: var(--ogis-trail);
+  --bs-btn-active-border-color: var(--ogis-trail);
+}
+
+.ogis-routes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.ogis-route-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.65rem;
+  border-radius: 0.9rem;
+  background: var(--ogis-route-card-bg);
+  box-shadow:
+    0 1px 2px rgba(31, 45, 34, 0.08),
+    0 3px 10px -6px rgba(31, 45, 34, 0.25);
+}
+
+.ogis-route-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+
+  .ogis-track-swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+  }
+}
+
+.ogis-route-card__text {
+  flex: 1;
+  min-width: 0;
+
+  .ogis-track-name {
+    font-weight: 700;
+    line-height: 1.25;
+  }
+}
+
+.ogis-route-card__meta {
+  font-size: 0.8rem;
+  color: var(--ogis-route-muted);
+}
+
+.ogis-route-card__remove {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 50%;
+  --bs-btn-color: var(--ogis-route-muted);
+  --bs-btn-bg: transparent;
+  --bs-btn-border-color: transparent;
+  --bs-btn-active-color: var(--bs-danger);
+  --bs-btn-active-bg: var(--ogis-route-btn-bg);
+  --bs-btn-active-border-color: transparent;
+}
+
+.ogis-route-card__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  align-items: start;
+
+  // The Send menu opens below the row and spans the whole card.
+  .ogis-share-menu {
+    position: static;
+  }
+
+  .ogis-share-menu__items {
+    position: absolute;
+    left: 0.65rem;
+    right: 0.65rem;
+    z-index: 2;
+    padding: 0.35rem;
+    border-radius: 0.65rem;
+    background: var(--bs-body-bg);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  }
+}
+
+.ogis-route-card {
+  position: relative;
+}
+
+.ogis-route-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0 0.25rem;
+  border-radius: 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+  --bs-btn-color: var(--ogis-route-btn-ink);
+  --bs-btn-bg: var(--ogis-route-btn-bg);
+  --bs-btn-border-color: transparent;
+  --bs-btn-active-color: var(--ogis-route-btn-ink);
+  --bs-btn-active-bg: var(--ogis-route-btn-bg);
+  --bs-btn-active-border-color: transparent;
+  --bs-btn-disabled-color: var(--ogis-route-btn-ink);
+  --bs-btn-disabled-bg: var(--ogis-route-btn-bg);
+  --bs-btn-disabled-border-color: transparent;
+  --bs-btn-disabled-opacity: 0.45;
+}
+
+.ogis-route-btn--main {
+  --bs-btn-color: var(--ogis-trail-ink);
+  --bs-btn-bg: var(--ogis-trail);
+  --bs-btn-active-color: var(--ogis-trail-ink);
+  --bs-btn-active-bg: var(--ogis-trail);
+}
+
+.ogis-route-btn--on {
+  --bs-btn-color: var(--ogis-trail-soft-ink);
+  --bs-btn-bg: var(--ogis-trail-soft);
+  --bs-btn-active-color: var(--ogis-trail-soft-ink);
+  --bs-btn-active-bg: var(--ogis-trail-soft);
+}
+
 // #6g  Layout and structural styles
 // ─────────────────────────────────────────────────────────────
 // Required structural styles. Not tied to the palette — do not
