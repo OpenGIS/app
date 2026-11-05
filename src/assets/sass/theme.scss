@@ -1175,6 +1175,44 @@ $font-size-base: 0.9375rem; // 15 px
 
 // Privacy bar and attribution share one pinned surface. Two stacked sticky
 // siblings would both resolve to bottom: 0 and double the glass blur.
+// "This map is 3D" card in the Info panel: the same gestures as the locate tip.
+.ogis-map3d-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.75rem;
+}
+
+.ogis-map3d-card__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.ogis-map3d-card__gestures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  line-height: 1.35;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+}
+
+.ogis-map3d-card__icon {
+  flex: none;
+  color: var(--bs-primary);
+}
+
 .ogis-info-footer {
   margin-top: auto;
   position: sticky;

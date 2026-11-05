@@ -20,6 +20,13 @@
   "menu.offline": "Offline Maps",
   "menu.routes": "Routes",
 
+  "panel.view.map3d.title": "This map is 3D",
+  "panel.view.map3d.zoom": "Pinch to zoom in and out.",
+  "panel.view.map3d.rotate": "Twist two fingers to turn the map.",
+  "panel.view.map3d.tilt": "Slide two fingers up or down to tilt the view and see the hills.",
+  "panel.view.map3d.zoomMouse": "Scroll the mouse wheel to zoom in and out.",
+  "panel.view.map3d.rotateMouse": "Right-click and drag sideways to turn the map.",
+  "panel.view.map3d.tiltMouse": "Right-click and drag up or down to tilt the view and see the hills.",
   "panel.about.freePrivate": "Free, private &",
   "panel.about.openSource": "Open Source",
 

@@ -20,6 +20,13 @@
   "menu.offline": "Cartes hors ligne",
   "menu.routes": "Itinéraires",
 
+  "panel.view.map3d.title": "Cette carte est en 3D",
+  "panel.view.map3d.zoom": "Pincez pour zoomer et dézoomer.",
+  "panel.view.map3d.rotate": "Tournez deux doigts pour pivoter la carte.",
+  "panel.view.map3d.tilt": "Glissez deux doigts vers le haut ou le bas pour incliner la vue et voir le relief.",
+  "panel.view.map3d.zoomMouse": "Utilisez la molette de la souris pour zoomer et dézoomer.",
+  "panel.view.map3d.rotateMouse": "Clic droit et glisser sur le côté pour pivoter la carte.",
+  "panel.view.map3d.tiltMouse": "Clic droit et glisser vers le haut ou le bas pour incliner la vue et voir le relief.",
   "panel.about.freePrivate": "Libre, privé &",
   "panel.about.openSource": "Open Source",
 
