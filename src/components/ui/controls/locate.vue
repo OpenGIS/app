@@ -4,9 +4,18 @@ import { useLocate } from "@/composables/useLocate";
 import { useLocale } from "@/composables/useLocale";
 import IconButton from "@/components/ui/icon-button.vue";
 import LocateError from "@/components/modals/locate-error.vue";
+import LocateHint from "@/components/ui/controls/locate-hint.vue";
+import { useLocateHints } from "@/composables/useLocateHints";
 
 const { mode, cycle } = useLocate();
 const { t } = useLocale();
+const { dismiss: dismissHint } = useLocateHints();
+
+// A tap answers the hint on screen; the next state brings its own.
+const onClick = () => {
+  dismissHint();
+  cycle();
+};
 
 const iconName = computed(() => {
   if (mode.value === "following") return "position-locked";
@@ -43,7 +52,8 @@ const label = computed(() => {
     :label-target="0.53"
     id="locate-button"
     :aria-label="label"
-    @click="cycle"
+    @click="onClick"
   />
+  <LocateHint :mode="mode" />
   <LocateError />
 </template>
