@@ -46,6 +46,28 @@ export const isMerge = (commit) => commit.parents.length >= 2;
 /** A SHA of all zeros means "no previous commit" — treat it as empty. */
 const isEmptySha = (sha) => !sha || /^0+$/.test(sha);
 
+/** True when `sha` names a commit object present in this clone. */
+const objectExists = (sha) => {
+  try {
+    execFileSync("git", ["cat-file", "-e", `${sha}^{commit}`], {
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Decide the `git log` range. Fall back to the tip commit when there is no
+ * before SHA, or when it is unreachable (e.g. the old tip after a force-push
+ * and therefore absent from a shallow-ish clone).
+ */
+export const resolveRange = (before, after, hasCommit = objectExists) => {
+  const tipOnly = isEmptySha(before) || !hasCommit(before);
+  return { range: tipOnly ? after : `${before}..${after}`, tipOnly };
+};
+
 /** Parse `git log` output produced with RECORD_SEP/FIELD_SEP. */
 export const parseLog = (output) =>
   output
@@ -63,8 +85,7 @@ export const parseLog = (output) =>
 
 /** Read commits for the range, or just the tip when there is no before SHA. */
 const readCommits = (before, after) => {
-  const tipOnly = isEmptySha(before);
-  const range = tipOnly ? after : `${before}..${after}`;
+  const { range, tipOnly } = resolveRange(before, after);
   const args = ["log"];
   if (tipOnly) args.push("-1");
   args.push(range, `--format=%H${FIELD_SEP}%P${FIELD_SEP}%s${RECORD_SEP}`);
@@ -91,6 +112,12 @@ const fail = (message) => {
 const main = () => {
   const before = process.env.BEFORE ?? "";
   const after = process.env.AFTER || "HEAD";
+
+  if (!isEmptySha(before) && resolveRange(before, after).tipOnly) {
+    console.error(
+      `BEFORE ${before} is not present in this clone (force-push?); validating the head commit only.`,
+    );
+  }
 
   let commits;
   try {
