@@ -1180,7 +1180,7 @@ test.describe("Feature states — desktop landscape", () => {
     });
     await page
       .locator(".ogis-panel")
-      .getByRole("button", { name: "Navigate", exact: true })
+      .getByRole("button", { name: "Guide me", exact: true })
       .click();
     await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
     await expect(page.locator("#locate-button")).toContainText("Following", {
@@ -1379,7 +1379,7 @@ test.describe("Secondary UI states — desktop landscape", () => {
       page
         .locator(".ogis-panel")
         .getByText(
-          "No routes yet. Import a GPX or GeoJSON file to get started.",
+          "No routes yet. Tap Add to open a route file someone sent you (GPX or GeoJSON).",
         ),
     ).toBeVisible();
     await normaliseCaptureState(page, testInfo);

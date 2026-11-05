@@ -115,7 +115,7 @@ const openRoutesPanel = async (page) => {
 
 /** Locate a route row by its displayed name. */
 const routeRow = (page, name) =>
-  page.locator(".ogis-panel .border-top.py-2", { hasText: name });
+  page.locator(".ogis-panel .ogis-route-card", { hasText: name });
 
 /** Read the persisted route documents (envelope or legacy). */
 const storedRoutes = async (page) =>
@@ -343,7 +343,7 @@ const showRoute = async (page) => {
   const row = routeRow(page, "Test Loop");
   await row.getByRole("button", { name: "Show", exact: true }).click();
   await expect(
-    row.getByRole("button", { name: "Hide", exact: true }),
+    row.getByRole("button", { name: "On map", exact: true }),
   ).toBeVisible();
   await expect
     .poll(() => mapFeatureIds(page, "routes-route-"), { timeout: NAV_TIMEOUT })
@@ -357,7 +357,7 @@ const showRoute = async (page) => {
  */
 const startNavigation = async (page) => {
   await routeRow(page, "Test Loop")
-    .getByRole("button", { name: "Navigate", exact: true })
+    .getByRole("button", { name: "Guide me", exact: true })
     .click();
   await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
   await expect(locateLabel(page)).toHaveText("Following");
@@ -414,7 +414,9 @@ test.describe("Routes / Panel", () => {
 
   test("clicking the Routes tab opens the Routes panel", async ({ page }) => {
     await openRoutesPanel(page);
-    await expect(page.locator('input[type="file"]')).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Add", exact: true }),
+    ).toBeVisible();
   });
 });
 
@@ -450,7 +452,7 @@ test.describe("Routes / Import", () => {
     const show = row.getByRole("button", { name: "Show", exact: true });
     await expect(show).toBeVisible();
     await expect(show).toHaveAttribute("aria-pressed", "false");
-    await expect(show).not.toHaveClass(/btn-primary/);
+    await expect(show).not.toHaveClass(/ogis-route-btn--on/);
     await expect.poll(() => mapFeatureIds(page, "routes-route-")).toEqual([]);
 
     // The imported document is persisted in the v2 shape.
@@ -535,10 +537,10 @@ test.describe("Routes / Show and Hide", () => {
     const show = row.getByRole("button", { name: "Show", exact: true });
     await show.click();
 
-    const hide = row.getByRole("button", { name: "Hide", exact: true });
+    const hide = row.getByRole("button", { name: "On map", exact: true });
     await expect(hide).toBeVisible();
     await expect(hide).toHaveAttribute("aria-pressed", "true");
-    await expect(hide).toHaveClass(/btn-primary/);
+    await expect(hide).toHaveClass(/ogis-route-btn--on/);
 
     await expect.poll(async () => (await storedRoutes(page)).length).toBe(1);
     const [stored] = await storedRoutes(page);
@@ -606,7 +608,7 @@ test.describe("Routes / Show and Hide", () => {
       .poll(() => mapFeatureIds(page, "routes-route-"))
       .toEqual([`routes-route-${testLoopId}`]);
     await expect(
-      testRow.getByRole("button", { name: "Hide", exact: true }),
+      testRow.getByRole("button", { name: "On map", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     await expect(
       geoRow.getByRole("button", { name: "Show", exact: true }),
@@ -622,15 +624,15 @@ test.describe("Routes / Show and Hide", () => {
       .poll(() => mapFeatureIds(page, "routes-waypoint-"))
       .toEqual([`routes-waypoint-${geoRouteId}-0`]);
 
-    await testRow.getByRole("button", { name: "Hide", exact: true }).click();
+    await testRow.getByRole("button", { name: "On map", exact: true }).click();
     await expect
       .poll(() => mapFeatureIds(page, "routes-route-"))
       .toEqual([`routes-route-${geoRouteId}`]);
     await expect(
-      geoRow.getByRole("button", { name: "Hide", exact: true }),
+      geoRow.getByRole("button", { name: "On map", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
 
-    await geoRow.getByRole("button", { name: "Hide", exact: true }).click();
+    await geoRow.getByRole("button", { name: "On map", exact: true }).click();
     await expect.poll(() => mapFeatureIds(page, "routes-route-")).toEqual([]);
     await expect(
       geoRow.getByRole("button", { name: "Show", exact: true }),
@@ -667,7 +669,7 @@ test.describe("Routes / Delete", () => {
     handleConfirm(page, "dismiss", messages);
 
     await routeRow(page, "Test Loop")
-      .getByRole("button", { name: "Delete", exact: true })
+      .getByRole("button", { name: "Remove", exact: true })
       .click();
 
     await expect.poll(() => messages.length).toBe(1);
@@ -687,7 +689,7 @@ test.describe("Routes / Delete", () => {
     handleConfirm(page, "accept", messages);
 
     await routeRow(page, "Test Loop")
-      .getByRole("button", { name: "Delete", exact: true })
+      .getByRole("button", { name: "Remove", exact: true })
       .click();
 
     await expect.poll(() => messages.length).toBe(1);
@@ -696,7 +698,7 @@ test.describe("Routes / Delete", () => {
     await expect(routeRow(page, "Test Loop")).toHaveCount(0);
     await expect(
       page.getByText(
-        "No routes yet. Import a GPX or GeoJSON file to get started.",
+        "No routes yet. Tap Add to open a route file someone sent you (GPX or GeoJSON).",
       ),
     ).toBeVisible();
     await expect.poll(() => mapFeatureIds(page, "routes-route-")).toEqual([]);
@@ -724,7 +726,7 @@ test.describe("Routes / Share", () => {
   test("Share downloads the route as GPX and GeoJSON", async ({ page }) => {
     const row = routeRow(page, "Test Loop");
     const summary = row.locator("summary");
-    await expect(summary).toContainText("Share");
+    await expect(summary).toContainText("Send");
 
     await summary.click();
     const [gpxDownload] = await Promise.all([
@@ -768,13 +770,13 @@ test.describe("Routes / Navigate", () => {
     await bootRoutes(page);
 
     const navigate = routeRow(page, "Test Loop").getByRole("button", {
-      name: "Navigate",
+      name: "Guide me",
       exact: true,
     });
     await expect(navigate).toBeDisabled();
     await expect(navigate).toHaveAttribute(
       "title",
-      "Show the route before navigating",
+      "Show the route on the map first",
     );
 
     await showRoute(page);
@@ -803,7 +805,7 @@ test.describe("Routes / Navigate", () => {
     await openRoutesPanel(page);
 
     const other = routeRow(page, "Geo Route").getByRole("button", {
-      name: "Navigate",
+      name: "Guide me",
       exact: true,
     });
     await expect(other).toBeDisabled();
@@ -846,7 +848,7 @@ test.describe("Routes / Navigate", () => {
       row.getByRole("button", { name: "Stop", exact: true }),
     ).toBeVisible();
     await expect(
-      row.getByRole("button", { name: "Navigate", exact: true }),
+      row.getByRole("button", { name: "Guide me", exact: true }),
     ).toHaveCount(0);
   });
 
@@ -975,7 +977,7 @@ test.describe("Routes / Navigate", () => {
     await expect(locateLabel(page)).toHaveText("Locate");
     await expect(
       routeRow(page, "Test Loop").getByRole("button", {
-        name: "Navigate",
+        name: "Guide me",
         exact: true,
       }),
     ).toBeEnabled();
@@ -1012,7 +1014,7 @@ test.describe("Routes / Navigate", () => {
 
     await openRoutesPanel(page);
     await routeRow(page, "Test Loop")
-      .getByRole("button", { name: "Hide", exact: true })
+      .getByRole("button", { name: "On map", exact: true })
       .click();
 
     await expect(navControl(page)).toHaveCount(0);
@@ -1025,7 +1027,7 @@ test.describe("Routes / Navigate", () => {
       .toEqual([]);
     await expect(
       routeRow(page, "Test Loop").getByRole("button", {
-        name: "Navigate",
+        name: "Guide me",
         exact: true,
       }),
     ).toBeDisabled();
@@ -1043,7 +1045,7 @@ test.describe("Routes / Navigate", () => {
     const messages = [];
     handleConfirm(page, "accept", messages);
     await routeRow(page, "Test Loop")
-      .getByRole("button", { name: "Delete", exact: true })
+      .getByRole("button", { name: "Remove", exact: true })
       .click();
 
     await expect.poll(() => messages.length, { timeout: NAV_TIMEOUT }).toBe(1);
@@ -1193,7 +1195,7 @@ test.describe("Routes / Persist across reload", () => {
     const row = routeRow(page, "Test Loop");
     await expect(row).toBeVisible();
     await expect(
-      row.getByRole("button", { name: "Hide", exact: true }),
+      row.getByRole("button", { name: "On map", exact: true }),
     ).toBeVisible();
     await expect
       .poll(() => mapFeatureIds(page, "routes-route-"))
@@ -1321,7 +1323,7 @@ test.describe("Routes / Restore across reload", () => {
     await openRoutesPanel(page);
     const row = routeRow(page, "Test Loop");
     await expect(
-      row.getByRole("button", { name: "Hide", exact: true }),
+      row.getByRole("button", { name: "On map", exact: true }),
     ).toBeVisible();
     await expect
       .poll(() => mapFeatureIds(page, "routes-route-"), {
@@ -1621,7 +1623,7 @@ test.describe("Routes / Cross-tab sync", () => {
       .poll(() => mapFeatureIds(page, "routes-route-"))
       .toEqual([`routes-route-${ROUTE_ID}`]);
 
-    await row.getByRole("button", { name: "Navigate", exact: true }).click();
+    await row.getByRole("button", { name: "Guide me", exact: true }).click();
     await expect(navControl(page)).toBeVisible();
     await expect(locateLabel(page)).toHaveText("Following");
     expect(await readLocateMode(page)).toBe("following");
@@ -1655,7 +1657,7 @@ test.describe("Routes / Cross-tab sync", () => {
       .poll(() => mapFeatureIds(page, "routes-route-"))
       .toEqual([`routes-route-${ROUTE_ID}`]);
 
-    await row.getByRole("button", { name: "Navigate", exact: true }).click();
+    await row.getByRole("button", { name: "Guide me", exact: true }).click();
     await expect(navControl(page)).toBeVisible();
 
     const geometryless = {
