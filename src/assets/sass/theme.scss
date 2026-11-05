@@ -348,6 +348,7 @@ $font-size-base: 0.9375rem; // 15 px
 }
 
 .ogis-route-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -402,14 +403,25 @@ $font-size-base: 0.9375rem; // 15 px
 }
 
 .ogis-route-card__actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
   gap: 0.35rem;
-  align-items: start;
+  align-items: stretch;
 
-  // The Send menu opens below the row and spans the whole card.
+  // Only the rendered actions share the row evenly. The Send wrapper is
+  // static so its menu can anchor to the card below the whole row.
+  > .ogis-route-btn,
+  > .ogis-share-menu {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
   .ogis-share-menu {
     position: static;
+  }
+
+  // Keep the Send trigger the same height as any wrapped sibling buttons.
+  .ogis-share-menu > summary {
+    height: 100%;
   }
 
   .ogis-share-menu__items {
@@ -424,22 +436,22 @@ $font-size-base: 0.9375rem; // 15 px
   }
 }
 
-.ogis-route-card {
-  position: relative;
-}
-
 .ogis-route-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.3rem;
   width: 100%;
+  min-width: 0;
   min-height: 2.25rem;
-  padding: 0 0.25rem;
+  padding: 0.25rem 0.35rem;
   border-radius: 0.65rem;
   font-size: 0.8125rem;
   font-weight: 700;
-  white-space: nowrap;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
   --bs-btn-color: var(--ogis-route-btn-ink);
   --bs-btn-bg: var(--ogis-route-btn-bg);
   --bs-btn-border-color: transparent;
@@ -450,6 +462,10 @@ $font-size-base: 0.9375rem; // 15 px
   --bs-btn-disabled-bg: var(--ogis-route-btn-bg);
   --bs-btn-disabled-border-color: transparent;
   --bs-btn-disabled-opacity: 0.45;
+
+  svg {
+    flex: none;
+  }
 }
 
 .ogis-route-btn--main {
@@ -464,6 +480,18 @@ $font-size-base: 0.9375rem; // 15 px
   --bs-btn-bg: var(--ogis-trail-soft);
   --bs-btn-active-color: var(--ogis-trail-soft-ink);
   --bs-btn-active-bg: var(--ogis-trail-soft);
+}
+
+// Bootstrap's .btn:focus-visible drops the outline in favour of
+// --bs-btn-focus-box-shadow, which these custom buttons do not set. Restore the
+// project's outline-based focus ring so keyboard focus stays visible.
+.ogis-routes-add,
+.ogis-route-card__remove,
+.ogis-route-btn {
+  &:focus-visible {
+    outline: 2px solid var(--ogis-trail);
+    outline-offset: 2px;
+  }
 }
 
 // #6g  Layout and structural styles
