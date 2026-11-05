@@ -1184,7 +1184,7 @@ test.describe("Feature states — desktop landscape", () => {
       .getByRole("button", { name: "Guide me", exact: true })
       .click();
     await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
-    await expect(page.locator("#locate-button")).toContainText("Following", {
+    await expect(page.locator("#locate-button")).toContainText("Follow", {
       timeout: 60000,
     });
     await expect(
@@ -1473,7 +1473,7 @@ test.describe("Secondary UI states — desktop landscape", () => {
     });
     await waitForOrientHash(page);
     await page.locator("#locate-button").click();
-    await expect(page.locator("#locate-button")).toContainText("Following", {
+    await expect(page.locator("#locate-button")).toContainText("Follow", {
       timeout: 60000,
     });
     // The hand-off glides from the wide orientation view into the close
@@ -1505,7 +1505,7 @@ test.describe("Secondary UI states — desktop landscape", () => {
     });
     await waitForOrientHash(page);
     await page.locator("#locate-button").click();
-    await expect(page.locator("#locate-button")).toContainText("Following", {
+    await expect(page.locator("#locate-button")).toContainText("Follow", {
       timeout: 60000,
     });
     // The hand-off glides from the wide orientation view into the close

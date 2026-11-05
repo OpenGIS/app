@@ -19,6 +19,25 @@ const { attributionHtml } = useAttribution();
 
 const copied = ref(false);
 
+// Touch screens pinch and twist; mice use the wheel and right-click drag.
+const coarse =
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(pointer: coarse)").matches;
+const gestures = computed(() =>
+  coarse
+    ? [
+        { icon: "pinch", text: t("panel.view.map3d.zoom") },
+        { icon: "twist", text: t("panel.view.map3d.rotate") },
+        { icon: "slide", text: t("panel.view.map3d.tilt") },
+      ]
+    : [
+        { icon: "pinch", text: t("panel.view.map3d.zoomMouse") },
+        { icon: "twist", text: t("panel.view.map3d.rotateMouse") },
+        { icon: "slide", text: t("panel.view.map3d.tiltMouse") },
+      ],
+);
+
 const shareUrl = computed(() => {
   const base = `${window.location.origin}${window.location.pathname}`;
   if (!mapView.value) return `${base}${window.location.hash}` || base;
@@ -141,6 +160,44 @@ const onImprove = (e) => {
           <Icon width="18" height="18" fill="currentColor" name="dice" />
         </a>
       </div>
+    </div>
+
+    <!-- Moving the 3D map -->
+    <div class="sidebar-section sidebar-section-body px-3 pb-3">
+      <section class="ogis-map3d-card" data-card="map3d">
+        <h6 class="ogis-map3d-card__title">
+          {{ t("panel.view.map3d.title") }}
+        </h6>
+        <ul class="ogis-map3d-card__gestures">
+          <li v-for="g in gestures" :key="g.icon">
+            <svg
+              class="ogis-map3d-card__icon"
+              viewBox="0 0 24 24"
+              width="28"
+              height="28"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <template v-if="g.icon === 'pinch'">
+                <path d="M4 4l6 6M4 4v4M4 4h4" />
+                <path d="M20 20l-6-6M20 20v-4M20 20h-4" />
+              </template>
+              <template v-else-if="g.icon === 'twist'">
+                <path d="M19 12a7 7 0 1 1-2.1-5" />
+                <path d="M19 3v4h-4" />
+              </template>
+              <template v-else>
+                <path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" />
+              </template>
+            </svg>
+            <span>{{ g.text }}</span>
+          </li>
+        </ul>
+      </section>
     </div>
 
     <!-- About -->

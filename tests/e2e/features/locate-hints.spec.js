@@ -17,7 +17,7 @@ import { readStoredState } from "../helpers/storage.js";
  * Locate onboarding hints (docs/5.ui.md — Locate hints).
  *
  * The shared fixture disables hints for every other spec; this one opts back
- * in, then walks the chip through Locate → Located → Following and checks the
+ * in, then walks the chip through Locate → Located → Follow and checks the
  * once-only explanation for each state.
  */
 
@@ -74,11 +74,20 @@ test.describe("Locate / Hints", () => {
 
     await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
     await btn.click();
-    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).toContainText("Follow", { timeout: LOCATE_TIMEOUT });
     await expect(hintFor(page, "following")).toContainText(
       "Tap again to stop",
       { timeout: LOCATE_TIMEOUT },
     );
+
+    // Stopping follow ends the sequence with the 3D-map tip, which stays up.
+    await btn.click();
+    await expect(hintFor(page, "tilt")).toContainText("This map is 3D", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    // The desktop test browser gets the mouse wording; touch gets "Pinch".
+    await expect(hintFor(page, "tilt")).toContainText("to zoom");
+    await expect(hintFor(page, "tilt")).toContainText("tilt the view");
 
     await expect
       .poll(
@@ -91,7 +100,7 @@ test.describe("Locate / Hints", () => {
         },
         { timeout: 5000 },
       )
-      .toEqual(["active", "following", "idle"]);
+      .toEqual(["active", "following", "idle", "tilt"]);
   });
 
   test("the close button dismisses a hint and it does not return", async ({

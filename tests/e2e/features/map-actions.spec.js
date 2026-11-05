@@ -189,7 +189,7 @@ const startFollowing = async (page) => {
     .toBeGreaterThan(0);
 
   await button.click();
-  await expect(button).toContainText("Following", { timeout: FOLLOW_TIMEOUT });
+  await expect(button).toContainText("Follow", { timeout: FOLLOW_TIMEOUT });
   await expect(page.locator(".ogis-root")).toHaveAttribute(
     "data-modes",
     /follow/,
@@ -482,10 +482,10 @@ test.describe("Map actions / Random while following / desktop", () => {
     await navigate.click();
 
     // Navigation is a hybrid: it dismisses the panel, keeps the follow camera
-    // (locate reads Following) while registering the navigate mode alongside
+    // (locate reads Follow) while registering the navigate mode alongside
     // it, and surfaces the top-centre card. There is no banner.
     const locate = page.locator("#locate-button");
-    await expect(locate).toContainText("Following", {
+    await expect(locate).toContainText("Follow", {
       timeout: ACTION_TIMEOUT,
     });
     await expect(root).toHaveAttribute("data-modes", /follow/, {
@@ -521,7 +521,7 @@ test.describe("Map actions / Random while following / desktop", () => {
       timeout: ACTION_TIMEOUT,
     });
     await expect(navControl).toHaveCount(0);
-    await expect(locate).toContainText("Following", {
+    await expect(locate).toContainText("Follow", {
       timeout: ACTION_TIMEOUT,
     });
     await expect
