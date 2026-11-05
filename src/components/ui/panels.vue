@@ -6,6 +6,7 @@ import {
   shallowRef,
   watch,
   nextTick,
+  onMounted,
   onBeforeUnmount,
 } from "vue";
 import { useUI } from "@/composables/useUI";
@@ -84,6 +85,15 @@ watch([isPanelVisible, isInfoVisible], ([open, info]) => {
   }
 });
 onBeforeUnmount(() => clearTimeout(closeTimer));
+
+// Escape closes the side panel, unless a modal is open (it closes first).
+const onKeydown = (e) => {
+  if (e.key !== "Escape" || !isPanelVisible.value) return;
+  if (document.querySelector(".ogis-modal")) return;
+  closePanel();
+};
+onMounted(() => window.addEventListener("keydown", onKeydown));
+onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 const panelComponents = {};
 
@@ -192,9 +202,11 @@ watch(
   </div>
 
   <!-- Backdrop for mobile -->
-  <div
-    v-if="isPanelVisible && !isDesktop"
-    class="offcanvas-backdrop fade show"
-    @click="closePanel()"
-  ></div>
+  <Transition name="ogis-fade">
+    <div
+      v-if="isPanelVisible && !isDesktop"
+      class="offcanvas-backdrop fade show"
+      @click="closePanel()"
+    ></div>
+  </Transition>
 </template>

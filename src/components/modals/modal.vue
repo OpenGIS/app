@@ -1,5 +1,7 @@
 <script setup>
-defineProps({
+import { onBeforeUnmount, watch } from "vue";
+
+const props = defineProps({
   modelValue: { type: Boolean, required: true },
   id: { type: String, default: null },
   labelledby: { type: String, default: null },
@@ -8,13 +10,33 @@ defineProps({
 const emit = defineEmits(["update:modelValue"]);
 const close = () => emit("update:modelValue", false);
 defineExpose({ close });
+
+// Escape closes the open modal.
+const onKeydown = (e) => {
+  if (e.key === "Escape") close();
+};
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (open) window.addEventListener("keydown", onKeydown);
+    else window.removeEventListener("keydown", onKeydown);
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 </script>
 
 <template>
   <Teleport to="body">
-    <template v-if="modelValue">
-      <div class="modal-backdrop fade show ogis-modal-backdrop"></div>
+    <Transition name="ogis-fade">
       <div
+        v-if="modelValue"
+        class="modal-backdrop fade show ogis-modal-backdrop"
+      ></div>
+    </Transition>
+    <Transition name="ogis-pop">
+      <div
+        v-if="modelValue"
         :id="id"
         class="modal fade show d-block ogis-modal"
         tabindex="-1"
@@ -28,6 +50,6 @@ defineExpose({ close });
           </div>
         </div>
       </div>
-    </template>
+    </Transition>
   </Teleport>
 </template>

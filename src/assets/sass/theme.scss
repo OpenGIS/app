@@ -530,9 +530,11 @@ $font-size-base: 0.9375rem; // 15 px
   // on the map (pan, region drawing) are never hijacked.
   touch-action: none;
   overscroll-behavior: none;
-  transition:
-    left 0.3s ease,
-    width 0.3s ease;
+  // Move in step with the side panel's slide.
+  @include transition(
+    left $offcanvas-transition-duration ease-in-out,
+    width $offcanvas-transition-duration ease-in-out
+  );
 }
 
 .ogis-map.panel-open {
@@ -573,9 +575,11 @@ $font-size-base: 0.9375rem; // 15 px
   width: 100%;
   height: 100%;
   pointer-events: none;
-  transition:
-    left 0.3s ease,
-    width 0.3s ease;
+  // Move in step with the side panel's slide.
+  @include transition(
+    left $offcanvas-transition-duration ease-in-out,
+    width $offcanvas-transition-duration ease-in-out
+  );
 }
 
 .ogis-controls.panel-open {
@@ -1108,6 +1112,29 @@ $font-size-base: 0.9375rem; // 15 px
 
 .ogis-modal {
   z-index: 1070;
+}
+
+// Modal and backdrop enter/leave (Vue <Transition> classes). The modal fades
+// and rises slightly into place, and fades back out on close. Bootstrap's
+// transition mixin drops the motion under prefers-reduced-motion.
+.ogis-modal.fade {
+  @include transition(opacity 0.2s linear);
+}
+
+.ogis-modal.fade .modal-dialog {
+  @include transition(transform 0.2s ease-out);
+}
+
+.ogis-pop-enter-from,
+.ogis-pop-leave-to,
+.ogis-fade-enter-from,
+.ogis-fade-leave-to {
+  opacity: 0 !important;
+}
+
+.ogis-modal.ogis-pop-enter-from .modal-dialog,
+.ogis-modal.ogis-pop-leave-to .modal-dialog {
+  transform: translateY(1rem) scale(0.98);
 }
 
 // #6h  Attribution chip, disclosures & scale offset
