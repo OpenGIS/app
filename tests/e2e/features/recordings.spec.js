@@ -15,6 +15,7 @@ import {
   openPeerPage,
 } from "../helpers/storage.js";
 import { DEMO } from "../../fixtures/demo.mjs";
+import { AFTER_CLOSE } from "../helpers/motion.js";
 
 /**
  * E2E tests for src/features/recordings/
@@ -185,7 +186,7 @@ test.describe("Recordings / Permission modal", () => {
     await page.locator("#recordings-start-button").click();
     await expect(page.getByText("Trust")).toBeVisible();
     await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByText("Trust")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden(AFTER_CLOSE);
     await expect(page.locator("#recordings-start-button")).toBeVisible();
     await expect(page.locator(".ogis-menu-badge")).toBeHidden();
   });
@@ -196,7 +197,7 @@ test.describe("Recordings / Permission modal", () => {
     await page.locator("#recordings-start-button").click();
     await expect(page.getByText("Trust")).toBeVisible();
     await page.getByRole("button", { name: "I understand" }).click();
-    await expect(page.getByText("Trust")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden(AFTER_CLOSE);
     await expect(page.getByText("Current Recording")).toBeVisible({
       timeout: 5000,
     });
@@ -215,7 +216,7 @@ test.describe("Recordings / Permission modal", () => {
     await waitForMapReady(page);
     await openMenuTab(page, "Recordings");
     await page.locator("#recordings-start-button").click();
-    await expect(page.getByText("Trust")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden(AFTER_CLOSE);
   });
 });
 

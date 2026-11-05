@@ -86,9 +86,10 @@ watch([isPanelVisible, isInfoVisible], ([open, info]) => {
 });
 onBeforeUnmount(() => clearTimeout(closeTimer));
 
-// Escape closes the side panel, unless a modal is open (it closes first).
+// Escape closes the side panel, unless a modal is open or has just handled
+// the key (the modal closes first).
 const onKeydown = (e) => {
-  if (e.key !== "Escape" || !isPanelVisible.value) return;
+  if (e.key !== "Escape" || e.defaultPrevented || !isPanelVisible.value) return;
   if (document.querySelector(".ogis-modal")) return;
   closePanel();
 };

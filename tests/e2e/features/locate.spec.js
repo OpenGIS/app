@@ -25,6 +25,7 @@ import {
 } from "../helpers/locate.js";
 import { readStoredState } from "../helpers/storage.js";
 import { DEMO } from "../../fixtures/demo.mjs";
+import { AFTER_CLOSE } from "../helpers/motion.js";
 
 /**
  * Tests for docs/guide/features/locate.md
@@ -215,7 +216,7 @@ test.describe("Locate / Confirmation modal", () => {
   }) => {
     await page.locator("#locate-button").click();
     await page.getByText("Cancel").click();
-    await expect(page.getByText("Trust")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden(AFTER_CLOSE);
     await expect(page.locator("#locate-button")).toContainText("Locate");
   });
 
@@ -224,7 +225,7 @@ test.describe("Locate / Confirmation modal", () => {
     await page.locator("#locate-button").click();
     await expect(page.getByText("Trust")).toBeVisible();
     await page.getByRole("button", { name: "I understand" }).click();
-    await expect(page.getByText("Trust")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden(AFTER_CLOSE);
     await expect(page.locator("#locate-button")).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -241,7 +242,7 @@ test.describe("Locate / Confirmation modal", () => {
     await waitForMapReady(page);
 
     await page.locator("#locate-button").click();
-    await expect(page.getByText("Trust")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden(AFTER_CLOSE);
   });
 
   test("hovering the modal close control does not change its opacity", async ({
@@ -292,7 +293,7 @@ test.describe("Locate / Recordings integration", () => {
     await page.locator("#recordings-start-button").click();
     await expect(page.getByText("Trust")).toBeVisible();
     await page.getByText("Cancel").click();
-    await expect(page.getByText("Trust")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden(AFTER_CLOSE);
     // Still idle: the start control remains and no status badge is shown.
     await expect(page.locator("#recordings-start-button")).toBeVisible();
     await expect(page.locator(".ogis-menu-badge")).toBeHidden();
@@ -647,7 +648,7 @@ test.describe("Locate / Error state", () => {
     });
 
     await page.locator("#locate-error-close").click();
-    await expect(page.getByText("Unable to Locate")).toBeHidden();
+    await expect(page.getByText("Unable to Locate")).toBeHidden(AFTER_CLOSE);
     await expect(page.locator("#locate-button")).toContainText("Error");
   });
 
@@ -665,7 +666,7 @@ test.describe("Locate / Error state", () => {
     });
 
     await page.locator("#locate-error-close").click();
-    await expect(page.getByText("Unable to Locate")).toBeHidden();
+    await expect(page.getByText("Unable to Locate")).toBeHidden(AFTER_CLOSE);
 
     await page.locator("#locate-button").click();
     await expect(page.getByText("Unable to Locate")).toBeVisible();
@@ -825,7 +826,7 @@ test.describe("Locate / Error modal retry", () => {
     await page.locator("#locate-error-retry").click();
 
     // Modal should close
-    await expect(page.getByText("Unable to Locate")).toBeHidden();
+    await expect(page.getByText("Unable to Locate")).toBeHidden(AFTER_CLOSE);
 
     // Locate button should exit error state
     await expect(page.locator("#locate-button")).not.toContainText("Error", {
@@ -1169,8 +1170,8 @@ test.describe("Locate / Restore", () => {
 
     expect((await readLocate(page)).mode).toBeNull();
     expect(await page.evaluate(() => window.__geo.count())).toBe(0);
-    await expect(page.getByText("Unable to Locate")).toBeHidden();
-    await expect(page.getByText("Trust")).toBeHidden();
+    await expect(page.getByText("Unable to Locate")).toBeHidden(AFTER_CLOSE);
+    await expect(page.getByText("Trust")).toBeHidden(AFTER_CLOSE);
   });
 
   test("does not auto-resume without OS geolocation permission", async ({
@@ -1201,8 +1202,8 @@ test.describe("Locate / Restore", () => {
 
     expect((await readLocate(page)).mode).toBeNull();
     expect(await page.evaluate(() => window.__geo.count())).toBe(0);
-    await expect(page.getByText("Unable to Locate")).toBeHidden();
-    await expect(page.getByText("Trust")).toBeHidden();
+    await expect(page.getByText("Unable to Locate")).toBeHidden(AFTER_CLOSE);
+    await expect(page.getByText("Trust")).toBeHidden(AFTER_CLOSE);
   });
 
   test("fails a restore silently when geolocation errors before the first fix", async ({
@@ -1232,8 +1233,8 @@ test.describe("Locate / Restore", () => {
         timeout: RESTORE_TIMEOUT,
       })
       .toBeNull();
-    await expect(page.getByText("Unable to Locate")).toBeHidden();
-    await expect(page.getByText("Trust")).toBeHidden();
+    await expect(page.getByText("Unable to Locate")).toBeHidden(AFTER_CLOSE);
+    await expect(page.getByText("Trust")).toBeHidden(AFTER_CLOSE);
 
     await expect
       .poll(async () => (await readLocateStorage(page))?.mode ?? null, {
@@ -1371,7 +1372,7 @@ test.describe("Locate / Restore", () => {
     await waitForMapReady(reopened);
 
     await reopened.locator("#locate-button").click();
-    await expect(reopened.getByText("Trust")).toBeHidden();
+    await expect(reopened.getByText("Trust")).toBeHidden(AFTER_CLOSE);
     await expect(reopened.locator("#locate-button")).toContainText("Located", {
       timeout: LOCATE_TIMEOUT,
     });
@@ -1482,7 +1483,7 @@ test.describe("Locate / Restore / Compass permission", () => {
       })
       .toBe(1);
     await expect(page.locator(".ogis-locate-heading")).toHaveCount(0);
-    await expect(page.getByText("Trust")).toBeHidden();
+    await expect(page.getByText("Trust")).toBeHidden(AFTER_CLOSE);
 
     // Restoring a session must never prompt on its own.
     expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
@@ -1671,7 +1672,7 @@ test.describe("Locate / Restore / Compass permission", () => {
         timeout: RESTORE_TIMEOUT,
       })
       .toBe(1);
-    await expect(page.getByText("Unable to Locate")).toBeHidden();
-    await expect(page.getByText("Trust")).toBeHidden();
+    await expect(page.getByText("Unable to Locate")).toBeHidden(AFTER_CLOSE);
+    await expect(page.getByText("Trust")).toBeHidden(AFTER_CLOSE);
   });
 });

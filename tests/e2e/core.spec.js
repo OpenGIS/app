@@ -12,6 +12,7 @@ import {
 import { AFTER_CLOSE } from "./helpers/motion.js";
 import { COUNTRY_BOUNDS } from "../../src/utils/countries.js";
 import { DEMO } from "../fixtures/demo.mjs";
+import { AFTER_CLOSE } from "./helpers/motion.js";
 
 /**
  * Core app tests: returning-visit view persistence, the Info pane toggled via
@@ -548,7 +549,10 @@ test.describe("Panel geometry / capped width and backdrop strip", () => {
         await page.mouse.click(x, viewport.height / 2);
 
         await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
-        await expect(page.locator(".offcanvas-backdrop")).toHaveCount(0);
+        await expect(page.locator(".offcanvas-backdrop")).toHaveCount(
+          0,
+          AFTER_CLOSE,
+        );
       });
     });
   }

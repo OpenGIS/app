@@ -8,6 +8,7 @@ import { isSwiftShaderRun } from "../helpers/determinism.js";
 import { waitForMapReady } from "../helpers/panel";
 import { writeStoredEnvelope, openPeerPage } from "../helpers/storage.js";
 import { DEMO } from "../../fixtures/demo.mjs";
+import { AFTER_CLOSE } from "../helpers/motion.js";
 
 /**
  * E2E tests for src/features/offline/
@@ -476,7 +477,10 @@ test.describe("Offline / Mobile (touch)", () => {
 
     // The panel closes, revealing the map; the mobile backdrop disappears.
     await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
-    await expect(page.locator(".offcanvas-backdrop")).toHaveCount(0);
+    await expect(page.locator(".offcanvas-backdrop")).toHaveCount(
+      0,
+      AFTER_CLOSE,
+    );
   });
 
   test("touch-drag draws a region and the panel reopens", async ({ page }) => {

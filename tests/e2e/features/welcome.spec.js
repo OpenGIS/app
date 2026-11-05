@@ -4,6 +4,7 @@ import {
   expectNoConsoleErrors,
 } from "../helpers/console.js";
 import { readStoredState } from "../helpers/storage.js";
+import { AFTER_CLOSE } from "../helpers/motion.js";
 
 /**
  * One-time welcome card: shown on a first visit, dismissed with Continue, and
@@ -34,7 +35,7 @@ test("a first visit shows the welcome card and Continue dismisses it for good", 
   await expect(card).toContainText("Find your way, anywhere");
 
   await page.locator("#welcome-continue").click();
-  await expect(card).toBeHidden();
+  await expect(card).toBeHidden(AFTER_CLOSE);
 
   const stored = await page.evaluate(() =>
     localStorage.getItem("ogis_welcome_app"),

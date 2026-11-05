@@ -11,9 +11,12 @@ const emit = defineEmits(["update:modelValue"]);
 const close = () => emit("update:modelValue", false);
 defineExpose({ close });
 
-// Escape closes the open modal.
+// Escape closes the open modal. It marks the key as handled so the side
+// panel, or a second modal, does not close on the same press.
 const onKeydown = (e) => {
-  if (e.key === "Escape") close();
+  if (e.key !== "Escape" || e.defaultPrevented) return;
+  e.preventDefault();
+  close();
 };
 watch(
   () => props.modelValue,

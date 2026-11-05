@@ -18,6 +18,7 @@ import { DEMO_AREA } from "../../fixtures/map/demoArea.mjs";
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
+import { AFTER_CLOSE } from "../helpers/motion.js";
 
 /**
  * UI-states screenshot matrix — `screenshots/{device}/{orientation}/*.png`
@@ -1549,7 +1550,7 @@ test.describe("Secondary UI states — desktop landscape", () => {
       timeout: 30000,
     });
     await page.locator("#locate-error-close").click();
-    await expect(page.locator("#locate-error-title")).toBeHidden();
+    await expect(page.locator("#locate-error-title")).toBeHidden(AFTER_CLOSE);
     await expect(page.locator("#locate-button")).toContainText("Error");
     await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "locate-error");

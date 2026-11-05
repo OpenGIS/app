@@ -4,6 +4,7 @@ import {
   expectNoConsoleErrors,
 } from "../helpers/console.js";
 import { waitForMapReady, openMenuPanel } from "../helpers/panel.js";
+import { AFTER_CLOSE } from "../helpers/motion.js";
 
 /**
  * Escape closes the top-most layer: an open pop-up first, then the side panel.
@@ -31,7 +32,7 @@ test("Escape closes the side panel", async ({ page }) => {
   await page.keyboard.press("Escape");
 
   await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
-  await expect(page.locator(".offcanvas-backdrop")).toHaveCount(0);
+  await expect(page.locator(".offcanvas-backdrop")).toHaveCount(0, AFTER_CLOSE);
 });
 
 test("Escape closes an open pop-up before the panel", async ({ page }) => {
@@ -44,7 +45,7 @@ test("Escape closes an open pop-up before the panel", async ({ page }) => {
   await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
 
   await page.keyboard.press("Escape");
-  await expect(card).toBeHidden();
+  await expect(card).toBeHidden(AFTER_CLOSE);
   await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
 
   await page.keyboard.press("Escape");
