@@ -1,3 +1,18 @@
+# [3.20.0](https://github.com/OpenGIS/app/compare/v3.19.1...v3.20.0) (2026-11-05)
+
+
+### Bug Fixes
+
+* **ci:** handle force-push in commit message check ([5e30e46](https://github.com/OpenGIS/app/commit/5e30e46d09623e142104f8dbcb303ff50099c6f1))
+* **routes:** wrap card actions, restore focus ring ([b43573c](https://github.com/OpenGIS/app/commit/b43573c3b4df12d89f311955cc806d2676ec2c64))
+
+
+### Features
+
+* **locate:** explain the locate chip with once-only onboarding hints ([f266fc3](https://github.com/OpenGIS/app/commit/f266fc36821f5136e470f763c2657e4ad7c473cf))
+* **onboarding:** add one-time locate chip hints ([87c36c4](https://github.com/OpenGIS/app/commit/87c36c4aa4125066149b9da38d0c765ad680271f))
+* **onboarding:** add one-time welcome card ([672cbb0](https://github.com/OpenGIS/app/commit/672cbb069d22373da6109a4be9f1a01f7fc20265))
+
 ## [3.19.1](https://github.com/OpenGIS/app/compare/v3.19.0...v3.19.1) (2026-10-29)
 
 
