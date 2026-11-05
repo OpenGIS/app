@@ -1,4 +1,4 @@
-[ogis.app](https://www.ogis.app/?country=random)
+# [OG](https://www.ogis.app/?country=random)
 
 > A navigational tool to rule them all, right in the browser.
 
@@ -14,8 +14,6 @@ A _loveletter_ to the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem 
 ![ogis.app — dark theme](DARK.jpg)
 
 ![ogis.app — light theme](LIGHT.jpg)
-
-Both heroes are live, intentionally non-deterministic captures — a random-country cold start with the Info panel open — refreshed in place by every full local E2E run, and rebuilt and committed back automatically whenever a release is cut. The committed screenshot matrix is under [`screenshots/`](screenshots/); see [Screenshot matrix](#screenshot-matrix).
 
 ## Technical overview
 
