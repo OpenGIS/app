@@ -717,7 +717,28 @@ $font-size-base: 0.9375rem; // 15 px
 }
 
 .panel-nav .icon-btn {
-  flex: 1 0 calc(100% / 3);
+  flex: 1 1 0;
+  min-width: 0;
+  // Same height for every tab so the icons stay level when a label wraps.
+  align-self: stretch;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 10px 1px 6px;
+}
+
+// In the tab row the label sits in the flow under the icon instead of being
+// pinned below it, so a long name (French "Cartes hors ligne") wraps onto a
+// second line inside its own tab rather than running into the next one.
+.panel-nav .icon-btn__label {
+  position: static;
+  transform: none;
+  max-width: 100%;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-align: center;
+  white-space: normal;
+  // Last resort for a single long word on the narrowest phones.
+  hyphens: auto;
 }
 
 // Icon buttons (panel nav tabs + corner control chips)
