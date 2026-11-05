@@ -12,6 +12,7 @@ import {
 import { useUI } from "@/composables/useUI";
 import { useLocale } from "@/composables/useLocale";
 import { getMapInstance } from "@/composables/useMap";
+import { useSwipeToClose } from "@/composables/useSwipeToClose";
 import IconButton from "@/components/ui/icon-button.vue";
 import InfoPanel from "@/components/panels/info.vue";
 
@@ -96,6 +97,10 @@ const onKeydown = (e) => {
 onMounted(() => window.addEventListener("keydown", onKeydown));
 onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
+// On touch screens, swiping the panel to the left closes it.
+const panelEl = ref(null);
+useSwipeToClose(panelEl, { isOpen: isPanelVisible, close: closePanel });
+
 const panelComponents = {};
 
 const isCustomPanel = computed(
@@ -155,6 +160,7 @@ watch(
 
 <template>
   <div
+    ref="panelEl"
     class="offcanvas offcanvas-start ogis-panel"
     :class="{ show: isPanelVisible }"
     tabindex="-1"
