@@ -360,7 +360,7 @@ const startNavigation = async (page) => {
     .getByRole("button", { name: "Guide me", exact: true })
     .click();
   await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
-  await expect(locateLabel(page)).toHaveText("Following");
+  await expect(locateLabel(page)).toHaveText("Follow");
   await expect(navControl(page)).toBeVisible();
   await expect(navControl(page)).toHaveAttribute("data-variant", "card");
 };
@@ -998,7 +998,7 @@ test.describe("Routes / Navigate", () => {
     await page.locator("#locate-button").click();
     await expect(locateLabel(page)).toHaveText("Located");
     await page.locator("#locate-button").click();
-    await expect(locateLabel(page)).toHaveText("Following");
+    await expect(locateLabel(page)).toHaveText("Follow");
 
     await startNavigation(page);
     await expect(navControl(page)).toBeVisible();
@@ -1006,7 +1006,7 @@ test.describe("Routes / Navigate", () => {
     await stopNavigationFromPanel(page);
 
     await expect(navControl(page)).toHaveCount(0);
-    await expect(locateLabel(page)).toHaveText("Following");
+    await expect(locateLabel(page)).toHaveText("Follow");
   });
 
   test("hiding the navigating route stops navigation and owned follow", async ({
@@ -1362,7 +1362,7 @@ test.describe("Routes / Restore across reload", () => {
     await page.reload();
     await waitForMapReady(page);
 
-    await expect(locateLabel(page)).toHaveText("Following", {
+    await expect(locateLabel(page)).toHaveText("Follow", {
       timeout: RESTORE_TIMEOUT,
     });
     await expect(navControl(page)).toBeVisible({ timeout: RESTORE_TIMEOUT });
@@ -1414,7 +1414,7 @@ test.describe("Routes / Restore across reload", () => {
     await page.goto("/");
     await waitForMapReady(page);
 
-    await expect(locateLabel(page)).toHaveText("Following", {
+    await expect(locateLabel(page)).toHaveText("Follow", {
       timeout: RESTORE_TIMEOUT,
     });
     await expect(navControl(page)).toBeVisible({ timeout: RESTORE_TIMEOUT });
@@ -1483,7 +1483,7 @@ test.describe("Routes / Restore across reload", () => {
     await page.locator("#locate-button").click();
     await expect(locateLabel(page)).toHaveText("Located");
     await page.locator("#locate-button").click();
-    await expect(locateLabel(page)).toHaveText("Following");
+    await expect(locateLabel(page)).toHaveText("Follow");
 
     await startNavigation(page);
 
@@ -1501,7 +1501,7 @@ test.describe("Routes / Restore across reload", () => {
     await page.reload();
     await waitForMapReady(page);
 
-    await expect(locateLabel(page)).toHaveText("Following", {
+    await expect(locateLabel(page)).toHaveText("Follow", {
       timeout: RESTORE_TIMEOUT,
     });
     await expect(navControl(page)).toBeVisible({ timeout: RESTORE_TIMEOUT });
@@ -1509,7 +1509,7 @@ test.describe("Routes / Restore across reload", () => {
     // The user-owned follow is not owned by navigation, so it survives Stop.
     await stopNavigationFromPanel(page);
     await expect(navControl(page)).toHaveCount(0);
-    await expect(locateLabel(page)).toHaveText("Following");
+    await expect(locateLabel(page)).toHaveText("Follow");
   });
 
   test("does not resume navigation without OS geolocation permission", async ({
@@ -1630,7 +1630,7 @@ test.describe("Routes / Cross-tab sync", () => {
 
     await row.getByRole("button", { name: "Guide me", exact: true }).click();
     await expect(navControl(page)).toBeVisible();
-    await expect(locateLabel(page)).toHaveText("Following");
+    await expect(locateLabel(page)).toHaveText("Follow");
     expect(await readLocateMode(page)).toBe("following");
 
     await writeStoredEnvelope(peer, "ogis_routes_app", 1, []);
