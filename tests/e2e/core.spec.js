@@ -12,7 +12,6 @@ import {
 import { AFTER_CLOSE } from "./helpers/motion.js";
 import { COUNTRY_BOUNDS } from "../../src/utils/countries.js";
 import { DEMO } from "../fixtures/demo.mjs";
-import { AFTER_CLOSE } from "./helpers/motion.js";
 
 /**
  * Core app tests: returning-visit view persistence, the Info pane toggled via
