@@ -1,4 +1,4 @@
-# [OG](https://www.ogis.app/?country=random)
+# [O.G](https://www.ogis.app/?country=random)
 
 > A navigational tool to rule them all, right in the browser.
 
