@@ -243,7 +243,7 @@ test.describe("Info panel", () => {
     const share = panel.getByRole("link", { name: "Share" });
     await expect(share).toBeVisible();
     await expect(share).toHaveAttribute("href", page.url());
-    await expect(share).toHaveClass(/btn-outline-primary/);
+    await expect(share).toHaveClass(/ogis-cta/);
 
     // Improve opens the OSM note editor at the rounded view.
     const improve = panel.getByRole("link", { name: "Improve" });
@@ -422,28 +422,34 @@ test.describe("Info panel", () => {
     const body = bar.locator(".ogis-privacy-bar__body");
     await expect(bar).toBeVisible();
 
-    // The glyph is CSS-generated; getComputedStyle serialises it quoted.
+    // The chevron is a CSS-generated background image: an up chevron
+    // (path "M6 15") while closed and a down chevron (path "M6 9") once open.
     const glyph = () =>
-      summary.evaluate((el) =>
-        getComputedStyle(el, "::after").content.replace(/^["']|["']$/g, ""),
-      );
+      summary.locator(".ogis-privacy-bar__toggle").evaluate((el) => {
+        const image = decodeURIComponent(
+          getComputedStyle(el, "::after").backgroundImage,
+        );
+        if (image.includes("M6 15")) return "up";
+        if (image.includes("M6 9")) return "down";
+        return "none";
+      });
 
-    // Collapsed: no open state, hidden body, "+" affordance.
+    // Collapsed: no open state, hidden body, up chevron.
     await expect(bar).toHaveJSProperty("open", false);
     await expect(body).toBeHidden();
-    await expect.poll(glyph).toBe("+");
+    await expect.poll(glyph).toBe("up");
 
-    // Expanded: the body shows and the affordance becomes "−" (U+2212).
+    // Expanded: the body shows and the chevron flips to point down.
     await summary.click();
     await expect(bar).toHaveJSProperty("open", true);
     await expect(body).toBeVisible();
-    await expect.poll(glyph).toBe("−");
+    await expect.poll(glyph).toBe("down");
 
-    // Collapsed again: back to the hidden body and "+".
+    // Collapsed again: back to the hidden body and the up chevron.
     await summary.click();
     await expect(bar).toHaveJSProperty("open", false);
     await expect(body).toBeHidden();
-    await expect.poll(glyph).toBe("+");
+    await expect.poll(glyph).toBe("up");
   });
 
   test("Attribution footer is pinned with sticky positioning", async ({

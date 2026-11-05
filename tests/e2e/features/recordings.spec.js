@@ -450,7 +450,7 @@ test.describe("Recordings / Save and Discard", () => {
     await expect(page.locator(".ogis-menu-badge")).toBeHidden();
     // Saved list shows the recording
     await expect(page.getByText("Duration")).toBeHidden();
-    await expect(page.locator(".border-top")).toBeVisible();
+    await expect(page.locator(".ogis-track-card")).toBeVisible();
   });
 
   test("saved recording persists across page reload", async ({ page }) => {
@@ -486,7 +486,7 @@ test.describe("Recordings / Save and Discard", () => {
     await page.reload();
     await waitForMapReady(page);
     await openMenuTab(page, "Recordings");
-    await expect(page.locator(".border-top")).toBeVisible();
+    await expect(page.locator(".ogis-track-card")).toBeVisible();
   });
 });
 
@@ -546,7 +546,7 @@ test.describe("Recordings / Saved list management", () => {
   });
 
   test("saved recording is listed in the panel", async ({ page }) => {
-    const row = page.locator(".border-top");
+    const row = page.locator(".ogis-track-card");
     await expect(row).toBeVisible();
     await expect(row.locator(".ogis-track-swatch")).toBeVisible();
     await expect(
@@ -603,7 +603,7 @@ test.describe("Recordings / Saved list management", () => {
   test("cancelling Delete keeps the recording and its map feature", async ({
     page,
   }) => {
-    const row = page.locator(".border-top");
+    const row = page.locator(".ogis-track-card");
     await row.getByRole("button", { name: "Show", exact: true }).click();
     await expect
       .poll(() => mapFeatureIds(page, "recordings-saved-"))
@@ -625,7 +625,7 @@ test.describe("Recordings / Saved list management", () => {
   test("accepting Delete removes the recording and its map feature", async ({
     page,
   }) => {
-    const row = page.locator(".border-top");
+    const row = page.locator(".ogis-track-card");
     await row.getByRole("button", { name: "Show", exact: true }).click();
     await expect
       .poll(() => mapFeatureIds(page, "recordings-saved-"))
@@ -636,8 +636,8 @@ test.describe("Recordings / Saved list management", () => {
     await row.getByRole("button", { name: "Delete", exact: true }).click();
 
     await expect.poll(() => messages.length).toBe(1);
-    await expect(page.locator(".border-top")).toHaveCount(0);
-    await expect(page.getByText("No recordings yet.")).toBeVisible();
+    await expect(page.locator(".ogis-track-card")).toHaveCount(0);
+    await expect(page.getByText("Nothing here yet.")).toBeVisible();
     await expect
       .poll(() => mapFeatureIds(page, "recordings-saved-"))
       .toEqual([]);
@@ -645,13 +645,13 @@ test.describe("Recordings / Saved list management", () => {
   });
 
   test("Show displays the track and Hide removes it", async ({ page }) => {
-    const row = page.locator(".border-top");
+    const row = page.locator(".ogis-track-card");
     await row.getByRole("button", { name: "Show", exact: true }).click();
 
-    const hide = row.getByRole("button", { name: "Hide", exact: true });
+    const hide = row.getByRole("button", { name: "On map", exact: true });
     await expect(hide).toBeVisible();
     await expect(hide).toHaveAttribute("aria-pressed", "true");
-    await expect(hide).toHaveClass(/btn-primary/);
+    await expect(hide).toHaveClass(/ogis-track-btn--on/);
     await expect
       .poll(() => mapFeatureIds(page, "recordings-saved-"))
       .toEqual(["recordings-saved-test-rec-1"]);
@@ -666,7 +666,7 @@ test.describe("Recordings / Saved list management", () => {
   });
 
   test("Share downloads the recording as GPX and GeoJSON", async ({ page }) => {
-    const row = page.locator(".border-top");
+    const row = page.locator(".ogis-track-card");
     const summary = row.locator("summary");
 
     await summary.click();
@@ -820,7 +820,7 @@ test.describe("Recordings / Saved list order", () => {
   });
 
   test("saved recordings are listed newest first", async ({ page }) => {
-    const items = page.locator(".border-top");
+    const items = page.locator(".ogis-track-card");
     await expect(items).toHaveCount(2);
 
     // Format the expected labels in the page's own locale, matching the
@@ -840,7 +840,7 @@ test.describe("Recordings / Saved list order", () => {
   test("saved recordings are shown and hidden independently", async ({
     page,
   }) => {
-    const items = page.locator(".border-top");
+    const items = page.locator(".ogis-track-card");
     await expect(items).toHaveCount(2);
     const newerRow = items.nth(0);
     const olderRow = items.nth(1);
@@ -850,7 +850,7 @@ test.describe("Recordings / Saved list order", () => {
       .poll(() => mapFeatureIds(page, "recordings-saved-"))
       .toEqual(["recordings-saved-test-rec-2"]);
     await expect(
-      newerRow.getByRole("button", { name: "Hide", exact: true }),
+      newerRow.getByRole("button", { name: "On map", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     await expect(
       olderRow.getByRole("button", { name: "Show", exact: true }),
@@ -863,15 +863,15 @@ test.describe("Recordings / Saved list order", () => {
         ["recordings-saved-test-rec-1", "recordings-saved-test-rec-2"].sort(),
       );
 
-    await newerRow.getByRole("button", { name: "Hide", exact: true }).click();
+    await newerRow.getByRole("button", { name: "On map", exact: true }).click();
     await expect
       .poll(() => mapFeatureIds(page, "recordings-saved-"))
       .toEqual(["recordings-saved-test-rec-1"]);
     await expect(
-      olderRow.getByRole("button", { name: "Hide", exact: true }),
+      olderRow.getByRole("button", { name: "On map", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
 
-    await olderRow.getByRole("button", { name: "Hide", exact: true }).click();
+    await olderRow.getByRole("button", { name: "On map", exact: true }).click();
     await expect
       .poll(() => mapFeatureIds(page, "recordings-saved-"))
       .toEqual([]);
@@ -926,7 +926,7 @@ test.describe("Recordings / Cross-tab sync", () => {
       saved: [recordingDoc()],
     });
 
-    const row = page.locator(".border-top");
+    const row = page.locator(".ogis-track-card");
     await expect(row).toBeVisible();
     await row.getByRole("button", { name: "Show", exact: true }).click();
     await expect
@@ -936,7 +936,7 @@ test.describe("Recordings / Cross-tab sync", () => {
     await writeStoredEnvelope(peer, "ogis_recordings_app", 2, { saved: [] });
 
     await expect(row).toHaveCount(0);
-    await expect(page.getByText("No recordings yet.")).toBeVisible();
+    await expect(page.getByText("Nothing here yet.")).toBeVisible();
     await expect
       .poll(() => mapFeatureIds(page, "recordings-saved-"))
       .toEqual([]);

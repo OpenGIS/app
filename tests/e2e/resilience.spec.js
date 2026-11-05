@@ -173,7 +173,7 @@ test.describe("Feature install isolation", () => {
 
     // Later features still installed and the panel chrome is intact.
     await openMenuTab(page, "Recordings");
-    await expect(page.getByText("No recordings yet.")).toBeVisible();
+    await expect(page.getByText("Nothing here yet.")).toBeVisible();
     await expect(
       page.locator(".panel-nav").getByRole("button", { name: "Routes" }),
     ).toBeVisible();
@@ -216,7 +216,7 @@ test.describe("Corrupt stored state", () => {
     await waitForMapReady(page);
 
     await openMenuTab(page, "Recordings");
-    await expect(page.getByText("No recordings yet.")).toBeVisible();
+    await expect(page.getByText("Nothing here yet.")).toBeVisible();
 
     await openMenuTab(page, "Offline Maps");
     await expect(page.getByText("No regions downloaded yet.")).toBeVisible();

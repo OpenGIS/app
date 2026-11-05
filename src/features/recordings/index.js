@@ -381,6 +381,15 @@ export const RecordingsFeature = {
       flushStorage();
     };
 
+    /** Give a saved recording a new name; an empty name restores the date. */
+    const renameRecording = (id, name) => {
+      const recording = state.saved.find((item) => item.id === id);
+      if (!recording) return;
+      recording.name = name || null;
+      persist();
+      flushStorage();
+    };
+
     /**
      * Reconcile the in-memory saved list and map after another tab replaced
      * the shared recordings store. The object store replaces its properties,
@@ -409,9 +418,13 @@ export const RecordingsFeature = {
     };
 
     const shareRecording = async (recording, format) => {
-      const name = t("panel.recordings.exportName", {
-        date: new Date(recording.createdAt).toLocaleString(formatLocale.value),
-      });
+      const name =
+        recording.name ||
+        t("panel.recordings.exportName", {
+          date: new Date(recording.createdAt).toLocaleString(
+            formatLocale.value,
+          ),
+        });
       const content =
         format === "gpx"
           ? toGPX(recording, { name })
@@ -510,6 +523,7 @@ export const RecordingsFeature = {
       hideOnMap,
       showOnMap,
       deleteRecording,
+      renameRecording,
     });
 
     addPanel({

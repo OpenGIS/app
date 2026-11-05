@@ -2,6 +2,8 @@
 <script setup>
 import { computed, inject, ref } from "vue";
 import Icon from "@/components/ui/icon.vue";
+import RenameInput from "@/components/ui/rename-input.vue";
+import { useInlineRename } from "@/composables/useInlineRename.js";
 import { useLocale } from "@/composables/useLocale";
 import {
   documentDistance,
@@ -11,6 +13,7 @@ import {
 } from "@/utils/track/index.js";
 
 const { t, locale } = useLocale();
+const rename = useInlineRename();
 
 const {
   routes,
@@ -19,6 +22,7 @@ const {
   isMetric,
   importTracks,
   deleteRoute,
+  renameRoute,
   toggleVisibility,
   isVisible,
   startNavigation,
@@ -80,15 +84,11 @@ const confirmDelete = (route) => {
 </script>
 
 <template>
-  <div class="sidebar-section sidebar-section-body p-3 pb-2">
+  <div class="sidebar-section sidebar-section-body p-3 pb-0">
     <div class="ogis-routes-titlebar">
-      <h5 class="mb-0">{{ t("menu.routes") }}</h5>
-      <button
-        type="button"
-        class="btn ogis-routes-add"
-        @click="fileInput?.click()"
-      >
-        <Icon name="plus-circle" width="16" height="16" aria-hidden="true" />
+      <h5 class="ogis-section-title">{{ t("menu.routes") }}</h5>
+      <button type="button" class="btn ogis-cta" @click="fileInput?.click()">
+        <Icon name="plus-circle" width="18" height="18" aria-hidden="true" />
         {{ t("panel.routes.add") }}
       </button>
       <input
@@ -112,17 +112,24 @@ const confirmDelete = (route) => {
       {{ t("panel.routes.empty") }}
     </p>
 
-    <div v-for="route in routes" :key="route.id" class="ogis-route-card">
-      <div class="ogis-route-card__head">
+    <div v-for="route in routes" :key="route.id" class="ogis-track-card">
+      <div class="ogis-track-card__head">
         <span
           class="ogis-track-swatch"
           :style="{ backgroundColor: route.color }"
         ></span>
-        <div class="ogis-route-card__text">
-          <div class="ogis-track-name text-truncate">
+        <div class="ogis-track-card__text">
+          <RenameInput
+            v-if="rename.editingId.value === route.id"
+            v-model="rename.draft.value"
+            :label="t('panel.routes.rename')"
+            @commit="rename.commit(renameRoute)"
+            @cancel="rename.cancel"
+          />
+          <div v-else class="ogis-track-name text-truncate">
             {{ route.name || t("panel.routes.defaultName") }}
           </div>
-          <div class="ogis-route-card__meta">
+          <div class="ogis-track-card__meta">
             <span v-if="hasPoints(route)">
               {{
                 formatDistance(documentDistance(route), isMetric, locale.value)
@@ -136,7 +143,17 @@ const confirmDelete = (route) => {
         </div>
         <button
           type="button"
-          class="btn ogis-route-card__remove"
+          class="btn ogis-track-card__rename"
+          :aria-label="t('panel.routes.rename')"
+          :title="t('panel.routes.rename')"
+          @mousedown.prevent
+          @click="rename.begin(route.id, route.name || '')"
+        >
+          <Icon name="pencil" width="16" height="16" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="btn ogis-track-card__remove"
           :aria-label="t('panel.routes.delete')"
           :title="t('panel.routes.delete')"
           @click="confirmDelete(route)"
@@ -145,12 +162,12 @@ const confirmDelete = (route) => {
         </button>
       </div>
 
-      <div class="ogis-route-card__actions">
+      <div class="ogis-track-card__actions">
         <button
           type="button"
-          class="btn ogis-route-btn"
+          class="btn ogis-track-btn"
           :class="
-            isVisible(route.id) ? 'ogis-route-btn--on' : 'ogis-route-btn--main'
+            isVisible(route.id) ? 'ogis-track-btn--on' : 'ogis-track-btn--show'
           "
           :aria-pressed="isVisible(route.id)"
           :title="isVisible(route.id) ? t('panel.routes.hideHint') : undefined"
@@ -172,8 +189,8 @@ const confirmDelete = (route) => {
         <button
           v-if="lineGeometry(route)"
           type="button"
-          class="btn ogis-route-btn"
-          :class="{ 'ogis-route-btn--main': navigating === route.id }"
+          class="btn ogis-track-btn"
+          :class="{ 'ogis-track-btn--main': navigating === route.id }"
           :disabled="
             !isVisible(route.id) ||
             Boolean(navigating && navigating !== route.id)
@@ -194,7 +211,7 @@ const confirmDelete = (route) => {
         </button>
 
         <details class="ogis-share-menu">
-          <summary class="btn ogis-route-btn">
+          <summary class="btn ogis-track-btn">
             <Icon name="share" width="14" height="14" aria-hidden="true" />
             {{ t("panel.routes.share") }}
           </summary>

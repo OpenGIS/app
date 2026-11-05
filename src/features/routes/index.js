@@ -290,6 +290,12 @@ export const RoutesFeature = {
       persistVisibility();
     };
 
+    /** Give a route a new name; an empty name restores the default. */
+    const renameRoute = (id, name) => {
+      const route = routes.find((item) => item.id === id);
+      if (route) route.name = name || null;
+    };
+
     /**
      * Reconcile map and navigation state after another tab replaced the route
      * store. Visibility is last-writer-wins: a route that disappeared is
@@ -537,6 +543,7 @@ export const RoutesFeature = {
       isMetric,
       importTracks,
       deleteRoute,
+      renameRoute,
       showOnMap,
       hideOnMap,
       toggleVisibility,

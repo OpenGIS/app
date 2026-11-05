@@ -1,6 +1,9 @@
 <!-- RecordingsPanel.vue — side-panel content for the Recordings feature -->
 <script setup>
 import { inject, computed } from "vue";
+import Icon from "@/components/ui/icon.vue";
+import RenameInput from "@/components/ui/rename-input.vue";
+import { useInlineRename } from "@/composables/useInlineRename.js";
 import { useSettings } from "@/composables/useSettings.js";
 import { useLocale } from "@/composables/useLocale";
 import { documentDistance } from "@/utils/track/index.js";
@@ -23,7 +26,12 @@ const {
   toggleVisibility,
   isVisible,
   deleteRecording,
+  renameRecording,
 } = inject("recordings");
+
+const rename = useInlineRename();
+const formatDate = (rec) =>
+  new Date(rec.createdAt).toLocaleString(formatLocale.value);
 
 const isActive = computed(() => state.isRecording || state.isPaused);
 
@@ -61,45 +69,64 @@ const confirmDelete = (recording) => {
 </script>
 
 <template>
-  <div class="p-3">
+  <div class="ogis-recordings-panel p-3">
+    <h5 class="ogis-section-title">{{ t("menu.recordings") }}</h5>
+
     <p v-if="locationError" class="text-danger small" role="alert">
       {{ locationErrorText }}
     </p>
 
     <!-- Active recording -->
     <template v-if="isActive">
-      <h6 class="text-body-secondary mb-3">
+      <h6 class="ogis-section-heading">
         {{ t("panel.recordings.currentRecording") }}
       </h6>
 
-      <div class="d-flex justify-content-between mb-1">
-        <span>{{ t("panel.recordings.duration") }}</span>
-        <strong>{{ formatDuration(elapsed) }}</strong>
-      </div>
+      <div class="ogis-live-card mb-3">
+        <div class="d-flex justify-content-between">
+          <span>{{ t("panel.recordings.duration") }}</span>
+          <strong>{{ formatDuration(elapsed) }}</strong>
+        </div>
 
-      <div class="d-flex justify-content-between mb-3">
-        <span>{{ t("panel.recordings.distance") }}</span>
-        <strong>{{ formatDistance(distance, isMetric, locale.value) }}</strong>
-      </div>
+        <div class="d-flex justify-content-between">
+          <span>{{ t("panel.recordings.distance") }}</span>
+          <strong>
+            {{ formatDistance(distance, isMetric, locale.value) }}
+          </strong>
+        </div>
 
-      <div class="d-flex gap-2 mb-4">
-        <button
-          class="btn btn-sm"
-          :class="state.isRecording ? 'btn-warning' : 'btn-primary'"
-          @click="state.isRecording ? pause() : resume()"
-        >
-          {{
-            state.isRecording
-              ? t("panel.recordings.pause")
-              : t("panel.recordings.resume")
-          }}
-        </button>
-        <button class="btn btn-sm btn-success" @click="save">
-          {{ t("panel.recordings.save") }}
-        </button>
-        <button class="btn btn-sm btn-outline-danger" @click="discard">
-          {{ t("panel.recordings.discard") }}
-        </button>
+        <div class="ogis-track-card__actions">
+          <button
+            type="button"
+            class="btn ogis-track-btn"
+            :class="{ 'ogis-track-btn--main': !state.isRecording }"
+            @click="state.isRecording ? pause() : resume()"
+          >
+            <Icon
+              :name="state.isRecording ? 'pause-circle' : 'record-btn-fill'"
+              width="14"
+              height="14"
+              aria-hidden="true"
+            />
+            {{
+              state.isRecording
+                ? t("panel.recordings.pause")
+                : t("panel.recordings.resume")
+            }}
+          </button>
+          <button
+            type="button"
+            class="btn ogis-track-btn ogis-track-btn--main"
+            @click="save"
+          >
+            <Icon name="check" width="14" height="14" aria-hidden="true" />
+            {{ t("panel.recordings.save") }}
+          </button>
+          <button type="button" class="btn ogis-track-btn" @click="discard">
+            <Icon name="x-circle" width="14" height="14" aria-hidden="true" />
+            {{ t("panel.recordings.discard") }}
+          </button>
+        </div>
       </div>
     </template>
 
@@ -107,76 +134,127 @@ const confirmDelete = (recording) => {
     <template v-else>
       <button
         id="recordings-start-button"
-        class="btn btn-sm btn-primary w-100 mb-3"
+        type="button"
+        class="btn ogis-cta"
         @click="start"
       >
+        <Icon
+          name="record-btn-fill"
+          width="18"
+          height="18"
+          aria-hidden="true"
+        />
         {{ t("panel.recordings.start") }}
       </button>
     </template>
 
     <!-- Saved recordings -->
-    <h6 class="text-body-secondary">{{ t("panel.recordings.saved") }}</h6>
+    <h6 class="ogis-section-heading">{{ t("panel.recordings.saved") }}</h6>
 
     <p v-if="!state.saved.length" class="text-body-tertiary small">
       {{ t("panel.recordings.empty") }}
     </p>
 
-    <div v-for="rec in sortedRecordings" :key="rec.id" class="border-top py-2">
-      <div class="d-flex align-items-center gap-2 small text-body-secondary">
-        <span
-          class="ogis-track-swatch"
-          :style="{ backgroundColor: rec.color }"
-        ></span>
-        <span>{{
-          new Date(rec.createdAt).toLocaleString(formatLocale.value)
-        }}</span>
-      </div>
-      <div class="d-flex justify-content-between small">
-        <span>{{ formatDuration(rec.duration ?? 0) }}</span>
-        <span>
-          {{ formatDistance(documentDistance(rec), isMetric, locale.value) }}
-        </span>
-      </div>
-      <div class="d-flex flex-wrap gap-1 mt-1">
-        <button
-          class="btn btn-sm"
-          :class="isVisible(rec.id) ? 'btn-primary' : 'btn-outline-primary'"
-          :aria-pressed="isVisible(rec.id)"
-          @click="toggleVisibility(rec)"
-        >
-          {{
-            isVisible(rec.id)
-              ? t("panel.recordings.hide")
-              : t("panel.recordings.show")
-          }}
-        </button>
-
-        <details class="ogis-share-menu">
-          <summary class="btn btn-sm btn-outline-secondary">
-            {{ t("panel.recordings.share") }}
-          </summary>
-          <div class="ogis-share-menu__items">
-            <button
-              class="btn btn-sm btn-outline-secondary"
-              @click="onShare($event, rec, 'gpx')"
-            >
-              GPX
-            </button>
-            <button
-              class="btn btn-sm btn-outline-secondary"
-              @click="onShare($event, rec, 'geojson')"
-            >
-              GeoJSON
-            </button>
+    <div class="ogis-recordings-list">
+      <div
+        v-for="rec in sortedRecordings"
+        :key="rec.id"
+        class="ogis-track-card"
+      >
+        <div class="ogis-track-card__head">
+          <span
+            class="ogis-track-swatch"
+            :style="{ backgroundColor: rec.color }"
+          ></span>
+          <div class="ogis-track-card__text">
+            <RenameInput
+              v-if="rename.editingId.value === rec.id"
+              v-model="rename.draft.value"
+              :label="t('panel.recordings.rename')"
+              @commit="rename.commit(renameRecording)"
+              @cancel="rename.cancel"
+            />
+            <div v-else class="ogis-track-name text-truncate">
+              {{ rec.name || formatDate(rec) }}
+            </div>
+            <div class="ogis-track-card__meta">
+              <template v-if="rec.name">{{ formatDate(rec) }} · </template>
+              {{ formatDuration(rec.duration ?? 0) }} ·
+              {{
+                formatDistance(documentDistance(rec), isMetric, locale.value)
+              }}
+            </div>
           </div>
-        </details>
+          <button
+            type="button"
+            class="btn ogis-track-card__rename"
+            :aria-label="t('panel.recordings.rename')"
+            :title="t('panel.recordings.rename')"
+            @mousedown.prevent
+            @click="rename.begin(rec.id, rec.name || '')"
+          >
+            <Icon name="pencil" width="16" height="16" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="btn ogis-track-card__remove"
+            :aria-label="t('panel.recordings.delete')"
+            :title="t('panel.recordings.delete')"
+            @click="confirmDelete(rec)"
+          >
+            <Icon name="trash" width="16" height="16" aria-hidden="true" />
+          </button>
+        </div>
 
-        <button
-          class="btn btn-sm btn-outline-danger"
-          @click="confirmDelete(rec)"
-        >
-          {{ t("panel.recordings.delete") }}
-        </button>
+        <div class="ogis-track-card__actions">
+          <button
+            type="button"
+            class="btn ogis-track-btn"
+            :class="
+              isVisible(rec.id) ? 'ogis-track-btn--on' : 'ogis-track-btn--show'
+            "
+            :aria-pressed="isVisible(rec.id)"
+            :title="
+              isVisible(rec.id) ? t('panel.recordings.hideHint') : undefined
+            "
+            @click="toggleVisibility(rec)"
+          >
+            <Icon
+              :name="isVisible(rec.id) ? 'check' : 'map'"
+              width="14"
+              height="14"
+              aria-hidden="true"
+            />
+            {{
+              isVisible(rec.id)
+                ? t("panel.recordings.hide")
+                : t("panel.recordings.show")
+            }}
+          </button>
+
+          <details class="ogis-share-menu">
+            <summary class="btn ogis-track-btn">
+              <Icon name="share" width="14" height="14" aria-hidden="true" />
+              {{ t("panel.recordings.share") }}
+            </summary>
+            <div class="ogis-share-menu__items">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                @click="onShare($event, rec, 'gpx')"
+              >
+                GPX
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                @click="onShare($event, rec, 'geojson')"
+              >
+                GeoJSON
+              </button>
+            </div>
+          </details>
+        </div>
       </div>
     </div>
   </div>

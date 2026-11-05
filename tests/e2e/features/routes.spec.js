@@ -115,7 +115,7 @@ const openRoutesPanel = async (page) => {
 
 /** Locate a route row by its displayed name. */
 const routeRow = (page, name) =>
-  page.locator(".ogis-panel .ogis-route-card", { hasText: name });
+  page.locator(".ogis-panel .ogis-track-card", { hasText: name });
 
 /** Read the persisted route documents (envelope or legacy). */
 const storedRoutes = async (page) =>
@@ -415,7 +415,7 @@ test.describe("Routes / Panel", () => {
   test("clicking the Routes tab opens the Routes panel", async ({ page }) => {
     await openRoutesPanel(page);
     await expect(
-      page.getByRole("button", { name: "Add", exact: true }),
+      page.getByRole("button", { name: "Add from file", exact: true }),
     ).toBeVisible();
   });
 });
@@ -452,7 +452,7 @@ test.describe("Routes / Import", () => {
     const show = row.getByRole("button", { name: "Show", exact: true });
     await expect(show).toBeVisible();
     await expect(show).toHaveAttribute("aria-pressed", "false");
-    await expect(show).not.toHaveClass(/ogis-route-btn--on/);
+    await expect(show).not.toHaveClass(/ogis-track-btn--on/);
     await expect.poll(() => mapFeatureIds(page, "routes-route-")).toEqual([]);
 
     // The imported document is persisted in the v2 shape.
@@ -540,7 +540,7 @@ test.describe("Routes / Show and Hide", () => {
     const hide = row.getByRole("button", { name: "On map", exact: true });
     await expect(hide).toBeVisible();
     await expect(hide).toHaveAttribute("aria-pressed", "true");
-    await expect(hide).toHaveClass(/ogis-route-btn--on/);
+    await expect(hide).toHaveClass(/ogis-track-btn--on/);
 
     await expect.poll(async () => (await storedRoutes(page)).length).toBe(1);
     const [stored] = await storedRoutes(page);
@@ -673,7 +673,7 @@ test.describe("Routes / Delete", () => {
     handleConfirm(page, "dismiss", messages);
 
     await routeRow(page, "Test Loop")
-      .getByRole("button", { name: "Remove", exact: true })
+      .getByRole("button", { name: "Delete", exact: true })
       .click();
 
     await expect.poll(() => messages.length).toBe(1);
@@ -693,7 +693,7 @@ test.describe("Routes / Delete", () => {
     handleConfirm(page, "accept", messages);
 
     await routeRow(page, "Test Loop")
-      .getByRole("button", { name: "Remove", exact: true })
+      .getByRole("button", { name: "Delete", exact: true })
       .click();
 
     await expect.poll(() => messages.length).toBe(1);
@@ -702,7 +702,7 @@ test.describe("Routes / Delete", () => {
     await expect(routeRow(page, "Test Loop")).toHaveCount(0);
     await expect(
       page.getByText(
-        "No routes yet. Tap Add to open a route file someone sent you (GPX or GeoJSON).",
+        "No routes yet. Tap Add from file to open a route file someone sent you (GPX or GeoJSON).",
       ),
     ).toBeVisible();
     await expect.poll(() => mapFeatureIds(page, "routes-route-")).toEqual([]);
@@ -731,7 +731,7 @@ test.describe("Routes / Share", () => {
   test("Share downloads the route as GPX and GeoJSON", async ({ page }) => {
     const row = routeRow(page, "Test Loop");
     const summary = row.locator("summary");
-    await expect(summary).toContainText("Send");
+    await expect(summary).toContainText("Share");
 
     await summary.click();
     const [gpxDownload] = await Promise.all([
@@ -1050,7 +1050,7 @@ test.describe("Routes / Navigate", () => {
     const messages = [];
     handleConfirm(page, "accept", messages);
     await routeRow(page, "Test Loop")
-      .getByRole("button", { name: "Remove", exact: true })
+      .getByRole("button", { name: "Delete", exact: true })
       .click();
 
     await expect.poll(() => messages.length, { timeout: NAV_TIMEOUT }).toBe(1);

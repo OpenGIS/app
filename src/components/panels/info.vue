@@ -113,58 +113,74 @@ const onImprove = (e) => {
 <template>
   <div class="ogis-info-panel d-flex flex-column flex-grow-1">
     <div class="sidebar-section sidebar-section-body p-3">
-      <textarea
-        id="ogis-share-url"
-        name="ogis-share-url"
-        class="ogis-share-textarea form-control form-control-sm font-monospace mb-2"
-        :value="shareUrl"
-        readonly
-        rows="3"
-        @focus="$event.target.select()"
-      ></textarea>
+      <div class="ogis-live-card">
+        <textarea
+          id="ogis-share-url"
+          name="ogis-share-url"
+          class="ogis-share-textarea form-control form-control-sm font-monospace"
+          :value="shareUrl"
+          readonly
+          rows="2"
+          @focus="$event.target.select()"
+        ></textarea>
 
-      <a
-        class="btn btn-sm ogis-share-link w-100 d-flex align-items-center justify-content-center gap-1"
-        :class="copied ? 'btn-success' : 'btn-outline-primary'"
-        :href="shareUrl"
-        @click="onShare"
-      >
-        {{ copied ? t("panel.view.copied") : t("panel.view.share") }}
-        <Icon
-          width="18"
-          height="18"
-          fill="currentColor"
-          :name="copied ? 'check' : 'share'"
-        />
-      </a>
-
-      <hr class="my-2 opacity-25" />
-
-      <div class="d-flex gap-2">
         <a
-          class="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-1"
-          :href="osmNoteUrl ?? '#'"
-          target="_blank"
-          rel="noopener noreferrer"
-          @click="onImprove"
+          class="btn ogis-cta ogis-share-link w-100"
+          :class="{ 'ogis-cta--soft': copied }"
+          :href="shareUrl"
+          aria-describedby="ogis-share-hint"
+          @click="onShare"
         >
-          {{ t("panel.view.improve") }}
-          <Icon width="16" height="16" fill="currentColor" name="pencil" />
+          {{ copied ? t("panel.view.copied") : t("panel.view.share") }}
+          <Icon
+            width="18"
+            height="18"
+            fill="currentColor"
+            :name="copied ? 'check' : 'share'"
+          />
         </a>
-        <a
-          class="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-1"
-          :href="randomUrl"
-          @click="onRandom"
-        >
-          {{ t("panel.view.random") }}
-          <Icon width="18" height="18" fill="currentColor" name="dice" />
-        </a>
+        <p id="ogis-share-hint" class="ogis-hint text-center">
+          {{ t("panel.view.shareHint") }}
+        </p>
+      </div>
+
+      <div class="ogis-info-actions">
+        <div class="ogis-info-action">
+          <a
+            class="btn ogis-track-btn"
+            :href="osmNoteUrl ?? '#'"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-describedby="ogis-improve-hint"
+            @click="onImprove"
+          >
+            {{ t("panel.view.improve") }}
+            <Icon width="16" height="16" fill="currentColor" name="pencil" />
+          </a>
+          <p id="ogis-improve-hint" class="ogis-hint">
+            {{ t("panel.view.improveHint") }}
+          </p>
+        </div>
+        <div class="ogis-info-action">
+          <a
+            class="btn ogis-track-btn"
+            :href="randomUrl"
+            aria-describedby="ogis-random-hint"
+            @click="onRandom"
+          >
+            {{ t("panel.view.random") }}
+            <Icon width="18" height="18" fill="currentColor" name="dice" />
+          </a>
+          <p id="ogis-random-hint" class="ogis-hint">
+            {{ t("panel.view.randomHint") }}
+          </p>
+        </div>
       </div>
     </div>
 
     <!-- Moving the 3D map -->
     <div class="sidebar-section sidebar-section-body px-3 pb-3">
-      <section class="ogis-map3d-card" data-card="map3d">
+      <section class="ogis-live-card ogis-map3d-card" data-card="map3d">
         <h6 class="ogis-map3d-card__title">
           {{ t("panel.view.map3d.title") }}
         </h6>
@@ -236,6 +252,9 @@ const onImprove = (e) => {
             </h5>
             <span class="ogis-privacy-bar__summary">
               {{ t("panel.privacy.summary") }}
+            </span>
+            <span class="ogis-privacy-bar__toggle">
+              {{ t("panel.privacy.details") }}
             </span>
           </summary>
 

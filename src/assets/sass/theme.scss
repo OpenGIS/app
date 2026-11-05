@@ -149,7 +149,7 @@ $font-size-base: 0.9375rem; // 15 px
   // Privacy bar affordance. The light value keeps the large +/− glyph at
   // roughly 3.5:1 on the frosted panel; the dark value can use the brighter
   // brand green.
-  --ogis-privacy-accent: #1f9d45;
+  --ogis-privacy-accent: #2f6b3a;
 }
 
 // #6b  Side panel (Bootstrap Offcanvas)
@@ -185,6 +185,72 @@ $font-size-base: 0.9375rem; // 15 px
   --bs-offcanvas-bg: rgba(10, 18, 10, 0.82);
   border-right: 1px solid rgba(255, 255, 255, 0.07) !important;
   box-shadow: 3px 0 28px rgba(0, 0, 0, 0.4);
+}
+
+// #6b2  Calmer green inside the side panels
+// ─────────────────────────────────────────────────────────────
+// Everything inside a side panel (the tabs under Menu and the Info pane)
+// uses a deeper forest green that is easier on the eyes. The bright app
+// green stays on the map and the corner controls, which sit outside the
+// panel. Overriding the Bootstrap custom properties here recolours links,
+// active tabs and progress bars; the button variables below recolour the
+// primary, success and outline buttons that Bootstrap compiles with fixed
+// colours.
+
+.offcanvas.ogis-panel {
+  --ogis-panel-green: #2f6b3a;
+  --ogis-panel-green-ink: #ffffff;
+  --bs-primary: #2f6b3a;
+  --bs-primary-rgb: 47, 107, 58;
+  --bs-success: #2f6b3a;
+  --bs-success-rgb: 47, 107, 58;
+  --bs-link-color: #2f6b3a;
+  --bs-link-color-rgb: 47, 107, 58;
+  --bs-link-hover-color: #24552e;
+  --bs-link-hover-color-rgb: 36, 85, 46;
+}
+
+[data-bs-theme="dark"] .offcanvas.ogis-panel {
+  --ogis-panel-green: #5fae6c;
+  --ogis-panel-green-ink: #0c1a0f;
+  --bs-primary: #5fae6c;
+  --bs-primary-rgb: 95, 174, 108;
+  --bs-success: #5fae6c;
+  --bs-success-rgb: 95, 174, 108;
+  --bs-link-color: #5fae6c;
+  --bs-link-color-rgb: 95, 174, 108;
+  --bs-link-hover-color: #86c792;
+  --bs-link-hover-color-rgb: 134, 199, 146;
+}
+
+.ogis-panel .btn-primary,
+.ogis-panel .btn-success {
+  --bs-btn-color: var(--ogis-panel-green-ink);
+  --bs-btn-bg: var(--ogis-panel-green);
+  --bs-btn-border-color: var(--ogis-panel-green);
+  --bs-btn-hover-color: var(--ogis-panel-green-ink);
+  --bs-btn-hover-bg: var(--ogis-panel-green);
+  --bs-btn-hover-border-color: var(--ogis-panel-green);
+  --bs-btn-active-color: var(--ogis-panel-green-ink);
+  --bs-btn-active-bg: var(--ogis-panel-green);
+  --bs-btn-active-border-color: var(--ogis-panel-green);
+  --bs-btn-disabled-color: var(--ogis-panel-green-ink);
+  --bs-btn-disabled-bg: var(--ogis-panel-green);
+  --bs-btn-disabled-border-color: var(--ogis-panel-green);
+}
+
+.ogis-panel .btn-outline-primary,
+.ogis-panel .btn-outline-success {
+  --bs-btn-color: var(--ogis-panel-green);
+  --bs-btn-border-color: var(--ogis-panel-green);
+  --bs-btn-hover-color: var(--ogis-panel-green);
+  --bs-btn-hover-bg: transparent;
+  --bs-btn-hover-border-color: var(--ogis-panel-green);
+  --bs-btn-active-color: var(--ogis-panel-green-ink);
+  --bs-btn-active-bg: var(--ogis-panel-green);
+  --bs-btn-active-border-color: var(--ogis-panel-green);
+  --bs-btn-disabled-color: var(--ogis-panel-green);
+  --bs-btn-disabled-border-color: var(--ogis-panel-green);
 }
 
 // #6c  Panel navigation tabs
@@ -301,7 +367,7 @@ $font-size-base: 0.9375rem; // 15 px
   margin-top: 0.25rem;
 }
 
-// #6f2  Routes panel cards ("Trailhead" style)
+// #6f2  Track cards for Routes and Recordings ("Trailhead" style)
 // ─────────────────────────────────────────────────────────────
 // Friendlier, touch-sized route cards: one soft card per route, the name and
 // distance on one line, and Show / Guide me / Send in a single row of
@@ -309,50 +375,31 @@ $font-size-base: 0.9375rem; // 15 px
 // main buttons. Colours are scoped tokens so dark mode only redefines them.
 
 .ogis-routes-titlebar,
-.ogis-routes-list {
+.ogis-routes-list,
+.ogis-recordings-panel,
+.ogis-info-panel {
   --ogis-trail: #2f6b3a;
   --ogis-trail-ink: #ffffff;
   --ogis-trail-soft: #e3efe4;
   --ogis-trail-soft-ink: #2f6b3a;
-  --ogis-route-card-bg: #ffffff;
-  --ogis-route-btn-bg: #f0f4ef;
-  --ogis-route-btn-ink: #2f4a35;
+  --ogis-track-card-bg: #ffffff;
+  --ogis-track-btn-bg: #f0f4ef;
+  --ogis-track-btn-ink: #2f4a35;
   --ogis-route-muted: #5b6b5e;
 }
 
 [data-bs-theme="dark"] .ogis-routes-titlebar,
-[data-bs-theme="dark"] .ogis-routes-list {
+[data-bs-theme="dark"] .ogis-routes-list,
+[data-bs-theme="dark"] .ogis-recordings-panel,
+[data-bs-theme="dark"] .ogis-info-panel {
   --ogis-trail: #5fae6c;
   --ogis-trail-ink: #0c1a0f;
   --ogis-trail-soft: rgba(95, 174, 108, 0.18);
   --ogis-trail-soft-ink: #9fd8a8;
-  --ogis-route-card-bg: rgba(255, 255, 255, 0.06);
-  --ogis-route-btn-bg: rgba(255, 255, 255, 0.08);
-  --ogis-route-btn-ink: #dbe7dd;
+  --ogis-track-card-bg: rgba(255, 255, 255, 0.06);
+  --ogis-track-btn-bg: rgba(255, 255, 255, 0.08);
+  --ogis-track-btn-ink: #dbe7dd;
   --ogis-route-muted: #9aa89e;
-}
-
-.ogis-routes-titlebar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.ogis-routes-add {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-height: 2.25rem;
-  padding: 0 0.9rem 0 0.7rem;
-  border-radius: 999px;
-  font-weight: 700;
-  --bs-btn-color: var(--ogis-trail-ink);
-  --bs-btn-bg: var(--ogis-trail);
-  --bs-btn-border-color: var(--ogis-trail);
-  --bs-btn-active-color: var(--ogis-trail-ink);
-  --bs-btn-active-bg: var(--ogis-trail);
-  --bs-btn-active-border-color: var(--ogis-trail);
 }
 
 .ogis-routes-list {
@@ -361,20 +408,20 @@ $font-size-base: 0.9375rem; // 15 px
   gap: 0.6rem;
 }
 
-.ogis-route-card {
-  position: relative;
+.ogis-track-card,
+.ogis-live-card {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.6rem 0.65rem;
   border-radius: 0.9rem;
-  background: var(--ogis-route-card-bg);
+  background: var(--ogis-track-card-bg);
   box-shadow:
     0 1px 2px rgba(31, 45, 34, 0.08),
     0 3px 10px -6px rgba(31, 45, 34, 0.25);
 }
 
-.ogis-route-card__head {
+.ogis-track-card__head {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -385,7 +432,7 @@ $font-size-base: 0.9375rem; // 15 px
   }
 }
 
-.ogis-route-card__text {
+.ogis-track-card__text {
   flex: 1;
   min-width: 0;
 
@@ -395,12 +442,13 @@ $font-size-base: 0.9375rem; // 15 px
   }
 }
 
-.ogis-route-card__meta {
+.ogis-track-card__meta {
   font-size: 0.8rem;
   color: var(--ogis-route-muted);
 }
 
-.ogis-route-card__remove {
+.ogis-track-card__rename,
+.ogis-track-card__remove {
   flex: none;
   display: grid;
   place-items: center;
@@ -412,11 +460,51 @@ $font-size-base: 0.9375rem; // 15 px
   --bs-btn-bg: transparent;
   --bs-btn-border-color: transparent;
   --bs-btn-active-color: var(--bs-danger);
-  --bs-btn-active-bg: var(--ogis-route-btn-bg);
+  --bs-btn-active-bg: var(--ogis-track-btn-bg);
   --bs-btn-active-border-color: transparent;
 }
 
-.ogis-route-card__actions {
+// The rename pencil shares the quiet icon style but presses green, not red.
+.ogis-track-card__rename {
+  --bs-btn-active-color: var(--ogis-trail);
+}
+
+.ogis-recordings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.ogis-section-heading {
+  margin: 0 0 0.6rem;
+  font-weight: 700;
+  color: var(--bs-body-color);
+}
+
+.ogis-section-title {
+  margin: 0 0 0.75rem;
+  font-weight: 800;
+}
+
+.ogis-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-height: 2.75rem;
+  margin-bottom: 1rem;
+  border-radius: 0.9rem;
+  font-weight: 800;
+  --bs-btn-color: var(--ogis-trail-ink);
+  --bs-btn-bg: var(--ogis-trail);
+  --bs-btn-border-color: var(--ogis-trail);
+  --bs-btn-active-color: var(--ogis-trail-ink);
+  --bs-btn-active-bg: var(--ogis-trail);
+  --bs-btn-active-border-color: var(--ogis-trail);
+}
+
+.ogis-track-card__actions {
   // Two even columns. A phone-width panel cannot fit three labelled buttons
   // on one line (French labels least of all), so with three actions the first
   // takes the whole top line and the other two share the line below. Labels
@@ -433,7 +521,7 @@ $font-size-base: 0.9375rem; // 15 px
 
   // The Send wrapper is static so its menu can anchor to the card below the
   // whole row.
-  > .ogis-route-btn,
+  > .ogis-track-btn,
   > .ogis-share-menu {
     min-width: 0;
   }
@@ -459,7 +547,103 @@ $font-size-base: 0.9375rem; // 15 px
   }
 }
 
-.ogis-route-btn {
+.ogis-track-card {
+  position: relative;
+}
+
+.ogis-cta--soft {
+  --bs-btn-color: var(--ogis-track-btn-ink);
+  --bs-btn-bg: var(--ogis-track-btn-bg);
+  --bs-btn-border-color: transparent;
+  --bs-btn-active-color: var(--ogis-track-btn-ink);
+  --bs-btn-active-bg: var(--ogis-track-btn-bg);
+  --bs-btn-active-border-color: transparent;
+  --bs-btn-disabled-color: var(--ogis-track-btn-ink);
+  --bs-btn-disabled-bg: var(--ogis-track-btn-bg);
+  --bs-btn-disabled-border-color: transparent;
+}
+
+.ogis-cta--danger {
+  --bs-btn-color: var(--bs-danger);
+  --bs-btn-active-color: var(--bs-danger);
+}
+
+// Inside a card the card's own gap spaces the button.
+.ogis-live-card .ogis-cta {
+  margin-bottom: 0;
+}
+
+// Names wrap instead of being cut short with an ellipsis.
+.ogis-track-card .ogis-track-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+// Short plain-language line under a button saying what it does.
+.ogis-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  color: var(--ogis-route-muted);
+}
+
+.ogis-info-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+.ogis-info-action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ogis-info-action .ogis-track-btn {
+  text-decoration: none;
+}
+
+// "This map is 3D" card in the Info panel: the same gestures as the locate tip.
+.ogis-map3d-card__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.ogis-map3d-card__gestures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  line-height: 1.35;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+}
+
+.ogis-map3d-card__icon {
+  flex: none;
+  color: var(--bs-primary);
+}
+
+.ogis-info-panel .ogis-cta {
+  text-decoration: none;
+}
+
+.ogis-rename-input {
+  min-height: 2.25rem;
+  border-radius: 0.65rem;
+  font-weight: 700;
+}
+
+.ogis-track-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -476,14 +660,14 @@ $font-size-base: 0.9375rem; // 15 px
   // Wrap only between words, never inside one.
   white-space: normal;
   overflow-wrap: normal;
-  --bs-btn-color: var(--ogis-route-btn-ink);
-  --bs-btn-bg: var(--ogis-route-btn-bg);
+  --bs-btn-color: var(--ogis-track-btn-ink);
+  --bs-btn-bg: var(--ogis-track-btn-bg);
   --bs-btn-border-color: transparent;
-  --bs-btn-active-color: var(--ogis-route-btn-ink);
-  --bs-btn-active-bg: var(--ogis-route-btn-bg);
+  --bs-btn-active-color: var(--ogis-track-btn-ink);
+  --bs-btn-active-bg: var(--ogis-track-btn-bg);
   --bs-btn-active-border-color: transparent;
-  --bs-btn-disabled-color: var(--ogis-route-btn-ink);
-  --bs-btn-disabled-bg: var(--ogis-route-btn-bg);
+  --bs-btn-disabled-color: var(--ogis-track-btn-ink);
+  --bs-btn-disabled-bg: var(--ogis-track-btn-bg);
   --bs-btn-disabled-border-color: transparent;
   --bs-btn-disabled-opacity: 0.45;
 
@@ -492,26 +676,41 @@ $font-size-base: 0.9375rem; // 15 px
   }
 }
 
-.ogis-route-btn--main {
+.ogis-track-btn--main {
   --bs-btn-color: var(--ogis-trail-ink);
   --bs-btn-bg: var(--ogis-trail);
   --bs-btn-active-color: var(--ogis-trail-ink);
   --bs-btn-active-bg: var(--ogis-trail);
 }
 
-.ogis-route-btn--on {
+.ogis-track-btn--on {
   --bs-btn-color: var(--ogis-trail-soft-ink);
   --bs-btn-bg: var(--ogis-trail-soft);
   --bs-btn-active-color: var(--ogis-trail-soft-ink);
   --bs-btn-active-bg: var(--ogis-trail-soft);
 }
 
+// Show: a soft green tint so it is not mistaken for the solid green button at
+// the top of the tab. Once the item is on the map it gets a stronger tint.
+.ogis-track-btn--show {
+  --bs-btn-color: var(--ogis-trail-soft-ink);
+  --bs-btn-bg: var(--ogis-trail-soft);
+  --bs-btn-active-color: var(--ogis-trail-soft-ink);
+  --bs-btn-active-bg: var(--ogis-trail-soft);
+}
+
+.ogis-track-card__actions .ogis-track-btn--on {
+  --bs-btn-bg: color-mix(in srgb, var(--ogis-trail) 28%, transparent);
+  --bs-btn-active-bg: color-mix(in srgb, var(--ogis-trail) 28%, transparent);
+}
+
 // Bootstrap's .btn:focus-visible drops the outline in favour of
 // --bs-btn-focus-box-shadow, which these custom buttons do not set. Restore the
 // project's outline-based focus ring so keyboard focus stays visible.
-.ogis-routes-add,
-.ogis-route-card__remove,
-.ogis-route-btn {
+.ogis-cta,
+.ogis-track-card__rename,
+.ogis-track-card__remove,
+.ogis-track-btn {
   &:focus-visible {
     outline: 2px solid var(--ogis-trail);
     outline-offset: 2px;
@@ -910,8 +1109,8 @@ $font-size-base: 0.9375rem; // 15 px
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: rgba(var(--bs-primary-rgb), 0.16);
-  color: var(--bs-primary);
+  background: rgba(var(--ogis-ui-green-rgb), 0.16);
+  color: var(--ogis-ui-green);
 
   svg {
     display: block;
@@ -1046,7 +1245,7 @@ $font-size-base: 0.9375rem; // 15 px
 [data-bs-theme="dark"]
   .ogis-nav-control[data-variant="card"]
   .ogis-nav-control__icon {
-  background: rgba(var(--bs-primary-rgb), 0.22);
+  background: rgba(var(--ogis-ui-green-rgb), 0.22);
 }
 
 [data-bs-theme="dark"]
@@ -1107,7 +1306,7 @@ $font-size-base: 0.9375rem; // 15 px
   }
 
   &[aria-pressed="true"] {
-    color: var(--bs-primary);
+    color: var(--ogis-ui-green);
     background: rgba(255, 255, 255, 0.92);
   }
 }
@@ -1197,6 +1396,41 @@ $font-size-base: 0.9375rem; // 15 px
   transform: translateY(1rem) scale(0.98);
 }
 
+// Everything outside the locate/follow button uses the deeper green.
+// The bright app green stays on the locate marker and button only.
+:root {
+  --ogis-ui-green: #2f6b3a;
+  --ogis-ui-green-rgb: 47, 107, 58;
+  --ogis-ui-green-ink: #ffffff;
+}
+
+[data-bs-theme="dark"] {
+  --ogis-ui-green: #5fae6c;
+  --ogis-ui-green-rgb: 95, 174, 108;
+  --ogis-ui-green-ink: #0c1a0f;
+}
+
+.ogis-modal,
+.ogis-map-status {
+  --bs-primary: var(--ogis-ui-green);
+  --bs-primary-rgb: var(--ogis-ui-green-rgb);
+  --bs-link-color: var(--ogis-ui-green);
+  --bs-link-color-rgb: var(--ogis-ui-green-rgb);
+
+  .btn-primary {
+    --bs-btn-color: var(--ogis-ui-green-ink);
+    --bs-btn-bg: var(--ogis-ui-green);
+    --bs-btn-border-color: var(--ogis-ui-green);
+    --bs-btn-hover-color: var(--ogis-ui-green-ink);
+    --bs-btn-hover-bg: var(--ogis-ui-green);
+    --bs-btn-hover-border-color: var(--ogis-ui-green);
+    --bs-btn-active-color: var(--ogis-ui-green-ink);
+    --bs-btn-active-bg: var(--ogis-ui-green);
+    --bs-btn-active-border-color: var(--ogis-ui-green);
+    --bs-btn-focus-shadow-rgb: var(--ogis-ui-green-rgb);
+  }
+}
+
 // #6h  Attribution chip, disclosures & scale offset
 // ─────────────────────────────────────────────────────────────
 // The bottom-left attribution chip is expanded while the Info pane is
@@ -1247,44 +1481,6 @@ $font-size-base: 0.9375rem; // 15 px
 
 // Privacy bar and attribution share one pinned surface. Two stacked sticky
 // siblings would both resolve to bottom: 0 and double the glass blur.
-// "This map is 3D" card in the Info panel: the same gestures as the locate tip.
-.ogis-map3d-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid var(--bs-border-color);
-  border-radius: 0.75rem;
-}
-
-.ogis-map3d-card__title {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.ogis-map3d-card__gestures {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.875rem;
-  line-height: 1.35;
-
-  li {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-  }
-}
-
-.ogis-map3d-card__icon {
-  flex: none;
-  color: var(--bs-primary);
-}
-
 .ogis-info-footer {
   margin-top: auto;
   position: sticky;
@@ -1300,19 +1496,19 @@ $font-size-base: 0.9375rem; // 15 px
 }
 
 [data-bs-theme="dark"] {
-  --ogis-privacy-accent: #39d353;
+  --ogis-privacy-accent: #5fae6c;
 }
 
 // Info panel attribution links — interactive here, unlike the chip.
 .ogis-attribution-section a {
-  color: var(--bs-primary);
+  color: var(--ogis-ui-green);
 }
 
 // Compact, expandable trust bar. Native <details> supplies the keyboard and
 // assistive-technology behaviour; only the affordance is restyled.
 .ogis-privacy-bar > summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 1.5rem;
+  grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     "title glyph"
     "summary glyph";
@@ -1348,22 +1544,52 @@ $font-size-base: 0.9375rem; // 15 px
   -webkit-line-clamp: 2;
 }
 
-// The glyph is generated content, so it never enters the accessibility tree;
-// <summary> already exposes the expanded state.
-.ogis-privacy-bar > summary::after {
+// The chevron is generated content, so it never enters the accessibility
+// tree; <summary> already exposes the expanded state. It points up while the
+// bar is closed (the details slide up from the bottom) and down once open.
+.ogis-privacy-bar__toggle {
   grid-area: glyph;
-  justify-self: stretch;
-  align-self: center;
-  content: "+";
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   color: var(--ogis-privacy-accent);
-  text-align: center;
-  font-size: 1.75rem;
-  font-weight: 600;
-  line-height: 1;
+  font-size: 0.8125rem;
+  font-weight: 700;
 }
 
-.ogis-privacy-bar[open] > summary::after {
-  content: "−";
+.ogis-privacy-bar__toggle::after {
+  flex: none;
+  content: "";
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232f6b3a' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M6 15l6-6 6 6'/></svg>")
+      center / 62% no-repeat,
+    rgba(47, 107, 58, 0.14);
+}
+
+.ogis-privacy-bar[open] .ogis-privacy-bar__toggle::after {
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232f6b3a' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>")
+      center / 62% no-repeat,
+    rgba(47, 107, 58, 0.14);
+}
+
+[data-bs-theme="dark"] .ogis-privacy-bar__toggle::after {
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235fae6c' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M6 15l6-6 6 6'/></svg>")
+      center / 62% no-repeat,
+    rgba(95, 174, 108, 0.16);
+}
+
+[data-bs-theme="dark"]
+  .ogis-privacy-bar[open]
+  .ogis-privacy-bar__toggle::after {
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235fae6c' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>")
+      center / 62% no-repeat,
+    rgba(95, 174, 108, 0.16);
 }
 
 .ogis-privacy-bar > summary:focus-visible {

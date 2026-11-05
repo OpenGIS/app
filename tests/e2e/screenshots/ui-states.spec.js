@@ -1304,7 +1304,7 @@ test.describe("Feature states — desktop landscape", () => {
     await openPanelTab(page, { name: "Recordings", exact: true });
     await waitForLayoutSettled(page, testInfo);
     await expect(
-      page.locator(".ogis-panel").locator(".border-top"),
+      page.locator(".ogis-panel").locator(".ogis-track-card"),
     ).toBeVisible();
 
     // Show the saved recording's track on the map.
@@ -1347,7 +1347,7 @@ test.describe("Secondary UI states — desktop landscape", () => {
     // Idle — no active ride and no saved recordings.
     await openPanelTab(page, { name: "Recordings", exact: true });
     await expect(
-      page.locator(".ogis-panel").getByText("No recordings yet."),
+      page.locator(".ogis-panel").getByText("Nothing here yet."),
     ).toBeVisible();
     await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "record-idle");
@@ -1380,7 +1380,7 @@ test.describe("Secondary UI states — desktop landscape", () => {
       page
         .locator(".ogis-panel")
         .getByText(
-          "No routes yet. Tap Add to open a route file someone sent you (GPX or GeoJSON).",
+          "No routes yet. Tap Add from file to open a route file someone sent you (GPX or GeoJSON).",
         ),
     ).toBeVisible();
     await normaliseCaptureState(page, testInfo);
