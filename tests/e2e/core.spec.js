@@ -5,6 +5,11 @@ import {
 } from "./helpers/console.js";
 import { waitForMapReady, openMenuPanel } from "./helpers/panel";
 import { isSwiftShaderRun } from "./helpers/determinism.js";
+import {
+  waitForAnimationsSettled,
+  waitForCanvasResize,
+} from "./helpers/layout.js";
+import { AFTER_CLOSE } from "./helpers/motion.js";
 import { COUNTRY_BOUNDS } from "../../src/utils/countries.js";
 import { DEMO } from "../fixtures/demo.mjs";
 
@@ -98,7 +103,7 @@ test.describe("Info pane / Pane separation", () => {
     // The first click closes the pane. No drag has latched the chip, so it
     // expands back to the credits pill.
     await page.locator("#attribution-button").click();
-    await expect(page.locator(".ogis-info-panel")).toHaveCount(0);
+    await expect(page.locator(".ogis-info-panel")).toHaveCount(0, AFTER_CLOSE);
     await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
     await expect(page.locator(".ogis-root")).toHaveAttribute(
       "data-attrib-collapsed",
@@ -131,8 +136,14 @@ test.describe("Info pane / Pane separation", () => {
     // Close the auto-opened Info pane: with no drag yet, the chip expands.
     await expect(page.locator(".ogis-info-panel")).toBeVisible();
     await page.locator("#attribution-button").click();
-    await expect(page.locator(".ogis-info-panel")).toHaveCount(0);
+    await expect(page.locator(".ogis-info-panel")).toHaveCount(0, AFTER_CLOSE);
     await expect(root).toHaveAttribute("data-attrib-collapsed", "false");
+
+    // Let the pane's slide-out and the map's matching resize finish first: a
+    // resize render landing mid-drag can turn the press and move into a click
+    // on a slow renderer.
+    await waitForAnimationsSettled(page);
+    await waitForCanvasResize(page);
 
     // Drag the map: the chip latches collapsed, like MapLibre's own control.
     const canvas = page.locator(".ogis-map canvas");
@@ -163,7 +174,7 @@ test.describe("Info pane / Pane separation", () => {
     await page.locator("#attribution-button").click();
     await expect(page.locator(".ogis-info-panel")).toBeVisible();
     await page.locator("#attribution-button").click();
-    await expect(page.locator(".ogis-info-panel")).toHaveCount(0);
+    await expect(page.locator(".ogis-info-panel")).toHaveCount(0, AFTER_CLOSE);
     await expect(root).toHaveAttribute("data-attrib-collapsed", "true");
     await expect(chipText).toHaveCount(0);
   });
@@ -390,7 +401,7 @@ test.describe("Info panel", () => {
     await expect(page.locator(".ogis-info-panel")).toBeVisible();
 
     await page.locator("#attribution-button").click();
-    await expect(page.locator(".ogis-info-panel")).toHaveCount(0);
+    await expect(page.locator(".ogis-info-panel")).toHaveCount(0, AFTER_CLOSE);
 
     await page.locator("#attribution-button").click();
     await expect(page.locator(".ogis-info-panel")).toBeVisible();
