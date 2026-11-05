@@ -377,6 +377,7 @@ $font-size-base: 0.9375rem; // 15 px
 .ogis-routes-titlebar,
 .ogis-routes-list,
 .ogis-recordings-panel,
+.ogis-offline-panel,
 .ogis-info-panel {
   --ogis-trail: #2f6b3a;
   --ogis-trail-ink: #ffffff;
@@ -391,6 +392,7 @@ $font-size-base: 0.9375rem; // 15 px
 [data-bs-theme="dark"] .ogis-routes-titlebar,
 [data-bs-theme="dark"] .ogis-routes-list,
 [data-bs-theme="dark"] .ogis-recordings-panel,
+[data-bs-theme="dark"] .ogis-offline-panel,
 [data-bs-theme="dark"] .ogis-info-panel {
   --ogis-trail: #5fae6c;
   --ogis-trail-ink: #0c1a0f;
@@ -635,6 +637,81 @@ $font-size-base: 0.9375rem; // 15 px
 
 .ogis-info-panel .ogis-cta {
   text-decoration: none;
+}
+
+// Offline Maps: zoom range on one tight row.
+.ogis-zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ogis-zoom-row__title {
+  flex: 1;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.ogis-zoom-row__field {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ogis-route-muted);
+
+  .form-control {
+    width: 3.2rem;
+  }
+}
+
+// Small confirmation after a map finishes saving.
+.ogis-saved-note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.65rem;
+  background: var(--ogis-track-btn-bg);
+  color: var(--ogis-track-btn-ink);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+// Offline cards: size and date on the left, a small quiet Show on the right.
+.ogis-track-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+
+  .ogis-track-card__meta {
+    min-width: 0;
+  }
+
+  .ogis-track-btn--pill {
+    flex: none;
+    width: auto;
+    min-height: 2rem;
+    padding: 0.25rem 0.8rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+}
+
+// Offline cards: rename/delete icons sit level with the map name.
+.ogis-track-card__head--top {
+  align-items: flex-start;
+
+  .ogis-track-card__rename,
+  .ogis-track-card__remove {
+    margin-block: -0.5rem;
+  }
+}
+
+.ogis-offline-label {
+  color: var(--bs-body-color);
 }
 
 .ogis-rename-input {

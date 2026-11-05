@@ -1,15 +1,19 @@
 <!-- OfflinePanel.vue — side-panel content for the Offline download feature -->
 <script setup>
-import { ref, computed, inject, onUnmounted, onMounted } from "vue";
+import { ref, computed, inject, onUnmounted, onMounted, watch } from "vue";
 import { useUI } from "@/composables/useUI";
 import { useActions } from "@/composables/useActions";
 import { useLocale } from "@/composables/useLocale";
 import { useOrientView } from "@/composables/useOrientView";
+import { useInlineRename } from "@/composables/useInlineRename.js";
+import Icon from "@/components/ui/icon.vue";
+import RenameInput from "@/components/ui/rename-input.vue";
 
 const { openPanel, isDesktop } = useUI();
 const { claimMap, dismissPanel, registerMode } = useActions();
 const { t, locale, formatLocale } = useLocale();
 const { orientView, switchProjection } = useOrientView();
+const rename = useInlineRename();
 
 const {
   regions,
@@ -79,6 +83,8 @@ const startDraw = () => {
   if (!m) return;
   claimMap();
   dismissPanel();
+  estimateRun++;
+  downloadNotice.value = "";
   bounds.value = null;
   estimateState.value = null;
   overlayStyle.value = { display: "none" };
@@ -198,6 +204,7 @@ const maxZoom = ref(14);
 const clampZoom = (v) => Math.max(0, Math.min(22, v));
 
 // --- Estimate + warn ---
+let estimateRun = 0;
 const mayNotFit = ref(false);
 const estimateNow = async () => {
   estimateError.value = "";
@@ -212,12 +219,16 @@ const estimateNow = async () => {
     estimateError.value = t("panel.offline.zoomOrder");
     return;
   }
+  const run = ++estimateRun;
   const est = await estimate(bounds.value, lo, hi);
+  // A newer area or zoom was chosen while this was being worked out.
+  if (run !== estimateRun) return;
   estimateState.value = est;
 
   // Quota awareness: warn when the region plus current usage may exceed the
   // storage quota, in addition to the large-region warning below.
   const info = await getStorageInfo();
+  if (run !== estimateRun) return;
   if (info.quota > 0 && est.estimatedBytes + info.usage > info.quota) {
     mayNotFit.value = true;
   }
@@ -246,16 +257,23 @@ const isLarge = computed(() =>
     : false,
 );
 
+// The size is always worked out for the chosen area and zoom.
+watch([bounds, minZoom, maxZoom], () => {
+  if (bounds.value) estimateNow();
+});
+
 // --- Download ---
 const downloading = ref(false);
 const progress = ref({ done: 0, total: 0 });
 const downloadError = ref("");
 const downloadWarning = ref("");
+const downloadNotice = ref("");
 const abortController = ref(null);
 
 const runDownload = async () => {
   downloadError.value = "";
   downloadWarning.value = "";
+  downloadNotice.value = "";
   if (!estimateState.value) {
     await estimateNow();
     if (!estimateState.value) return;
@@ -300,19 +318,25 @@ const runDownload = async () => {
       requestedCount: result.requestedCount,
       estimatedBytes: estimateState.value.estimatedBytes,
     });
-    if (result.failedCount > 0) {
-      downloadWarning.value = t("panel.offline.partial", {
-        succeeded: result.totalCount,
-        total: result.requestedCount,
-      });
+    // Only worry the person when map pieces themselves are missing; a few
+    // missing label fonts do not matter on the trail.
+    if (result.tileFailedCount > 0) {
+      downloadWarning.value = t("panel.offline.partial");
+    } else {
+      downloadNotice.value = t("panel.offline.saved");
     }
+    // Ready for the next map: clear the chosen area.
+    estimateRun++;
+    bounds.value = null;
+    estimateState.value = null;
+    mayNotFit.value = false;
     await persistPromise;
     refreshStorage();
   } catch (err) {
     if (err.name === "AbortError") {
       downloadError.value = t("panel.offline.cancelled");
     } else if (err.code === "download-empty") {
-      downloadError.value = t("panel.offline.empty");
+      downloadError.value = t("panel.offline.downloadEmpty");
     } else if (err.code === "map-not-ready") {
       downloadError.value = t("panel.offline.errorMapNotReady");
     } else {
@@ -347,6 +371,18 @@ const storagePct = computed(() => {
 
 onMounted(refreshStorage);
 
+// --- Show region: jump to it and get the panel out of the way ---
+const showSaved = (region) => {
+  showRegion(region);
+  dismissPanel();
+};
+
+// --- Rename region (an empty name keeps the current one) ---
+const renameRegion = (id, name) => {
+  const region = regions.find((item) => item.id === id);
+  if (region && name) region.name = name;
+};
+
 // --- Delete region ---
 const deleting = ref(false);
 const deleteError = ref("");
@@ -370,183 +406,154 @@ const removeRegion = async (region) => {
 </script>
 
 <template>
-  <div class="p-3">
-    <h6 class="text-body-secondary mb-3">{{ t("menu.offline") }}</h6>
+  <div class="ogis-offline-panel p-3">
+    <h5 class="ogis-section-title">{{ t("menu.offline") }}</h5>
 
-    <!-- Region selection -->
-    <p class="small text-body-secondary mb-2">
-      {{ t("panel.offline.dragHint") }}
-    </p>
-    <button
-      class="btn btn-sm mb-3"
-      :class="drawing ? 'btn-warning' : 'btn-primary'"
-      @click="drawing ? stopDraw() : startDraw()"
-    >
-      {{
-        drawing ? t("panel.offline.drawing") : t("panel.offline.selectRegion")
-      }}
-    </button>
-
-    <!-- Draw overlay: teleported to body so it escapes the offcanvas's
-         transform and can use fixed viewport coordinates -->
-    <Teleport to="body">
-      <div
-        v-if="drawing && drawStart"
-        class="offline-draw-overlay"
-        :style="overlayStyle"
-      ></div>
-    </Teleport>
-
-    <div v-if="bounds" class="small text-body-secondary mb-3">
-      <strong>{{ t("panel.offline.selectedRegion") }}</strong>
-      <div class="font-monospace">
-        {{ t("panel.offline.compassW") }} {{ bounds.west.toFixed(4) }} ·
-        {{ t("panel.offline.compassS") }} {{ bounds.south.toFixed(4) }} ·<br />
-        {{ t("panel.offline.compassE") }} {{ bounds.east.toFixed(4) }} ·
-        {{ t("panel.offline.compassN") }} {{ bounds.north.toFixed(4) }}
-      </div>
-    </div>
-
-    <!-- Zoom range -->
-    <div class="row g-2 mb-3">
-      <div class="col-6">
-        <label class="form-label small mb-1" for="offline-minzoom">{{
-          t("panel.offline.minZoom")
-        }}</label>
-        <input
-          id="offline-minzoom"
-          v-model.number="minZoom"
-          type="number"
-          class="form-control form-control-sm"
-          min="0"
-          max="22"
-        />
-      </div>
-      <div class="col-6">
-        <label class="form-label small mb-1" for="offline-maxzoom">{{
-          t("panel.offline.maxZoom")
-        }}</label>
-        <input
-          id="offline-maxzoom"
-          v-model.number="maxZoom"
-          type="number"
-          class="form-control form-control-sm"
-          min="0"
-          max="22"
-        />
-      </div>
-    </div>
-
-    <!-- Estimate -->
-    <button
-      class="btn btn-sm btn-outline-primary w-100 mb-2"
-      :disabled="!bounds || downloading"
-      @click="estimateNow"
-    >
-      {{ t("panel.offline.estimate") }}
-    </button>
-
-    <div v-if="estimateError" class="small text-danger mb-2">
-      {{ estimateError }}
-    </div>
-
-    <div
-      v-if="estimateState"
-      class="small text-body-secondary mb-3"
-      :class="{ 'text-danger': isLarge }"
-    >
-      <div class="d-flex justify-content-between">
-        <span>{{ t("panel.offline.tilesLabel") }}</span>
-        <strong>{{
-          estimateState.tileCount.toLocaleString(formatLocale)
-        }}</strong>
-      </div>
-      <div class="d-flex justify-content-between">
-        <span>{{ t("panel.offline.estSize") }}</span>
-        <strong>{{ formatBytes(estimateState.estimatedBytes) }}</strong>
-      </div>
-      <div v-if="isLarge" class="text-danger mt-1">
-        {{ t("panel.offline.largeRegion") }}
-      </div>
-      <div v-if="mayNotFit" class="text-danger mt-1">
-        {{ t("panel.offline.quotaWarning") }}
-      </div>
-    </div>
-
-    <!-- Download / progress -->
-    <template v-if="downloading">
-      <div class="progress mb-2" style="height: 8px">
-        <div
-          class="progress-bar bg-success"
-          role="progressbar"
-          :style="{ width: progressPct + '%' }"
-          :aria-valuenow="progressPct"
-          aria-valuemin="0"
-          aria-valuemax="100"
-        ></div>
-      </div>
-      <div
-        class="d-flex justify-content-between small text-body-secondary mb-2"
-      >
-        <span
-          >{{ progress.done.toLocaleString(formatLocale) }} /
-          {{ progress.total.toLocaleString(formatLocale) }}</span
-        >
-        <span>{{ progressPct }}%</span>
-      </div>
+    <!-- Region selection and download -->
+    <div class="ogis-live-card mb-3">
+      <p class="small mb-0 ogis-track-card__meta">
+        {{ t("panel.offline.dragHint") }}
+      </p>
       <button
-        class="btn btn-sm btn-outline-danger w-100"
-        @click="cancelDownload"
+        type="button"
+        class="btn ogis-cta"
+        :class="drawing ? 'ogis-cta--soft' : ''"
+        @click="drawing ? stopDraw() : startDraw()"
       >
-        {{ t("panel.offline.cancel") }}
+        <Icon name="map" width="16" height="16" aria-hidden="true" />
+        {{
+          drawing ? t("panel.offline.drawing") : t("panel.offline.selectRegion")
+        }}
       </button>
-    </template>
-    <button
-      v-else
-      class="btn btn-sm btn-success w-100"
-      :disabled="!bounds"
-      @click="runDownload"
-    >
-      {{ t("panel.offline.download") }}
-    </button>
 
-    <div v-if="downloadError" class="small text-danger mt-2">
-      {{ downloadError }}
-    </div>
-    <div v-if="downloadWarning" class="small text-warning mt-2" role="status">
-      {{ downloadWarning }}
-    </div>
+      <!-- Draw overlay: teleported to body so it escapes the offcanvas's
+           transform and can use fixed viewport coordinates -->
+      <Teleport to="body">
+        <div
+          v-if="drawing && drawStart"
+          class="offline-draw-overlay"
+          :style="overlayStyle"
+        ></div>
+      </Teleport>
 
-    <!-- Storage summary -->
-    <hr class="my-3 opacity-25" />
-    <h6 class="text-body-secondary">{{ t("panel.offline.storage") }}</h6>
-    <div class="small text-body-secondary mb-1 d-flex justify-content-between">
-      <span>{{
-        t("panel.offline.storageUsed", {
-          usage: formatBytes(storageInfo.usage),
-          quota: formatBytes(storageInfo.quota),
-        })
-      }}</span>
-      <span>{{
-        storageInfo.persisted
-          ? t("panel.offline.persistent")
-          : t("panel.offline.mayBeCleared")
-      }}</span>
-    </div>
-    <div class="progress mb-3" style="height: 6px">
+      <div v-if="bounds" class="small ogis-track-card__meta">
+        <strong class="ogis-offline-label">{{
+          t("panel.offline.selectedRegion")
+        }}</strong>
+        <div class="font-monospace">
+          {{ t("panel.offline.compassW") }} {{ bounds.west.toFixed(4) }} ·
+          {{ t("panel.offline.compassS") }}
+          {{ bounds.south.toFixed(4) }} ·<br />
+          {{ t("panel.offline.compassE") }} {{ bounds.east.toFixed(4) }} ·
+          {{ t("panel.offline.compassN") }} {{ bounds.north.toFixed(4) }}
+        </div>
+      </div>
+
+      <div v-if="estimateError" class="small text-danger">
+        {{ estimateError }}
+      </div>
+
       <div
-        class="progress-bar bg-success"
-        role="progressbar"
-        :style="{ width: storagePct + '%' }"
-        :aria-valuenow="storagePct"
-        aria-valuemin="0"
-        aria-valuemax="100"
-      ></div>
+        v-if="estimateState"
+        class="small ogis-track-card__meta"
+        :class="{ 'text-danger': isLarge }"
+      >
+        <div class="d-flex justify-content-between">
+          <span>{{ t("panel.offline.estSize") }}</span>
+          <strong>{{ formatBytes(estimateState.estimatedBytes) }}</strong>
+        </div>
+        <div v-if="isLarge" class="text-danger mt-1">
+          {{ t("panel.offline.largeRegion") }}
+        </div>
+        <div v-if="mayNotFit" class="text-danger mt-1">
+          {{ t("panel.offline.quotaWarning") }}
+        </div>
+      </div>
+
+      <!-- Zoom range: one tight row -->
+      <div class="ogis-zoom-row">
+        <span class="ogis-zoom-row__title">{{ t("panel.offline.zoom") }}</span>
+        <label class="ogis-zoom-row__field" for="offline-minzoom">
+          <span>{{ t("panel.offline.minZoom") }}</span>
+          <input
+            id="offline-minzoom"
+            v-model.number="minZoom"
+            type="number"
+            class="form-control form-control-sm"
+            min="0"
+            max="22"
+          />
+        </label>
+        <label class="ogis-zoom-row__field" for="offline-maxzoom">
+          <span>{{ t("panel.offline.maxZoom") }}</span>
+          <input
+            id="offline-maxzoom"
+            v-model.number="maxZoom"
+            type="number"
+            class="form-control form-control-sm"
+            min="0"
+            max="22"
+          />
+        </label>
+      </div>
+
+      <!-- Download / progress -->
+      <template v-if="downloading">
+        <div class="progress" style="height: 8px">
+          <div
+            class="progress-bar bg-success"
+            role="progressbar"
+            :style="{ width: progressPct + '%' }"
+            :aria-valuenow="progressPct"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          ></div>
+        </div>
+        <div class="d-flex justify-content-between small ogis-track-card__meta">
+          <span
+            >{{ progress.done.toLocaleString(formatLocale) }} /
+            {{ progress.total.toLocaleString(formatLocale) }}</span
+          >
+          <span>{{ progressPct }}%</span>
+        </div>
+        <button
+          type="button"
+          class="btn ogis-cta ogis-cta--soft ogis-cta--danger"
+          @click="cancelDownload"
+        >
+          {{ t("panel.offline.cancel") }}
+        </button>
+      </template>
+      <button
+        v-else
+        type="button"
+        class="btn ogis-cta"
+        :disabled="!bounds"
+        @click="runDownload"
+      >
+        <Icon
+          name="file-arrow-down"
+          width="16"
+          height="16"
+          aria-hidden="true"
+        />
+        {{ t("panel.offline.download") }}
+      </button>
+
+      <div v-if="downloadNotice" class="ogis-saved-note" role="status">
+        <Icon name="check" width="14" height="14" aria-hidden="true" />
+        {{ downloadNotice }}
+      </div>
+      <div v-if="downloadError" class="small text-danger">
+        {{ downloadError }}
+      </div>
+      <div v-if="downloadWarning" class="small text-warning" role="status">
+        {{ downloadWarning }}
+      </div>
     </div>
 
     <!-- Downloaded regions -->
-    <hr class="my-3 opacity-25" />
-    <h6 class="text-body-secondary">
+    <h6 class="ogis-section-heading">
       {{ t("panel.offline.downloadedRegions") }}
     </h6>
 
@@ -554,41 +561,66 @@ const removeRegion = async (region) => {
       {{ t("panel.offline.noRegions") }}
     </p>
 
-    <div v-for="region in regions" :key="region.id" class="border-top py-2">
-      <div class="d-flex justify-content-between align-items-start small">
-        <div>
-          <div>
-            <strong>{{ region.name }}</strong>
+    <div class="ogis-recordings-list">
+      <div v-for="region in regions" :key="region.id" class="ogis-track-card">
+        <div class="ogis-track-card__head ogis-track-card__head--top">
+          <div class="ogis-track-card__text">
+            <RenameInput
+              v-if="rename.editingId.value === region.id"
+              v-model="rename.draft.value"
+              :label="t('panel.offline.rename')"
+              @commit="rename.commit(renameRegion)"
+              @cancel="rename.cancel"
+            />
+            <div v-else class="ogis-track-name text-truncate">
+              {{ region.name }}
+            </div>
+            <div class="ogis-track-card__meta">
+              {{
+                t("panel.offline.zoomRange", {
+                  min: region.minZoom,
+                  max: region.maxZoom,
+                })
+              }}
+              · {{ region.tileCount.toLocaleString(formatLocale) }}
+              {{ t("panel.offline.tiles", { count: region.tileCount }) }}
+            </div>
           </div>
-          <div class="text-body-secondary">
-            {{
-              t("panel.offline.zoomRange", {
-                min: region.minZoom,
-                max: region.maxZoom,
-              })
-            }}
-            · {{ region.tileCount.toLocaleString(formatLocale) }}
-            {{ t("panel.offline.tiles", { count: region.tileCount }) }}
-          </div>
-          <div class="text-body-tertiary">
-            {{ formatBytes(region.estimatedBytes) }} ·
-            {{ new Date(region.createdAt).toLocaleString(formatLocale) }}
-          </div>
-        </div>
-        <div class="d-flex gap-1">
           <button
-            class="btn btn-sm btn-outline-primary"
-            :disabled="deleting"
-            @click="showRegion(region)"
+            type="button"
+            class="btn ogis-track-card__rename"
+            :aria-label="t('panel.offline.rename')"
+            :title="t('panel.offline.rename')"
+            @mousedown.prevent
+            @click="rename.begin(region.id, region.name)"
           >
-            {{ t("panel.offline.show") }}
+            <Icon name="pencil" width="16" height="16" aria-hidden="true" />
           </button>
           <button
-            class="btn btn-sm btn-outline-danger"
+            type="button"
+            class="btn ogis-track-card__remove"
+            :aria-label="t('panel.offline.delete')"
+            :title="t('panel.offline.delete')"
             :disabled="deleting"
             @click="removeRegion(region)"
           >
-            {{ t("panel.offline.delete") }}
+            <Icon name="trash" width="16" height="16" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div class="ogis-track-card__foot">
+          <div class="ogis-track-card__meta">
+            {{ formatBytes(region.estimatedBytes) }} ·
+            {{ new Date(region.createdAt).toLocaleDateString(formatLocale) }}
+          </div>
+          <button
+            type="button"
+            class="btn ogis-track-btn ogis-track-btn--pill"
+            :disabled="deleting"
+            @click="showSaved(region)"
+          >
+            <Icon name="map" width="14" height="14" aria-hidden="true" />
+            {{ t("panel.offline.show") }}
           </button>
         </div>
       </div>
@@ -596,6 +628,32 @@ const removeRegion = async (region) => {
 
     <div v-if="deleteError" class="small text-danger mt-2">
       {{ deleteError }}
+    </div>
+
+    <!-- Storage summary -->
+    <h6 class="ogis-section-heading mt-3">{{ t("panel.offline.storage") }}</h6>
+    <div class="ogis-live-card mb-3">
+      <div class="small ogis-track-card__meta">
+        {{
+          t("panel.offline.storageUsed", {
+            usage: formatBytes(storageInfo.usage),
+            quota: formatBytes(storageInfo.quota),
+          })
+        }}
+      </div>
+      <div class="progress" style="height: 6px">
+        <div
+          class="progress-bar bg-success"
+          role="progressbar"
+          :style="{ width: storagePct + '%' }"
+          :aria-valuenow="storagePct"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        ></div>
+      </div>
+      <p v-if="regions.length && !storageInfo.persisted" class="ogis-hint">
+        {{ t("panel.offline.mayBeCleared") }}
+      </p>
     </div>
   </div>
 </template>

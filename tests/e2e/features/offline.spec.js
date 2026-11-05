@@ -8,7 +8,6 @@ import { isSwiftShaderRun } from "../helpers/determinism.js";
 import { waitForMapReady } from "../helpers/panel";
 import { writeStoredEnvelope, openPeerPage } from "../helpers/storage.js";
 import { DEMO } from "../../fixtures/demo.mjs";
-import { AFTER_CLOSE } from "../helpers/motion.js";
 
 /**
  * E2E tests for src/features/offline/
@@ -180,9 +179,6 @@ test.describe("Offline / Panel tab", () => {
     await expect(page.locator("#offline-minzoom")).toBeVisible();
     await expect(page.locator("#offline-maxzoom")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Estimate size" }),
-    ).toBeVisible();
-    await expect(
       page.getByRole("button", { name: "Download region" }),
     ).toBeVisible();
     await expect(
@@ -217,10 +213,8 @@ test.describe("Offline / Estimate", () => {
     // Selected region bounds are shown
     await expect(page.getByText("Selected region")).toBeVisible();
 
-    await page.getByRole("button", { name: "Estimate size" }).click();
-
-    await expect(page.getByText("Tiles", { exact: true })).toBeVisible();
-    await expect(page.getByText("Est. size")).toBeVisible();
+    // The size appears by itself once an area is chosen.
+    await expect(page.getByText("Estimated size")).toBeVisible();
   });
 });
 
@@ -301,8 +295,7 @@ test.describe("Offline / Download", () => {
 
     await page.getByRole("button", { name: "Select region" }).click();
     await drawRegion(page);
-    await page.getByRole("button", { name: "Estimate size" }).click();
-    await expect(page.getByText("Est. size")).toBeVisible();
+    await expect(page.getByText("Estimated size")).toBeVisible();
 
     await page.getByRole("button", { name: "Download region" }).click();
 
@@ -317,6 +310,15 @@ test.describe("Offline / Download", () => {
       })
       .toBeGreaterThan(0);
     await expect(page.getByText("Region 1")).toBeVisible();
+    // A short message (saved, or a warning if tiles were missing), and the
+    // selection is clear for the next map.
+    await expect(
+      page.locator(".ogis-offline-panel [role=status]"),
+    ).toBeVisible();
+    await expect(page.getByText("Selected region")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Download region" }),
+    ).toBeDisabled();
   });
 });
 
@@ -339,7 +341,11 @@ test.describe("Offline / Delete", () => {
     await page.getByRole("button", { name: "Delete" }).click();
 
     await expect(page.getByText("Test Region")).toHaveCount(0);
-    await expect(page.getByText("No regions downloaded yet.")).toBeVisible();
+    await expect(
+      page.getByText(
+        "No saved maps yet. Draw an area above to save it for use without a signal.",
+      ),
+    ).toBeVisible();
   });
 });
 
@@ -361,7 +367,7 @@ test.describe("Offline / Show", () => {
     await expect(
       page
         .locator(".ogis-panel")
-        .getByRole("button", { name: "Show", exact: true }),
+        .getByRole("button", { name: "Show on map", exact: true }),
     ).toBeVisible();
 
     // The map starts at the seeded view (zoom 14 at the demo centre)
@@ -375,7 +381,7 @@ test.describe("Offline / Show", () => {
 
     await page
       .locator(".ogis-panel")
-      .getByRole("button", { name: "Show", exact: true })
+      .getByRole("button", { name: "Show on map", exact: true })
       .click();
 
     // The map navigates (fitBounds) to the region — the URL hash updates
@@ -417,7 +423,7 @@ test.describe("Offline / Show", () => {
 
     await page
       .locator(".ogis-panel")
-      .getByRole("button", { name: "Show", exact: true })
+      .getByRole("button", { name: "Show on map", exact: true })
       .click();
 
     await expect.poll(overlayFeatureCount, { timeout: 15000 }).toBe(1);
@@ -477,10 +483,7 @@ test.describe("Offline / Mobile (touch)", () => {
 
     // The panel closes, revealing the map; the mobile backdrop disappears.
     await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
-    await expect(page.locator(".offcanvas-backdrop")).toHaveCount(
-      0,
-      AFTER_CLOSE,
-    );
+    await expect(page.locator(".offcanvas-backdrop")).toHaveCount(0);
   });
 
   test("touch-drag draws a region and the panel reopens", async ({ page }) => {
@@ -588,7 +591,7 @@ test.describe("Offline / Cross-tab sync", () => {
     await expect(page.getByText(REGION_NAME)).toBeVisible();
     await page
       .locator(".ogis-panel")
-      .getByRole("button", { name: "Show", exact: true })
+      .getByRole("button", { name: "Show on map", exact: true })
       .click();
     await expect.poll(() => overlayFeatureCount(page)).toBe(1);
 

@@ -317,5 +317,6 @@ export async function downloadRegion({
     totalCount: tileCount + glyphCount,
     requestedCount: allUrls.length,
     failedCount: failed,
+    tileFailedCount: tileUrls.length - tileCount,
   };
 }

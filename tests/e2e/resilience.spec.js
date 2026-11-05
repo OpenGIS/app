@@ -219,7 +219,11 @@ test.describe("Corrupt stored state", () => {
     await expect(page.getByText("Nothing here yet.")).toBeVisible();
 
     await openMenuTab(page, "Offline Maps");
-    await expect(page.getByText("No regions downloaded yet.")).toBeVisible();
+    await expect(
+      page.getByText(
+        "No saved maps yet. Draw an area above to save it for use without a signal.",
+      ),
+    ).toBeVisible();
 
     // The unusable recordings value is preserved for inspection.
     await expect
