@@ -403,15 +403,24 @@ $font-size-base: 0.9375rem; // 15 px
 }
 
 .ogis-route-card__actions {
-  display: flex;
+  // Two even columns. A phone-width panel cannot fit three labelled buttons
+  // on one line (French labels least of all), so with three actions the first
+  // takes the whole top line and the other two share the line below. Labels
+  // then always fit on one line instead of breaking mid-word.
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.35rem;
   align-items: stretch;
 
-  // Only the rendered actions share the row evenly. The Send wrapper is
-  // static so its menu can anchor to the card below the whole row.
+  > :first-child:nth-last-child(3),
+  > :only-child {
+    grid-column: 1 / -1;
+  }
+
+  // The Send wrapper is static so its menu can anchor to the card below the
+  // whole row.
   > .ogis-route-btn,
   > .ogis-share-menu {
-    flex: 1 1 0;
     min-width: 0;
   }
 
@@ -450,8 +459,9 @@ $font-size-base: 0.9375rem; // 15 px
   font-weight: 700;
   line-height: 1.15;
   text-align: center;
+  // Wrap only between words, never inside one.
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   --bs-btn-color: var(--ogis-route-btn-ink);
   --bs-btn-bg: var(--ogis-route-btn-bg);
   --bs-btn-border-color: transparent;
