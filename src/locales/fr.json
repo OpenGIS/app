@@ -255,6 +255,13 @@
   "locate.hint.idle": "Touchez ici pour afficher votre position sur la carte.",
   "locate.hint.active": "C'est vous. Touchez à nouveau et la carte vous suivra pendant vos déplacements.",
   "locate.hint.following": "La carte vous suit et pivote selon votre cap. Touchez à nouveau pour arrêter.",
+  "locate.hint.tilt.title": "Cette carte est en 3D",
+  "locate.hint.tilt.zoom": "Pincez pour zoomer et dézoomer.",
+  "locate.hint.tilt.rotate": "Tournez deux doigts pour pivoter la carte.",
+  "locate.hint.tilt.tilt": "Glissez deux doigts vers le haut ou le bas pour incliner la vue et voir le relief.",
+  "locate.hint.tilt.zoomMouse": "Utilisez la molette de la souris pour zoomer et dézoomer.",
+  "locate.hint.tilt.rotateMouse": "Clic droit et glisser sur le côté pour pivoter la carte.",
+  "locate.hint.tilt.tiltMouse": "Clic droit et glisser vers le haut ou le bas pour incliner la vue et voir le relief.",
   "locate.hint.dismiss": "Fermer l'astuce",
 
   "modal.locate.permissionTitle": "Confiance",

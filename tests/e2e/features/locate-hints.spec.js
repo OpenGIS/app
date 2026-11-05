@@ -80,6 +80,15 @@ test.describe("Locate / Hints", () => {
       { timeout: LOCATE_TIMEOUT },
     );
 
+    // Stopping follow ends the sequence with the 3D-map tip, which stays up.
+    await btn.click();
+    await expect(hintFor(page, "tilt")).toContainText("This map is 3D", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    // The desktop test browser gets the mouse wording; touch gets "Pinch".
+    await expect(hintFor(page, "tilt")).toContainText("to zoom");
+    await expect(hintFor(page, "tilt")).toContainText("tilt the view");
+
     await expect
       .poll(
         async () => {
@@ -91,7 +100,7 @@ test.describe("Locate / Hints", () => {
         },
         { timeout: 5000 },
       )
-      .toEqual(["active", "following", "idle"]);
+      .toEqual(["active", "following", "idle", "tilt"]);
   });
 
   test("the close button dismisses a hint and it does not return", async ({

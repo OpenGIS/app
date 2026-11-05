@@ -20,7 +20,13 @@ import { usePersistedState } from "@/resilience/persistedState";
  */
 
 /** Chip states that carry a hint, in the order a user meets them. */
-export const LOCATE_HINT_KEYS = ["idle", "active", "following"];
+export const LOCATE_HINT_KEYS = ["idle", "active", "following", "tilt"];
+
+/**
+ * Hints that stay up until the user closes them: the 3D-map tip has gestures
+ * to read and try, so it doesn't fade on its own.
+ */
+export const LOCATE_HINT_STICKY_KEYS = ["tilt"];
 
 /** How long a hint stays up before it fades on its own. */
 export const LOCATE_HINT_DURATION_MS = 8000;
@@ -37,11 +43,18 @@ const MODAL_RETRY_MS = 750;
 /**
  * Map a locate mode to its hint key.
  *
+ * Stopping follow (back to idle) is the last step of the sequence: the map
+ * has just tilted and turned by itself, so the "tilt" tip explains how to do
+ * that by hand.
+ *
  * @param {'active'|'following'|'error'|null} mode
- * @returns {'idle'|'active'|'following'|null}
+ * @param {'active'|'following'|'error'|null} [previous] - The mode before this one.
+ * @returns {'idle'|'active'|'following'|'tilt'|null}
  */
-export const hintKeyForMode = (mode) => {
-  if (mode === null || mode === undefined) return "idle";
+export const hintKeyForMode = (mode, previous = null) => {
+  if (mode === null || mode === undefined) {
+    return previous === "following" ? "tilt" : "idle";
+  }
   if (mode === "active" || mode === "following") return mode;
   return null; // 'error' has its own modal
 };
@@ -90,7 +103,7 @@ const createHints = (instanceId) => {
     instanceId,
   );
 
-  const current = ref(null); // the hint on screen: 'idle'|'active'|'following'|null
+  const current = ref(null); // the hint on screen: 'idle'|'active'|'following'|'tilt'|null
   let pendingTimer = null;
   let hideTimer = null;
 
@@ -117,11 +130,12 @@ const createHints = (instanceId) => {
    * Show the hint for a locate mode, once, after a short delay.
    *
    * @param {'active'|'following'|'error'|null} mode
-   * @param {{ boot?: boolean }} [options] - `boot` uses the longer first delay.
+   * @param {{ boot?: boolean, previous?: string|null }} [options] - `boot`
+   *   uses the longer first delay; `previous` is the mode being left.
    */
-  const showFor = (mode, { boot = false } = {}) => {
+  const showFor = (mode, { boot = false, previous = null } = {}) => {
     dismiss();
-    const key = hintKeyForMode(mode);
+    const key = hintKeyForMode(mode, previous);
     if (!key || isDisabled() || isSeen(key)) return;
 
     const attempt = () => {
@@ -132,7 +146,9 @@ const createHints = (instanceId) => {
       pendingTimer = null;
       current.value = key;
       markSeen(key);
-      hideTimer = setTimeout(dismiss, hintDuration());
+      if (!LOCATE_HINT_STICKY_KEYS.includes(key)) {
+        hideTimer = setTimeout(dismiss, hintDuration());
+      }
     };
 
     pendingTimer = setTimeout(
@@ -151,7 +167,7 @@ const createHints = (instanceId) => {
 };
 
 /**
- * @returns {{ current: import('vue').Ref<'idle'|'active'|'following'|null>, showFor: Function, dismiss: Function, isSeen: Function, reset: Function }}
+ * @returns {{ current: import('vue').Ref<'idle'|'active'|'following'|'tilt'|null>, showFor: Function, dismiss: Function, isSeen: Function, reset: Function }}
  */
 export const useLocateHints = (explicitInstanceId) => {
   const instanceId = explicitInstanceId ?? inject("ogisAppId", "app");

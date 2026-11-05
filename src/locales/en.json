@@ -255,6 +255,13 @@
   "locate.hint.idle": "Tap here to show where you are on the map.",
   "locate.hint.active": "That's you. Tap again and the map will follow you as you move.",
   "locate.hint.following": "The map now follows you and turns with your heading. Tap again to stop.",
+  "locate.hint.tilt.title": "This map is 3D",
+  "locate.hint.tilt.zoom": "Pinch to zoom in and out.",
+  "locate.hint.tilt.rotate": "Twist two fingers to turn the map.",
+  "locate.hint.tilt.tilt": "Slide two fingers up or down to tilt the view and see the hills.",
+  "locate.hint.tilt.zoomMouse": "Scroll the mouse wheel to zoom in and out.",
+  "locate.hint.tilt.rotateMouse": "Right-click and drag sideways to turn the map.",
+  "locate.hint.tilt.tiltMouse": "Right-click and drag up or down to tilt the view and see the hills.",
   "locate.hint.dismiss": "Dismiss tip",
 
   "modal.locate.permissionTitle": "Trust",

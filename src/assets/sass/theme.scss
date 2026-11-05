@@ -637,6 +637,35 @@ $font-size-base: 0.9375rem; // 15 px
   position: relative;
 }
 
+.ogis-locate-hint__tilt {
+  position: relative;
+}
+
+.ogis-locate-hint__title {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.ogis-locate-hint__gestures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+}
+
+.ogis-locate-hint__gesture {
+  flex: none;
+  color: var(--bs-primary);
+}
+
 .ogis-locate-hint__close {
   position: relative;
   flex: none;
