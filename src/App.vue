@@ -7,6 +7,7 @@ import Controls from "@/components/ui/controls.vue";
 import Panels from "@/components/ui/panels.vue";
 import LocateConfirm from "@/components/modals/locate-confirm.vue";
 import Welcome from "@/components/modals/welcome.vue";
+import ConfirmDialog from "@/components/modals/confirm.vue";
 
 import { useMap } from "@/composables/useMap";
 import { useUI } from "@/composables/useUI";
@@ -132,5 +133,6 @@ onMounted(() => {
     <!-- Global modals -->
     <Welcome />
     <LocateConfirm />
+    <ConfirmDialog />
   </div>
 </template>

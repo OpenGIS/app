@@ -2,6 +2,8 @@
   "app.description": "ogis.app — a navigation app for the real world.",
 
   "common.close": "Close",
+  "common.cancel": "Cancel",
+  "common.delete": "Delete",
 
   "map.status.unavailable": "Map unavailable. Check your connection and try again.",
   "map.status.unsupported": "Your browser cannot display the map.",

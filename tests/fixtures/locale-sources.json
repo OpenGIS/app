@@ -2,7 +2,9 @@
   "algorithm": "sha256-16",
   "sources": {
     "app.description": "ce51066dc7c4addb",
+    "common.cancel": "19766ed6ccb2f4a3",
     "common.close": "7d9eb7acb13e2462",
+    "common.delete": "e2d0a54968ead24e",
     "locate.button.error": "54a0e8c17ebb21a1",
     "locate.button.following": "641d1ef657bdfd9f",
     "locate.button.locate": "ee867dc451bd43fd",

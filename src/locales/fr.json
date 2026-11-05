@@ -2,6 +2,8 @@
   "app.description": "ogis.app — une application de navigation pour le monde réel.",
 
   "common.close": "Fermer",
+  "common.cancel": "Annuler",
+  "common.delete": "Supprimer",
 
   "map.status.unavailable": "Carte indisponible. Vérifiez votre connexion et réessayez.",
   "map.status.unsupported": "Votre navigateur ne peut pas afficher la carte.",

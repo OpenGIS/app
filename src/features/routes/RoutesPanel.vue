@@ -11,6 +11,7 @@ import {
   lineGeometry,
   waypointCount,
 } from "@/utils/track/index.js";
+import { askConfirm } from "@/composables/useConfirm";
 
 const { t, locale } = useLocale();
 const rename = useInlineRename();
@@ -76,9 +77,9 @@ const onShare = async (event, route, format) => {
   await shareTrack(route, format);
 };
 
-const confirmDelete = (route) => {
+const confirmDelete = async (route) => {
   const name = route.name || t("panel.routes.defaultName");
-  if (!window.confirm(t("panel.routes.confirmDelete", { name }))) return;
+  if (!(await askConfirm(t("panel.routes.confirmDelete", { name })))) return;
   deleteRoute(route.id);
 };
 </script>

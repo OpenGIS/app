@@ -2,6 +2,7 @@
 <script setup>
 import { ref, computed, inject, onUnmounted, onMounted, watch } from "vue";
 import { useUI } from "@/composables/useUI";
+import { askConfirm } from "@/composables/useConfirm";
 import { useActions } from "@/composables/useActions";
 import { useLocale } from "@/composables/useLocale";
 import { useOrientView } from "@/composables/useOrientView";
@@ -388,7 +389,7 @@ const deleting = ref(false);
 const deleteError = ref("");
 
 const removeRegion = async (region) => {
-  const ok = window.confirm(
+  const ok = await askConfirm(
     t("panel.offline.confirmDelete", { name: region.name }),
   );
   if (!ok) return;

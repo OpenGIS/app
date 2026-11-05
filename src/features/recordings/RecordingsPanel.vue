@@ -8,6 +8,7 @@ import { useSettings } from "@/composables/useSettings.js";
 import { useLocale } from "@/composables/useLocale";
 import { documentDistance } from "@/utils/track/index.js";
 import { formatDuration, formatDistance } from "./index.js";
+import { askConfirm } from "@/composables/useConfirm";
 
 const { isMetric } = useSettings();
 const { t, locale, formatLocale } = useLocale();
@@ -61,9 +62,10 @@ const onShare = async (event, recording, format) => {
   await shareRecording(recording, format);
 };
 
-const confirmDelete = (recording) => {
+const confirmDelete = async (recording) => {
   const date = new Date(recording.createdAt).toLocaleString(formatLocale.value);
-  if (!window.confirm(t("panel.recordings.confirmDelete", { date }))) return;
+  if (!(await askConfirm(t("panel.recordings.confirmDelete", { date }))))
+    return;
   deleteRecording(recording.id);
 };
 </script>
