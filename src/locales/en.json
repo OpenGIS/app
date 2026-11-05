@@ -250,7 +250,7 @@
 
   "locate.button.locate": "Locate",
   "locate.button.located": "Located",
-  "locate.button.following": "Following",
+  "locate.button.following": "Follow",
   "locate.button.error": "Error",
   "locate.hint.idle": "Tap here to show where you are on the map.",
   "locate.hint.active": "That's you. Tap again and the map will follow you as you move.",

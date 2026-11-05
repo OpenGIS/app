@@ -250,7 +250,7 @@
 
   "locate.button.locate": "Localiser",
   "locate.button.located": "Localisé",
-  "locate.button.following": "Suivi",
+  "locate.button.following": "Suivre",
   "locate.button.error": "Erreur",
   "locate.hint.idle": "Touchez ici pour afficher votre position sur la carte.",
   "locate.hint.active": "C'est vous. Touchez à nouveau et la carte vous suivra pendant vos déplacements.",

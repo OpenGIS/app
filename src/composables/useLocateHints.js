@@ -4,7 +4,7 @@ import { usePersistedState } from "@/resilience/persistedState";
 /**
  * Onboarding hints for the top-right locate chip.
  *
- * The chip cycles Locate → Located → Following → stopped, and nothing on it
+ * The chip cycles Locate → Located → Follow → stopped, and nothing on it
  * says what the next tap will do. This composable owns a short, once-only
  * explanation per chip state: the first time the chip sits in a state, a
  * small bubble under it explains that state and the next tap. Each hint is

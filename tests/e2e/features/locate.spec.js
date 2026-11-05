@@ -319,7 +319,7 @@ test.describe("Locate / Active and Following states", () => {
     await expectLocateButtonIcon(page, "position-unlocked");
   });
 
-  test("button advances to Following on second click", async ({ page }) => {
+  test("button advances to Follow on second click", async ({ page }) => {
     const btn = page.locator("#locate-button");
     await btn.click();
     await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
@@ -328,7 +328,7 @@ test.describe("Locate / Active and Following states", () => {
     // to arrive (moveend/hash), not a full tile render.
     await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
     await btn.click();
-    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).toContainText("Follow", { timeout: LOCATE_TIMEOUT });
     await expectLocateButtonIcon(page, "position-locked");
   });
 
@@ -342,7 +342,7 @@ test.describe("Locate / Active and Following states", () => {
     // (orientation flight — moveend/hash level, no tile render).
     await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
     await btn.click();
-    await expect(btn).toContainText("Following", {
+    await expect(btn).toContainText("Follow", {
       timeout: LOCATE_TIMEOUT,
     });
 
@@ -375,7 +375,7 @@ test.describe("Locate / Active and Following states", () => {
     // arrive (orientation flight — moveend/hash level, no tile render).
     await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
     await btn.click();
-    await expect(btn).toContainText("Following", {
+    await expect(btn).toContainText("Follow", {
       timeout: LOCATE_TIMEOUT,
     });
 
@@ -405,7 +405,7 @@ test.describe("Locate / Transient timeout", () => {
 
     await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
     await btn.click();
-    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).toContainText("Follow", { timeout: LOCATE_TIMEOUT });
     await expect(btn).toHaveAttribute("aria-pressed", "true");
     await expect
       .poll(() => readActiveModes(page), { timeout: RESTORE_TIMEOUT })
@@ -423,7 +423,7 @@ test.describe("Locate / Transient timeout", () => {
     // Any teardown-triggered write is debounced; give it time to land.
     await page.waitForTimeout(600);
 
-    await expect(btn).toContainText("Following");
+    await expect(btn).toContainText("Follow");
     await expect(btn).toHaveAttribute("aria-pressed", "true");
     expect(await readActiveModes(page)).toContain("follow");
 
@@ -452,7 +452,7 @@ test.describe("Locate / Critical flush", () => {
     await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
 
     await btn.click();
-    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).toContainText("Follow", { timeout: LOCATE_TIMEOUT });
 
     await emitFix(page, { lat: FIX.latitude, lng: FIX.longitude });
 
@@ -533,7 +533,7 @@ test.describe("Locate / Orientation reset", () => {
     // render wait, and the Following click below is not blocked by one.
     await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
     await btn.click();
-    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).toContainText("Follow", { timeout: LOCATE_TIMEOUT });
     await btn.click();
     await expect(btn).toContainText("Locate", { timeout: LOCATE_TIMEOUT });
 
@@ -1060,7 +1060,7 @@ test.describe("Locate / Restore", () => {
     await waitForMapReady(page);
 
     const btn = page.locator("#locate-button");
-    await expect(btn).toContainText("Following", {
+    await expect(btn).toContainText("Follow", {
       timeout: RESTORE_TIMEOUT,
     });
     await expect(btn).toHaveAttribute("aria-pressed", "true");
@@ -1079,7 +1079,7 @@ test.describe("Locate / Restore", () => {
         timeout: RESTORE_TIMEOUT,
       })
       .toBeCloseTo(next.lat, 6);
-    await expect(btn).toContainText("Following");
+    await expect(btn).toContainText("Follow");
     expect(await readActiveModes(page)).toContain("follow");
     await expect
       .poll(() => page.locator(".ogis-locate-position").count(), {
@@ -1104,7 +1104,7 @@ test.describe("Locate / Restore", () => {
     await waitForMapReady(page);
 
     const btn = page.locator("#locate-button");
-    await expect(btn).toContainText("Following", {
+    await expect(btn).toContainText("Follow", {
       timeout: RESTORE_TIMEOUT,
     });
     await expect(btn).toHaveAttribute("aria-pressed", "true");
@@ -1309,7 +1309,7 @@ test.describe("Locate / Restore", () => {
     await button.click();
     await expect(button).toContainText("Located", { timeout: LOCATE_TIMEOUT });
     await button.click();
-    await expect(button).toContainText("Following", {
+    await expect(button).toContainText("Follow", {
       timeout: LOCATE_TIMEOUT,
     });
 
@@ -1432,14 +1432,14 @@ test.describe("Locate / Restore", () => {
       })
       .not.toBeNull();
     await page.locator("#locate-button").click();
-    await expect(page.locator("#locate-button")).toContainText("Following", {
+    await expect(page.locator("#locate-button")).toContainText("Follow", {
       timeout: LOCATE_TIMEOUT,
     });
 
     await page.reload();
     await waitForMapReady(page);
 
-    await expect(page.locator("#locate-button")).toContainText("Following", {
+    await expect(page.locator("#locate-button")).toContainText("Follow", {
       timeout: RESTORE_TIMEOUT,
     });
   });
@@ -1473,7 +1473,7 @@ test.describe("Locate / Restore / Compass permission", () => {
     await waitForMapReady(page);
 
     const btn = page.locator("#locate-button");
-    await expect(btn).toContainText("Following", {
+    await expect(btn).toContainText("Follow", {
       timeout: RESTORE_TIMEOUT,
     });
     await expect
@@ -1547,7 +1547,7 @@ test.describe("Locate / Restore / Compass permission", () => {
     await waitForMapReady(page);
 
     const btn = page.locator("#locate-button");
-    await expect(btn).toContainText("Following", {
+    await expect(btn).toContainText("Follow", {
       timeout: RESTORE_TIMEOUT,
     });
     await expect
@@ -1605,7 +1605,7 @@ test.describe("Locate / Restore / Compass permission", () => {
 
     // Deliberately no `waitForMapReady`: the following restore must complete
     // first for this case to prove anything.
-    await expect(page.locator("#locate-button")).toContainText("Following", {
+    await expect(page.locator("#locate-button")).toContainText("Follow", {
       timeout: RESTORE_TIMEOUT,
     });
 
@@ -1647,7 +1647,7 @@ test.describe("Locate / Restore / Compass permission", () => {
     await page.goto("/");
     await waitForMapReady(page);
 
-    await expect(page.locator("#locate-button")).toContainText("Following", {
+    await expect(page.locator("#locate-button")).toContainText("Follow", {
       timeout: RESTORE_TIMEOUT,
     });
     await expect
