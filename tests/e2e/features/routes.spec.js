@@ -643,6 +643,8 @@ test.describe("Routes / Show and Hide", () => {
 // ─── Routes / Delete ─────────────────────────────────────────────────────────
 
 test.describe("Routes / Delete", () => {
+  test.setTimeout(isSwiftShaderRun() ? 180000 : 60000);
+
   test.beforeEach(async ({ page }) => {
     trackConsoleErrors(page);
     await withGrantedStorage(page);
@@ -654,7 +656,9 @@ test.describe("Routes / Delete", () => {
       .getByRole("button", { name: "Show", exact: true })
       .click();
     await expect
-      .poll(() => mapFeatureIds(page, "routes-route-"))
+      .poll(() => mapFeatureIds(page, "routes-route-"), {
+        timeout: ROUTE_IMPORT_TIMEOUT,
+      })
       .toHaveLength(1);
   });
 
@@ -679,7 +683,7 @@ test.describe("Routes / Delete", () => {
     await expect
       .poll(() => mapFeatureIds(page, "routes-route-"))
       .toHaveLength(1);
-    expect(await storedRoutes(page)).toHaveLength(1);
+    await expect.poll(() => storedRoutes(page)).toHaveLength(1);
   });
 
   test("accepting Delete removes the route and its map feature", async ({
@@ -702,7 +706,8 @@ test.describe("Routes / Delete", () => {
       ),
     ).toBeVisible();
     await expect.poll(() => mapFeatureIds(page, "routes-route-")).toEqual([]);
-    expect(await storedRoutes(page)).toEqual([]);
+    // Route persistence is debounced, so the write lands after the UI updates.
+    await expect.poll(() => storedRoutes(page)).toEqual([]);
   });
 });
 
