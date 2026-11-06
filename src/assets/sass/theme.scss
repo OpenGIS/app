@@ -392,13 +392,10 @@ $font-size-base: 0.9375rem; // 15 px
   position: absolute;
   top: calc(100% - 0.25rem);
   right: calc(0.75rem + var(--ogis-safe-right));
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
   box-sizing: border-box;
   width: max-content;
   max-width: min(17rem, calc(100vw - 1.5rem));
-  padding: 0.65rem 0.6rem 0.65rem 0.9rem;
+  padding: 0.65rem 0.9rem;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.92);
@@ -428,22 +425,6 @@ $font-size-base: 0.9375rem; // 15 px
 
 .ogis-locate-hint__text {
   position: relative;
-}
-
-.ogis-locate-hint__close {
-  position: relative;
-  flex: none;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--bs-secondary-color);
-  line-height: 0;
-  cursor: pointer;
-
-  &:hover,
-  &:focus-visible {
-    color: var(--bs-body-color);
-  }
 }
 
 [data-bs-theme="dark"] .ogis-locate-hint {

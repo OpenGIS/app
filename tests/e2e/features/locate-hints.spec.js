@@ -65,6 +65,7 @@ test.describe("Locate / Hints", () => {
     await expect(hintFor(page, "idle")).toContainText("show where you are", {
       timeout: LOCATE_TIMEOUT,
     });
+    await expect(hintFor(page, "idle").getByRole("button")).toHaveCount(0);
 
     await btn.click();
     await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
@@ -94,12 +95,8 @@ test.describe("Locate / Hints", () => {
       .toEqual(["active", "following", "idle"]);
   });
 
-  test("the close button dismisses a hint and it does not return", async ({
-    page,
-  }) => {
+  test("a hint shows once and does not return", async ({ page }) => {
     await expect(hint(page)).toBeVisible({ timeout: LOCATE_TIMEOUT });
-    await hint(page).getByRole("button", { name: "Dismiss tip" }).click();
-    await expect(hint(page)).toHaveCount(0, { timeout: LOCATE_TIMEOUT });
 
     // Let the debounced seen-write land, then reload.
     await page.waitForTimeout(600);

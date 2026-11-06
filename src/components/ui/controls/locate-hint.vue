@@ -2,7 +2,6 @@
 import { computed, watch, onBeforeUnmount } from "vue";
 import { useLocale } from "@/composables/useLocale";
 import { useLocateHints } from "@/composables/useLocateHints";
-import Icon from "@/components/ui/icon.vue";
 
 const props = defineProps({
   mode: { type: String, default: null },
@@ -41,15 +40,6 @@ onBeforeUnmount(dismiss);
       aria-live="polite"
     >
       <span class="ogis-locate-hint__text">{{ text }}</span>
-      <button
-        type="button"
-        class="ogis-locate-hint__close"
-        :aria-label="t('locate.hint.dismiss')"
-        :title="t('locate.hint.dismiss')"
-        @click="dismiss"
-      >
-        <Icon name="x-circle" :width="18" :height="18" />
-      </button>
     </div>
   </Transition>
 </template>
