@@ -358,7 +358,7 @@ test.describe("Follow / Locate chase", () => {
 
     // The compass stream is already live, so the heading is fresh at the click.
     await btn.click();
-    await expect(btn).toContainText("Follow", { timeout: CAMERA_TIMEOUT });
+    await expect(btn).toContainText("Following", { timeout: CAMERA_TIMEOUT });
 
     await expect
       .poll(async () => Math.abs((await readCamera(page)).bearing - 90), {
@@ -549,7 +549,7 @@ test.describe("Follow / Locate chase", () => {
     // The stream stays live through the slow follow click, so the heading
     // cannot be cleared before the driver starts.
     await btn.click();
-    await expect(btn).toContainText("Follow", { timeout: CAMERA_TIMEOUT });
+    await expect(btn).toContainText("Following", { timeout: CAMERA_TIMEOUT });
     await expect
       .poll(async () => Math.abs((await readCamera(page)).bearing - 90), {
         timeout: CAMERA_TIMEOUT,
@@ -571,7 +571,7 @@ test.describe("Follow / Locate chase", () => {
     await startCameraSampler(page);
     await markPointerRelease(page);
     await dragMap(page, { dx: 140, dy: 80, hold: true });
-    await expect(btn).toContainText("Follow");
+    await expect(btn).toContainText("Following");
 
     const draggedPose = await readCamera(page);
     expect(centreDelta(draggedPose.center, restPose.center)).toBeGreaterThan(
@@ -585,7 +585,7 @@ test.describe("Follow / Locate chase", () => {
     expect(centreDelta(heldPose.center, draggedPose.center)).toBeLessThan(
       0.0005,
     );
-    await expect(btn).toContainText("Follow");
+    await expect(btn).toContainText("Following");
 
     // 3. Release: the idle delay starts from pointerup. Past the delay plus
     // glide, the camera returns to the follow pose.
@@ -604,7 +604,7 @@ test.describe("Follow / Locate chase", () => {
         { timeout: CAMERA_TIMEOUT },
       )
       .toBeLessThan(0.0005);
-    await expect(btn).toContainText("Follow");
+    await expect(btn).toContainText("Following");
 
     // The continuous sampler records the release-to-resume gap on-page, so the
     // idle delay is not sampled through slow round-trips: the camera must not
@@ -688,7 +688,7 @@ test.describe("Follow / Locate chase", () => {
     );
 
     await btn.click();
-    await expect(btn).toContainText("Follow", { timeout: CAMERA_TIMEOUT });
+    await expect(btn).toContainText("Following", { timeout: CAMERA_TIMEOUT });
     await expect
       .poll(async () => Math.abs((await readCamera(page)).bearing - 90), {
         timeout: CAMERA_TIMEOUT,
@@ -725,13 +725,13 @@ test.describe("Follow / Locate chase", () => {
     );
 
     // The fixes keep arriving, but the camera holds the dragged pose for as
-    // long as the pointer is down, and the chip still reads Follow.
+    // long as the pointer is down, and the chip still reads Following.
     await page.waitForTimeout(900);
     const heldPose = await readCamera(page);
     expect(centreDelta(heldPose.center, draggedPose.center)).toBeLessThan(
       0.0005,
     );
-    await expect(btn).toContainText("Follow");
+    await expect(btn).toContainText("Following");
 
     // 4. Release: the idle timer starts from pointerup. Stop the stream at a
     // known rest fix so the follow pose is deterministic.
@@ -742,7 +742,7 @@ test.describe("Follow / Locate chase", () => {
       lng: LOCATE_FIX.longitude + 0.0005,
     };
     await emitFix(page, { ...finalFix, speed: 0 });
-    await expect(btn).toContainText("Follow");
+    await expect(btn).toContainText("Following");
 
     // 5. Past the idle delay plus glide, the camera returns to the designed
     // follow pose for the final fix (0 km/h, so no drift): the fix displaced
@@ -758,7 +758,7 @@ test.describe("Follow / Locate chase", () => {
         },
       )
       .toBeLessThan(0.0002);
-    await expect(btn).toContainText("Follow");
+    await expect(btn).toContainText("Following");
 
     await stopCompassStream(page);
   });
