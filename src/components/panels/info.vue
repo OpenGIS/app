@@ -157,11 +157,15 @@ const onImprove = (e) => {
             >{{ t("panel.about.openSource") }}</a
           >.
         </p>
-        <img
-          src="/icon-192.png"
-          alt="OpenGIS"
-          class="ms-auto flex-shrink-0 ogis-about-logo rounded-1"
-        />
+        <span class="ms-auto flex-shrink-0 ogis-about-logo rounded-1">
+          <Icon
+            name="ogis-logo"
+            :width="32"
+            :height="32"
+            role="img"
+            aria-label="OpenGIS"
+          />
+        </span>
       </div>
     </div>
 
@@ -180,6 +184,20 @@ const onImprove = (e) => {
             <span class="ogis-privacy-bar__summary">
               {{ t("panel.privacy.summary") }}
             </span>
+            <Icon
+              class="ogis-privacy-bar__icon ogis-privacy-bar__icon--plus"
+              name="plus"
+              :width="24"
+              :height="24"
+              aria-hidden="true"
+            />
+            <Icon
+              class="ogis-privacy-bar__icon ogis-privacy-bar__icon--dash"
+              name="dash"
+              :width="24"
+              :height="24"
+              aria-hidden="true"
+            />
           </summary>
 
           <div class="ogis-privacy-bar__body">

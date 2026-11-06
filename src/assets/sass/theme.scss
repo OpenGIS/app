@@ -95,7 +95,6 @@ $font-size-base: 0.9375rem; // 15 px
 @import "bootstrap/scss/alert";
 @import "bootstrap/scss/progress";
 @import "bootstrap/scss/list-group";
-@import "bootstrap/scss/close";
 @import "bootstrap/scss/toasts";
 @import "bootstrap/scss/modal";
 @import "bootstrap/scss/tooltip";
@@ -116,18 +115,11 @@ $font-size-base: 0.9375rem; // 15 px
 // :not(:active) guard keeps Bootstrap's momentary press feedback — on desktop
 // a button is hovered and active simultaneously while pressed — while idle
 // hover renders as resting. Variant colours still apply because each variant
-// only sets the custom properties read back here. The modal close control
-// reads its own resting opacity the same way. Bootstrap gives .btn-close no
-// distinct :active rule, so its reset needs no :not(:active) guard, and its
-// :focus and :disabled states stay untouched.
+// only sets the custom properties read back here.
 .btn:hover:not(:active) {
   color: var(--bs-btn-color);
   background-color: var(--bs-btn-bg);
   border-color: var(--bs-btn-border-color);
-}
-
-.btn-close:hover {
-  opacity: var(--bs-btn-close-opacity);
 }
 
 // Root-level custom property so that App.vue can read the
@@ -146,7 +138,7 @@ $font-size-base: 0.9375rem; // 15 px
   // $offcanvas-horizontal-width (340px) wherever there is room.
   --ogis-panel-width: min(#{$offcanvas-horizontal-width}, calc(100vw - 4rem));
 
-  // Privacy bar affordance. The light value keeps the large +/− glyph at
+  // Privacy bar affordance. The light value keeps the disclosure icon at
   // roughly 3.5:1 on the frosted panel; the dark value can use the brighter
   // brand green.
   --ogis-privacy-accent: #1f9d45;
@@ -197,10 +189,15 @@ $font-size-base: 0.9375rem; // 15 px
   border-top-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-// About section branding logo
+// About section branding logo — pipeline icon on the brand tile.
 .ogis-about-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
   height: 44px;
-  width: auto;
+  background: #002300;
+  color: #fff;
 }
 
 // #6e  Icon buttons (panel nav tabs + corner control chips)
@@ -870,6 +867,27 @@ $font-size-base: 0.9375rem; // 15 px
   z-index: 1070;
 }
 
+.ogis-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  margin-left: auto;
+  padding: 0;
+  color: var(--bs-body-color);
+  background: transparent;
+  border: 0;
+  border-radius: 0.375rem;
+  opacity: 0.5;
+}
+
+.ogis-modal-close:focus-visible {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 2px;
+}
+
 // #6h  Attribution chip, disclosures & scale offset
 // ─────────────────────────────────────────────────────────────
 // The bottom-left attribution chip is expanded while the Info pane is
@@ -983,22 +1001,25 @@ $font-size-base: 0.9375rem; // 15 px
   -webkit-line-clamp: 2;
 }
 
-// The glyph is generated content, so it never enters the accessibility tree;
-// <summary> already exposes the expanded state.
-.ogis-privacy-bar > summary::after {
+// The icon is decorative and aria-hidden; <summary> already exposes the
+// expanded state.
+.ogis-privacy-bar__icon {
   grid-area: glyph;
-  justify-self: stretch;
+  justify-self: center;
   align-self: center;
-  content: "+";
   color: var(--ogis-privacy-accent);
-  text-align: center;
-  font-size: 1.75rem;
-  font-weight: 600;
-  line-height: 1;
 }
 
-.ogis-privacy-bar[open] > summary::after {
-  content: "−";
+.ogis-privacy-bar__icon--dash {
+  display: none;
+}
+
+.ogis-privacy-bar[open] .ogis-privacy-bar__icon--plus {
+  display: none;
+}
+
+.ogis-privacy-bar[open] .ogis-privacy-bar__icon--dash {
+  display: inline-block;
 }
 
 .ogis-privacy-bar > summary:focus-visible {

@@ -2,6 +2,7 @@ import { inject } from "vue";
 import { getMapInstance } from "@/composables/useMap.js";
 import { emitter } from "@/emitter.js";
 import { reportError } from "@/resilience/errors.js";
+import { loadDirectionArrowImage } from "@/utils/iconImage.js";
 import { BRIGHT_COLORS } from "@/utils/track/colors.js";
 
 const SOURCE_ID = "ogis-geojson";
@@ -30,33 +31,50 @@ function randomBrightColor() {
   return BRIGHT_COLORS[Math.floor(Math.random() * BRIGHT_COLORS.length)];
 }
 
-function createDirectionArrowImage() {
-  if (typeof document === "undefined") return null;
-
-  const canvas = document.createElement("canvas");
-  canvas.width = 64;
-  canvas.height = 64;
-
-  const ctx = canvas.getContext?.("2d");
-  if (!ctx || typeof ctx.getImageData !== "function") return null;
-
-  ctx.lineWidth = 3;
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = "rgba(0,0,0,0.45)";
-  ctx.fillStyle = "white";
-
-  ctx.beginPath();
-  ctx.moveTo(32, 19);
-  ctx.lineTo(52, 37);
-  ctx.lineTo(44, 45);
-  ctx.lineTo(32, 34);
-  ctx.lineTo(20, 45);
-  ctx.lineTo(12, 37);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  return ctx.getImageData(0, 0, 64, 64);
+function createDirectionLayer() {
+  return {
+    id: LAYER_IDS.direction,
+    type: "symbol",
+    source: SOURCE_ID,
+    filter: [
+      "all",
+      [
+        "match",
+        ["geometry-type"],
+        ["LineString", "MultiLineString"],
+        true,
+        false,
+      ],
+      ["==", ["get", "ogis.direction"], true],
+    ],
+    layout: {
+      "symbol-placement": "line",
+      "symbol-spacing": 110,
+      "icon-image": DIRECTION_IMAGE_ID,
+      "icon-size": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        8,
+        0.35,
+        12,
+        0.5,
+        16,
+        0.75,
+        20,
+        0.9,
+      ],
+      "icon-rotate": 90,
+      "icon-rotation-alignment": "map",
+      "icon-pitch-alignment": "map",
+      "icon-keep-upright": false,
+      "icon-allow-overlap": false,
+      "icon-ignore-placement": false,
+    },
+    paint: {
+      "icon-opacity": 0.7,
+    },
+  };
 }
 
 // Module-level cache: instanceId -> manager
@@ -119,6 +137,36 @@ function createManager(instanceId) {
       type: "FeatureCollection",
       features: [...features.values()],
     });
+  };
+
+  const addDirectionLayer = (mapInstance) => {
+    if (mapInstance.getLayer?.(LAYER_IDS.direction)) return;
+    mapInstance.addLayer(createDirectionLayer());
+  };
+
+  const setupDirectionLayer = (mapInstance) => {
+    if (mapInstance.hasImage?.(DIRECTION_IMAGE_ID)) {
+      addDirectionLayer(mapInstance);
+      return;
+    }
+
+    if (typeof mapInstance.addImage !== "function") return;
+
+    loadDirectionArrowImage()
+      .then((image) => {
+        if (!image || map !== mapInstance) return;
+
+        if (!mapInstance.hasImage?.(DIRECTION_IMAGE_ID)) {
+          mapInstance.addImage(DIRECTION_IMAGE_ID, image, { pixelRatio: 2 });
+        }
+        addDirectionLayer(mapInstance);
+      })
+      .catch((error) => {
+        reportError(error, {
+          source: "geojson-direction-image",
+          instanceId,
+        });
+      });
   };
 
   const setupLayers = (mapInstance) => {
@@ -210,64 +258,7 @@ function createManager(instanceId) {
     });
 
     // Direction chevrons for line features that opt in
-    let directionImageReady = Boolean(
-      mapInstance.hasImage?.(DIRECTION_IMAGE_ID),
-    );
-    if (!directionImageReady && typeof mapInstance.addImage === "function") {
-      const image = createDirectionArrowImage();
-      if (image) {
-        mapInstance.addImage(DIRECTION_IMAGE_ID, image, { pixelRatio: 2 });
-        directionImageReady = true;
-      }
-    }
-
-    if (directionImageReady) {
-      const directionLayer = {
-        id: LAYER_IDS.direction,
-        type: "symbol",
-        source: SOURCE_ID,
-        filter: [
-          "all",
-          [
-            "match",
-            ["geometry-type"],
-            ["LineString", "MultiLineString"],
-            true,
-            false,
-          ],
-          ["==", ["get", "ogis.direction"], true],
-        ],
-        layout: {
-          "symbol-placement": "line",
-          "symbol-spacing": 110,
-          "icon-image": DIRECTION_IMAGE_ID,
-          "icon-size": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            8,
-            0.35,
-            12,
-            0.5,
-            16,
-            0.75,
-            20,
-            0.9,
-          ],
-          "icon-rotate": 90,
-          "icon-rotation-alignment": "map",
-          "icon-pitch-alignment": "map",
-          "icon-keep-upright": false,
-          "icon-allow-overlap": false,
-          "icon-ignore-placement": false,
-        },
-        paint: {
-          "icon-opacity": 0.7,
-        },
-      };
-
-      mapInstance.addLayer(directionLayer);
-    }
+    setupDirectionLayer(mapInstance);
 
     // Apply any features that were set before the map was ready
     updateSource();

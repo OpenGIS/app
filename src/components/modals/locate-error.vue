@@ -1,5 +1,6 @@
 <script setup>
 import Modal from "@/components/modals/modal.vue";
+import ModalClose from "@/components/modals/modal-close.vue";
 import { useLocate } from "@/composables/useLocate";
 import { useLocale } from "@/composables/useLocale";
 
@@ -14,12 +15,7 @@ const { t } = useLocale();
         <h5 class="modal-title" id="locate-error-title">
           {{ t("modal.locate.deniedTitle") }}
         </h5>
-        <button
-          type="button"
-          class="btn-close"
-          :aria-label="t('common.close')"
-          @click="close"
-        ></button>
+        <ModalClose :label="t('common.close')" @click="close" />
       </div>
       <div class="modal-body">
         <p>{{ t("modal.locate.deniedIntro") }}</p>

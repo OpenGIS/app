@@ -124,11 +124,13 @@ echo "VITE_API_BASE_URL=https://api.example.com" > .env.local
 
 ### Icons
 
-Icon sources are vendored in `src/icons/` alongside the committed generated bundle.
+All UI icons originate from `src/icons/` and ship through the committed sprite bundle, built with `npm run icons:build`:
 
 ```bash
 npm run icons:build   # regenerate the bundle after adding or updating source icons
 ```
+
+Render sprite symbols through the shared `Icon` component / `<use>` (`IconButton` wraps it); never add inline SVG art, emoji or Unicode glyphs, CSS `content:` icons, ad-hoc images, vendor SVGs, or hand-drawn canvas art. Non-icon exceptions are the favicon/PWA assets, MapLibre style sprites and glyphs, and the navigation connector overlay. `tests/unit/icons-policy.test.js` enforces the rule.
 
 See [docs/14.icons.md](docs/14.icons.md) for the pipeline.
 

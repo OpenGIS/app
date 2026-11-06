@@ -282,9 +282,12 @@ test.describe("Info panel", () => {
       about.locator('a[href="https://github.com/OpenGIS/app/"]'),
     ).toHaveAttribute("target", "_blank");
 
-    const aboutLogo = about.locator('img[alt="OpenGIS"]');
+    const aboutLogo = about.getByRole("img", { name: "OpenGIS" });
     await expect(aboutLogo).toBeVisible();
-    await expect(aboutLogo).toHaveAttribute("src", /\/icon-192\.png$/);
+    await expect(aboutLogo.locator("use")).toHaveAttribute(
+      "href",
+      "#ogis-logo",
+    );
 
     const privacy = panel.locator(".ogis-privacy-section");
     await expect(privacy).toContainText(
@@ -410,28 +413,30 @@ test.describe("Info panel", () => {
     const body = bar.locator(".ogis-privacy-bar__body");
     await expect(bar).toBeVisible();
 
-    // The glyph is CSS-generated; getComputedStyle serialises it quoted.
-    const glyph = () =>
-      summary.evaluate((el) =>
-        getComputedStyle(el, "::after").content.replace(/^["']|["']$/g, ""),
-      );
+    const plusIcon = summary.locator(".ogis-privacy-bar__icon--plus");
+    const dashIcon = summary.locator(".ogis-privacy-bar__icon--dash");
 
     // Collapsed: no open state, hidden body, "+" affordance.
     await expect(bar).toHaveJSProperty("open", false);
     await expect(body).toBeHidden();
-    await expect.poll(glyph).toBe("+");
+    await expect(plusIcon).toBeVisible();
+    await expect(dashIcon).toBeHidden();
+    await expect(plusIcon.locator("use")).toHaveAttribute("href", "#plus");
 
-    // Expanded: the body shows and the affordance becomes "−" (U+2212).
+    // Expanded: the body shows and the affordance becomes the dash icon.
     await summary.click();
     await expect(bar).toHaveJSProperty("open", true);
     await expect(body).toBeVisible();
-    await expect.poll(glyph).toBe("−");
+    await expect(plusIcon).toBeHidden();
+    await expect(dashIcon).toBeVisible();
+    await expect(dashIcon.locator("use")).toHaveAttribute("href", "#dash");
 
     // Collapsed again: back to the hidden body and "+".
     await summary.click();
     await expect(bar).toHaveJSProperty("open", false);
     await expect(body).toBeHidden();
-    await expect.poll(glyph).toBe("+");
+    await expect(plusIcon).toBeVisible();
+    await expect(dashIcon).toBeHidden();
   });
 
   test("Attribution footer is pinned with sticky positioning", async ({

@@ -1,6 +1,6 @@
 ---
 git_hash: "02cb70d82bf0584a5e370bdc28db76f0a131b835"
-modified: "2026-10-28"
+modified: "2026-11-06"
 ---
 
 # ogis.app — Docs
@@ -29,6 +29,6 @@ Developer documentation for the ogis.app codebase.
 | [11. Routes](./11.routes.md)                             | GPX/GeoJSON import, route and waypoint rendering, visibility, follow-mode navigation                                             |
 | [12. Offline](./12.offline.md)                           | Offline region download: service worker, tile enumeration, storage                                                               |
 | [13. CI](./13.ci.md)                                     | GitHub Actions: jobs, artefacts, screenshot-matrix verification, conventional commits, release, deploy                           |
-| [14. Icons](./14.icons.md)                               | End-to-end icon pipeline: sources, generated bundle, `icons:build`, codepoints                                                   |
+| [14. Icons](./14.icons.md)                               | End-to-end icon pipeline and pipeline-only UI policy: sources, generated bundle, `icons:build`, codepoints, guards               |
 | [15. Tracks](./15.tracks.md)                             | Canonical v2 track model: segments, waypoints, import/export, migration, caveats                                                 |
 | [16. State and resilience](./16.state-and-resilience.md) | Persisted state, cross-tab sync, hydration, crash containment, locate/navigation restore, map recovery, exclusions               |

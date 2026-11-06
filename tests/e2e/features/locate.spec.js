@@ -248,7 +248,7 @@ test.describe("Locate / Confirmation modal", () => {
     page,
   }) => {
     await page.locator("#locate-button").click();
-    const close = page.getByRole("dialog").locator(".btn-close");
+    const close = page.getByRole("dialog").locator(".ogis-modal-close");
     await expect(close).toBeVisible();
 
     // Precondition: the close control sits at its resting opacity, so any
@@ -259,8 +259,8 @@ test.describe("Locate / Confirmation modal", () => {
     // a :hover rule (not from a missing hover state).
     expect(await close.evaluate((el) => el.matches(":hover"))).toBe(true);
 
-    // No transition is declared on .btn-close; allow a frame for any style
-    // change to apply before reading.
+    // No transition is declared on .ogis-modal-close; allow a frame for any
+    // style change to apply before reading.
     await page.waitForTimeout(200);
     expect(await close.evaluate((el) => getComputedStyle(el).opacity)).toBe(
       resting,
@@ -850,9 +850,9 @@ test.describe("Locate / French locale", () => {
 
     await page.locator("#locate-button").click();
 
-    // Scope the X button to this modal's own .btn-close. The error modal also
-    // renders a visible "Fermer" footer button, so an unscoped role-name
-    // lookup could match more than the X.
+    // Scope the X button to this modal's own .ogis-modal-close. The error
+    // modal also renders a visible "Fermer" footer button, so an unscoped
+    // role-name lookup could match more than the X.
     const modal = page.locator(
       '.ogis-modal[aria-labelledby="locate-confirm-title"]',
     );
@@ -867,9 +867,13 @@ test.describe("Locate / French locale", () => {
     await expect(page.locator("#locate-confirm-allow")).toHaveText(
       "Je comprends",
     );
-    await expect(modal.locator(".btn-close")).toHaveAttribute(
+    await expect(modal.locator(".ogis-modal-close")).toHaveAttribute(
       "aria-label",
       "Fermer",
+    );
+    await expect(modal.locator(".ogis-modal-close use")).toHaveAttribute(
+      "href",
+      "#x",
     );
   });
 
@@ -896,7 +900,7 @@ test.describe("Locate / French locale", () => {
     );
     await expect(page.locator("#locate-error-retry")).toHaveText("Réessayer");
     await expect(page.locator("#locate-error-close")).toHaveText("Fermer");
-    await expect(modal.locator(".btn-close")).toHaveAttribute(
+    await expect(modal.locator(".ogis-modal-close")).toHaveAttribute(
       "aria-label",
       "Fermer",
     );

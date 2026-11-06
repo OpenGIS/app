@@ -553,6 +553,19 @@ test.describe("Routes / Show and Hide", () => {
     );
     expect(lineFeature?.properties?.["ogis.direction"]).toBe(true);
 
+    // The direction layer is registered asynchronously once the authored
+    // arrow image has decoded, so wait for it before asserting its config.
+    await expect
+      .poll(() =>
+        page.evaluate(async () => {
+          const { getMapInstance } = await import("/src/composables/useMap.js");
+          return Boolean(
+            getMapInstance("app")?.getLayer?.("ogis-geojson-direction"),
+          );
+        }),
+      )
+      .toBe(true);
+
     const directionLayer = await page.evaluate(async () => {
       const { getMapInstance } = await import("/src/composables/useMap.js");
       const style = getMapInstance("app")?.getStyle?.();
@@ -563,6 +576,15 @@ test.describe("Routes / Show and Hide", () => {
     });
     expect(directionLayer?.layout?.["symbol-placement"]).toBe("line");
     expect(directionLayer?.layout?.["icon-rotate"]).toBe(90);
+
+    const hasDirectionImage = await page.evaluate(async () => {
+      const { getMapInstance } = await import("/src/composables/useMap.js");
+      return (
+        getMapInstance("app")?.hasImage?.("ogis-geojson-direction-arrow") ===
+        true
+      );
+    });
+    expect(hasDirectionImage).toBe(true);
 
     await hide.click();
     await expect(show).toBeVisible();

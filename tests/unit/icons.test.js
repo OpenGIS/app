@@ -36,6 +36,10 @@ const symbolIds = [...sprite.matchAll(/<symbol[^>]*\bid="([^"]+)"/g)].map(
  *  - info-circle — attribution chip in components/ui/controls/attribution.vue
  *  - check / pencil / share / dice — Info panel actions in
  *    components/panels/info.vue
+ *  - plus / dash — privacy disclosure toggle in components/panels/info.vue
+ *  - x — modal close control in components/modals
+ *  - ogis-logo — About logo in components/panels/info.vue
+ *  - direction-arrow — map direction chevrons in composables/useGeoJSON.js
  *  - route / graph-down / file-arrow-down / person-circle / list / map —
  *    feature nav icons in src/features/{recordings,routes,offline,account,
  *    collections,maps}/index.js
@@ -51,6 +55,11 @@ const REQUIRED_ICON_IDS = [
   "pencil",
   "share",
   "dice",
+  "plus",
+  "dash",
+  "x",
+  "ogis-logo",
+  "direction-arrow",
   "route",
   "graph-down",
   "file-arrow-down",
@@ -67,9 +76,9 @@ describe("vendored icon sprite", () => {
     );
   });
 
-  it("defines 57 symbols with unique ids", () => {
-    expect(symbolIds).toHaveLength(57);
-    expect(new Set(symbolIds).size).toBe(57);
+  it("defines 60 symbols with unique ids", () => {
+    expect(symbolIds).toHaveLength(60);
+    expect(new Set(symbolIds).size).toBe(60);
   });
 });
 
@@ -89,8 +98,8 @@ describe("generated icon output consistency", () => {
     expect(orphans).toEqual(["logo"]);
   });
 
-  it("has 58 generated codepoint entries", () => {
-    expect(Object.keys(generatedCodepoints)).toHaveLength(58);
+  it("has 61 generated codepoint entries", () => {
+    expect(Object.keys(generatedCodepoints)).toHaveLength(61);
   });
 
   it("matches the source codepoints file exactly", () => {

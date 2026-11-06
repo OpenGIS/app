@@ -20,6 +20,18 @@ vi.mock("vue", () => ({
 let mockMapInstance = null;
 let emitterCallbacks = {};
 
+const { mockDirectionImage, mockLoadDirectionArrowImage } = vi.hoisted(() => {
+  const image = { width: 64, height: 64 };
+  return {
+    mockDirectionImage: image,
+    mockLoadDirectionArrowImage: vi.fn(() => Promise.resolve(image)),
+  };
+});
+
+vi.mock("@/utils/iconImage.js", () => ({
+  loadDirectionArrowImage: mockLoadDirectionArrowImage,
+}));
+
 const mockMap = {
   addSource: vi.fn(),
   addLayer: vi.fn(),
@@ -30,28 +42,6 @@ const mockMap = {
   removeLayer: vi.fn(),
   removeSource: vi.fn(),
 };
-
-const mockImageData = {
-  data: new Uint8ClampedArray(4),
-  width: 64,
-  height: 64,
-};
-
-const mockCanvasContext = {
-  beginPath: vi.fn(),
-  moveTo: vi.fn(),
-  lineTo: vi.fn(),
-  closePath: vi.fn(),
-  fill: vi.fn(),
-  stroke: vi.fn(),
-  getImageData: vi.fn(() => mockImageData),
-};
-
-beforeEach(() => {
-  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
-    mockCanvasContext,
-  );
-});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -94,17 +84,22 @@ async function freshUseGeoJSON(instanceId = "nav") {
   mockMapInstance = null;
   emitterCallbacks = {};
   vi.clearAllMocks();
+  mockLoadDirectionArrowImage.mockImplementation(() =>
+    Promise.resolve(mockDirectionImage),
+  );
   mockMap.getSource.mockImplementation(() => ({ setData: mockSetData }));
   vi.resetModules();
   const { useGeoJSON } = await import("../../src/composables/useGeoJSON.js");
   return useGeoJSON();
 }
 
-function simulateMapReady(geoJSON) {
+async function simulateMapReady(geoJSON) {
   // Trigger the map:ready callback registered on the emitter
   if (emitterCallbacks["map:ready"]) {
     emitterCallbacks["map:ready"]({ map: mockMap });
   }
+  // Let the direction-arrow image promise resolve and register its layer.
+  await Promise.resolve();
 }
 
 const lineFeature = (id = "line-1", color = null) => ({
@@ -150,7 +145,7 @@ const polygonFeature = (id = "poly-1") => ({
 describe("useGeoJSON / map lifecycle", () => {
   it("creates source and five layers on map:ready", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     expect(mockMap.addSource).toHaveBeenCalledWith(
       "ogis-geojson",
@@ -177,7 +172,7 @@ describe("useGeoJSON / map lifecycle", () => {
     // Not yet rendered — no map available
     expect(mockSetData).not.toHaveBeenCalled();
 
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     // Source initialised with empty FC, then setData called with the queued feature
     expect(mockSetData).toHaveBeenCalledTimes(1);
@@ -190,11 +185,15 @@ describe("useGeoJSON / map lifecycle", () => {
     injectReturn = "already-ready";
     emitterCallbacks = {};
     vi.clearAllMocks();
+    mockLoadDirectionArrowImage.mockImplementation(() =>
+      Promise.resolve(mockDirectionImage),
+    );
     mockMap.getSource.mockImplementation(() => ({ setData: mockSetData }));
     mockMapInstance = mockMap; // map already available
     vi.resetModules();
     const { useGeoJSON } = await import("../../src/composables/useGeoJSON.js");
     useGeoJSON();
+    await Promise.resolve();
 
     expect(mockMap.addSource).toHaveBeenCalled();
     expect(mockMap.addLayer).toHaveBeenCalledTimes(5);
@@ -208,7 +207,7 @@ describe("useGeoJSON / map lifecycle", () => {
     });
 
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     emitterCallbacks["destroy"]?.();
 
@@ -221,7 +220,7 @@ describe("useGeoJSON / map lifecycle", () => {
 describe("useGeoJSON / setFeature", () => {
   it("adds a line feature to the source", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature(lineFeature());
@@ -234,7 +233,7 @@ describe("useGeoJSON / setFeature", () => {
 
   it("adds a point feature to the source", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature(pointFeature());
@@ -245,7 +244,7 @@ describe("useGeoJSON / setFeature", () => {
 
   it("adds a polygon feature to the source", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature(polygonFeature());
@@ -256,7 +255,7 @@ describe("useGeoJSON / setFeature", () => {
 
   it("updates an existing feature (same id) — no duplicates", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature(lineFeature("track", null));
@@ -278,7 +277,7 @@ describe("useGeoJSON / setFeature", () => {
 
   it("stores multiple features independently", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature(lineFeature("a"));
@@ -291,7 +290,7 @@ describe("useGeoJSON / setFeature", () => {
   it("warns and does nothing when feature.type is not 'Feature'", async () => {
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature({ type: "FeatureCollection", features: [] });
@@ -306,7 +305,7 @@ describe("useGeoJSON / setFeature", () => {
   it("warns and does nothing when feature has no id", async () => {
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature({
@@ -322,7 +321,7 @@ describe("useGeoJSON / setFeature", () => {
   it("warns and does nothing for unsupported geometry types", async () => {
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature({
@@ -342,7 +341,7 @@ describe("useGeoJSON / setFeature", () => {
   it("warns and does nothing when feature is null", async () => {
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature(null);
@@ -356,7 +355,7 @@ describe("useGeoJSON / setFeature", () => {
 describe("useGeoJSON / removeFeature", () => {
   it("removes a feature by id", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     geoJSON.setFeature(lineFeature("a"));
     geoJSON.setFeature(pointFeature("b"));
@@ -371,7 +370,7 @@ describe("useGeoJSON / removeFeature", () => {
 
   it("is a no-op for an unknown id", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     geoJSON.setFeature(lineFeature("a"));
     mockSetData.mockClear();
 
@@ -383,7 +382,7 @@ describe("useGeoJSON / removeFeature", () => {
 
   it("converts numeric ids to strings", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     geoJSON.setFeature({ ...lineFeature(), id: 42 });
     mockSetData.mockClear();
@@ -398,7 +397,7 @@ describe("useGeoJSON / removeFeature", () => {
 describe("useGeoJSON / clearFeatures", () => {
   it("removes all features", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     geoJSON.setFeature(lineFeature("a"));
     geoJSON.setFeature(pointFeature("b"));
@@ -413,7 +412,7 @@ describe("useGeoJSON / clearFeatures", () => {
 
   it("re-adds features can use new random colours after clear", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     geoJSON.setFeature(lineFeature("x"));
     const first =
@@ -436,7 +435,7 @@ describe("useGeoJSON / clearFeatures", () => {
 describe("useGeoJSON / style defaults", () => {
   it("auto-assigns a colour when ogis.color is absent", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature(lineFeature("l"));
@@ -448,7 +447,7 @@ describe("useGeoJSON / style defaults", () => {
 
   it("uses explicit ogis.color when provided", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature(lineFeature("l", "#aabbcc"));
@@ -459,7 +458,7 @@ describe("useGeoJSON / style defaults", () => {
 
   it("preserves the same auto-colour across updates of the same id", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature(lineFeature("track"));
@@ -475,7 +474,7 @@ describe("useGeoJSON / style defaults", () => {
 
   it("applies default line width and opacity when not specified", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature(lineFeature("l"));
@@ -487,7 +486,7 @@ describe("useGeoJSON / style defaults", () => {
 
   it("applies default point radius and opacity when not specified", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature(pointFeature("p"));
@@ -499,7 +498,7 @@ describe("useGeoJSON / style defaults", () => {
 
   it("applies default polygon fillOpacity and opacity when not specified", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature(polygonFeature("p"));
@@ -511,7 +510,7 @@ describe("useGeoJSON / style defaults", () => {
 
   it("does not override explicitly provided navigator.* style values", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature({
@@ -528,7 +527,7 @@ describe("useGeoJSON / style defaults", () => {
 describe("useGeoJSON / setDefaults", () => {
   it("setDefaults colour is used for new features with no ogis.color", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     geoJSON.setDefaults({ line: { color: "#123456" } });
     geoJSON.setFeature(lineFeature("l"));
@@ -539,7 +538,7 @@ describe("useGeoJSON / setDefaults", () => {
 
   it("setDefaults re-processes existing features", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     geoJSON.setFeature(lineFeature("l")); // gets auto colour
 
@@ -551,7 +550,7 @@ describe("useGeoJSON / setDefaults", () => {
 
   it("setDefaults does not override explicit ogis.color on existing feature", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     geoJSON.setFeature(lineFeature("l", "#explicit"));
     geoJSON.setDefaults({ line: { color: "#default" } });
@@ -562,7 +561,7 @@ describe("useGeoJSON / setDefaults", () => {
 
   it("setDefaults updates width and opacity for existing features", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     geoJSON.setFeature(lineFeature("l")); // default width=3
     geoJSON.setDefaults({ line: { width: 10, opacity: 0.5 } });
@@ -575,7 +574,7 @@ describe("useGeoJSON / setDefaults", () => {
 
   it("ignores unknown geometry type keys in setDefaults", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     // Should not throw
     expect(() =>
@@ -587,7 +586,7 @@ describe("useGeoJSON / setDefaults", () => {
 describe("useGeoJSON / layer configuration", () => {
   it("line layer has round cap and join", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     const lineLayerCall = mockMap.addLayer.mock.calls.find(
       (c) => c[0].id === "ogis-geojson-line",
@@ -598,7 +597,7 @@ describe("useGeoJSON / layer configuration", () => {
 
   it("layers use data-driven expressions for colour", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     const lineLayer = mockMap.addLayer.mock.calls.find(
       (c) => c[0].id === "ogis-geojson-line",
@@ -608,7 +607,7 @@ describe("useGeoJSON / layer configuration", () => {
 
   it("all geometry-type layers have correct filters", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     const getFilter = (id) =>
       mockMap.addLayer.mock.calls.find((c) => c[0].id === id)?.[0].filter;
@@ -638,7 +637,7 @@ describe("useGeoJSON / layer configuration", () => {
 
   it("point layer has white stroke", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     const pointLayer = mockMap.addLayer.mock.calls.find(
       (c) => c[0].id === "ogis-geojson-point",
@@ -648,18 +647,18 @@ describe("useGeoJSON / layer configuration", () => {
 
   it("registers the direction arrow image", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     expect(mockMap.addImage).toHaveBeenCalledWith(
       "ogis-geojson-direction-arrow",
-      mockImageData,
+      mockDirectionImage,
       { pixelRatio: 2 },
     );
   });
 
   it("direction layer renders chevrons for opted-in lines", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     const directionLayer = mockMap.addLayer.mock.calls.find(
       (c) => c[0].id === "ogis-geojson-direction",
@@ -698,10 +697,35 @@ describe("useGeoJSON / layer configuration", () => {
   it("does not add the direction image when it is already registered", async () => {
     const geoJSON = await freshUseGeoJSON();
     mockMap.hasImage.mockReturnValue(true);
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     expect(mockMap.addImage).not.toHaveBeenCalled();
     expect(mockMap.addLayer).toHaveBeenCalledTimes(5);
+  });
+
+  it("does not add the direction image or layer after disposal", async () => {
+    let resolveImage;
+    const pendingImage = new Promise((resolve) => {
+      resolveImage = resolve;
+    });
+
+    const geoJSON = await freshUseGeoJSON();
+    mockLoadDirectionArrowImage.mockImplementation(() => pendingImage);
+
+    await simulateMapReady(geoJSON);
+    expect(mockMap.addImage).not.toHaveBeenCalled();
+
+    geoJSON.dispose();
+    resolveImage(mockDirectionImage);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockMap.addImage).not.toHaveBeenCalled();
+    expect(
+      mockMap.addLayer.mock.calls.some(
+        (call) => call[0].id === "ogis-geojson-direction",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -718,6 +742,7 @@ describe("useGeoJSON / instance isolation", () => {
     const geoJSONA = useGeoJSONA();
     const callbacksA = { ...emitterCallbacks };
     callbacksA["map:ready"]?.({ map: mockMap });
+    await Promise.resolve();
     geoJSONA.setFeature(lineFeature("shared-id"));
     const countA =
       mockSetData.mock.calls[mockSetData.mock.calls.length - 1][0].features
@@ -728,6 +753,7 @@ describe("useGeoJSON / instance isolation", () => {
     emitterCallbacks = {};
     const geoJSONB = useGeoJSONA("instance-b");
     emitterCallbacks["map:ready"]?.({ map: mockMap });
+    await Promise.resolve();
     // B has no features
     const lastFC = mockSetData.mock.calls[mockSetData.mock.calls.length - 1][0];
 
@@ -757,7 +783,7 @@ describe("useGeoJSON / setup failure and teardown", () => {
       addedSources.has(id) ? { setData: mockSetData } : null,
     );
 
-    expect(() => simulateMapReady(geoJSON)).not.toThrow();
+    await expect(simulateMapReady(geoJSON)).resolves.not.toThrow();
 
     expect(mockMap.addSource).toHaveBeenCalledWith(
       "ogis-geojson",
@@ -782,7 +808,7 @@ describe("useGeoJSON / setup failure and teardown", () => {
   it("cleanup tolerates map accessors throwing", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     mockMap.getLayer.mockImplementation(() => {
       throw new Error("getLayer boom");
@@ -799,7 +825,7 @@ describe("useGeoJSON / setup failure and teardown", () => {
   it("cleanup tolerates removeLayer and removeSource throwing", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
 
     mockMap.getLayer.mockReturnValue(true);
     mockMap.getSource.mockReturnValue({ setData: mockSetData });
@@ -844,7 +870,7 @@ describe("useGeoJSON / setup failure and teardown", () => {
 describe("useGeoJSON / MultiLineString and MultiPolygon", () => {
   it("categorises MultiLineString as a line", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature({
@@ -869,7 +895,7 @@ describe("useGeoJSON / MultiLineString and MultiPolygon", () => {
 
   it("categorises MultiPolygon as a polygon", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature({
@@ -898,7 +924,7 @@ describe("useGeoJSON / MultiLineString and MultiPolygon", () => {
 
   it("categorises MultiPoint as a point", async () => {
     const geoJSON = await freshUseGeoJSON();
-    simulateMapReady(geoJSON);
+    await simulateMapReady(geoJSON);
     mockSetData.mockClear();
 
     geoJSON.setFeature({

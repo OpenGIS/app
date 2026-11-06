@@ -102,6 +102,14 @@ Core elements use `.ogis-*` classes:
 - `.ogis-panel` — Bootstrap offcanvas side panel
 - `--ogis-panel-width` — CSS custom property for panel width
 
+### Iconography
+
+All UI icons come from the authored pipeline in `src/icons/svg/` or `src/icons/png/`, built with `npm run icons:build` into the committed sprite bundle (`src/icons/ogis-icons.svg`). Render sprite symbols through the shared `Icon` component / `<use>`; `IconButton` wraps it. MapLibre symbol images are rasterised from authored SVG via `src/utils/iconImage.js`.
+
+Never add inline SVG art, emoji or Unicode glyphs used as icons, CSS `content:` glyphs, ad-hoc `<img>`/PWA assets as UI icons, vendor SVGs (including Bootstrap `.btn-close`), or hand-drawn canvas art. Non-icon exceptions: favicon/PWA assets (`index.html`, `public/manifest.json`, `public/icon-*.png`); MapLibre style sprites/glyphs; the `NavigationControl.vue` `.ogis-nav-connector` screen-space data connector; and `<svg><use>` wrappers that reference sprite symbols.
+
+`tests/unit/icons-policy.test.js` enforces the policy; see [docs/14.icons.md](docs/14.icons.md).
+
 ### GeoJSON property keys
 
 GeoJSON features use `ogis.*` properties for styles: `ogis.color`, `ogis.width`, `ogis.opacity`, `ogis.radius`, `ogis.fillOpacity`. These are used in MapLibre layer expressions and in feature data.
