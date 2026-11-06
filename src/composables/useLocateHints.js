@@ -12,7 +12,7 @@ import { usePersistedState } from "@/resilience/persistedState";
  * never sees it again.
  *
  * Hints never cover a dialog: while a modal is open (the locate permission
- * prompt, a welcome card, …) the pending hint waits until it closes.
+ * prompt, an error modal, …) the pending hint waits until it closes.
  *
  * E2E runs set `window.__ogisDisableHints = true` before boot so the bubble
  * stays out of functional assertions and the screenshot matrix. The hint spec

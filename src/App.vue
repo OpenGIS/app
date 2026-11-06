@@ -6,7 +6,6 @@ import iconSprite from "@/icons/ogis-icons.svg?raw";
 import Controls from "@/components/ui/controls.vue";
 import Panels from "@/components/ui/panels.vue";
 import LocateConfirm from "@/components/modals/locate-confirm.vue";
-import Welcome from "@/components/modals/welcome.vue";
 
 import { useMap } from "@/composables/useMap";
 import { useUI } from "@/composables/useUI";
@@ -130,7 +129,6 @@ onMounted(() => {
     <Controls />
 
     <!-- Global modals -->
-    <Welcome />
     <LocateConfirm />
   </div>
 </template>

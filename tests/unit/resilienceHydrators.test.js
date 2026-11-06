@@ -14,7 +14,6 @@ import { hydrateLocate } from "@/resilience/hydrators/locate.js";
 import { hydrateNavigation } from "@/resilience/hydrators/navigation.js";
 import { hydrateSync } from "@/resilience/hydrators/sync.js";
 import { hydrateView } from "@/resilience/hydrators/view.js";
-import { hydrateWelcome } from "@/resilience/hydrators/welcome.js";
 
 const envelope = (data, version = 1) =>
   JSON.stringify({ __ogisState: 1, version, data });
@@ -916,21 +915,5 @@ describe("sync hydrator", () => {
   it("rejects a non-object top level", () => {
     expect(() => hydrateSync([])).toThrow();
     expect(() => hydrateSync(null)).toThrow();
-  });
-});
-
-describe("hydrateWelcome", () => {
-  it("keeps a dismissed card dismissed", () => {
-    expect(hydrateWelcome({ seen: true })).toEqual({ seen: true });
-  });
-
-  it("repairs a non-boolean seen flag to false", () => {
-    expect(hydrateWelcome({ seen: "yes" })).toEqual({ seen: false });
-    expect(hydrateWelcome({})).toEqual({ seen: false });
-  });
-
-  it("rejects a non-object top level", () => {
-    expect(() => hydrateWelcome([])).toThrow();
-    expect(() => hydrateWelcome(null)).toThrow();
   });
 });

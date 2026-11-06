@@ -264,8 +264,5 @@
   "modal.locate.tryTwo": "Search the web for: \"allow geolocation after denial <your-browser> <your-device>\".",
   "modal.locate.tryThree": "Wait a while, then try again.",
   "modal.locate.close": "Close",
-  "modal.locate.retry": "Try again",
-  "modal.welcome.title": "Find your way, anywhere",
-  "modal.welcome.body": "See where you are, record your routes and use maps offline. For this, allow Location and Compass when your browser asks. All information stays on your device.",
-  "modal.welcome.continue": "Continue"
+  "modal.locate.retry": "Try again"
 }
