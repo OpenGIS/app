@@ -1,7 +1,6 @@
 <!-- RoutesPanel.vue — side-panel content for the GPX/GeoJSON routes feature -->
 <script setup>
-import { computed, inject, ref } from "vue";
-import Icon from "@/components/ui/icon.vue";
+import { computed, inject } from "vue";
 import { useLocale } from "@/composables/useLocale";
 import {
   documentDistance,
@@ -59,8 +58,6 @@ const navigateTitle = (route) => {
   return undefined;
 };
 
-const fileInput = ref(null);
-
 const onFiles = async (event) => {
   const files = Array.from(event.target.files ?? []);
   await importTracks(files);
@@ -80,88 +77,56 @@ const confirmDelete = (route) => {
 </script>
 
 <template>
-  <div class="sidebar-section sidebar-section-body p-3 pb-2">
-    <div class="ogis-routes-titlebar">
-      <h5 class="mb-0">{{ t("menu.routes") }}</h5>
-      <button
-        type="button"
-        class="btn ogis-routes-add"
-        @click="fileInput?.click()"
-      >
-        <Icon name="plus-circle" width="16" height="16" aria-hidden="true" />
-        {{ t("panel.routes.add") }}
-      </button>
-      <input
-        ref="fileInput"
-        type="file"
-        accept=".gpx,.geojson,.json,application/gpx+xml,application/geo+json,application/json"
-        multiple
-        class="visually-hidden"
-        tabindex="-1"
-        :aria-label="t('panel.routes.addLabel')"
-        @change="onFiles"
-      />
-    </div>
+  <div class="sidebar-section sidebar-section-body p-3 pb-0">
+    <h5 class="mb-0">{{ t("menu.routes") }}</h5>
+  </div>
+
+  <div class="sidebar-section sidebar-section-body p-3 border-top">
+    <input
+      type="file"
+      accept=".gpx,.geojson,.json,application/gpx+xml,application/geo+json,application/json"
+      multiple
+      class="form-control"
+      @change="onFiles"
+    />
     <div v-if="error" class="small text-danger mt-2">
       {{ errorMessage }}
     </div>
   </div>
 
-  <div class="sidebar-section sidebar-section-body ogis-routes-list px-3 pb-3">
+  <div class="sidebar-section sidebar-section-body p-3 border-top">
     <p v-if="!routes.length" class="text-body-tertiary small mb-0">
       {{ t("panel.routes.empty") }}
     </p>
 
-    <div v-for="route in routes" :key="route.id" class="ogis-route-card">
-      <div class="ogis-route-card__head">
+    <div v-for="route in routes" :key="route.id" class="border-top py-2">
+      <div class="d-flex align-items-center gap-2">
         <span
           class="ogis-track-swatch"
           :style="{ backgroundColor: route.color }"
         ></span>
-        <div class="ogis-route-card__text">
-          <div class="ogis-track-name text-truncate">
-            {{ route.name || t("panel.routes.defaultName") }}
-          </div>
-          <div class="ogis-route-card__meta">
-            <span v-if="hasPoints(route)">
-              {{
-                formatDistance(documentDistance(route), isMetric, locale.value)
-              }}
-            </span>
-            <span v-if="hasPoints(route) && hasWaypoints(route)"> · </span>
-            <span v-if="hasWaypoints(route)">
-              {{ t("panel.routes.waypoints", { count: waypointCount(route) }) }}
-            </span>
-          </div>
-        </div>
-        <button
-          type="button"
-          class="btn ogis-route-card__remove"
-          :aria-label="t('panel.routes.delete')"
-          :title="t('panel.routes.delete')"
-          @click="confirmDelete(route)"
-        >
-          <Icon name="trash" width="16" height="16" aria-hidden="true" />
-        </button>
+        <span class="ogis-track-name fw-semibold text-truncate">
+          {{ route.name || t("panel.routes.defaultName") }}
+        </span>
       </div>
 
-      <div class="ogis-route-card__actions">
+      <div class="small text-body-secondary">
+        <span v-if="hasPoints(route)">
+          {{ formatDistance(documentDistance(route), isMetric, locale.value) }}
+        </span>
+        <span v-if="hasPoints(route) && hasWaypoints(route)"> · </span>
+        <span v-if="hasWaypoints(route)">
+          {{ t("panel.routes.waypoints", { count: waypointCount(route) }) }}
+        </span>
+      </div>
+
+      <div class="d-flex flex-wrap gap-1 mt-1">
         <button
-          type="button"
-          class="btn ogis-route-btn"
-          :class="
-            isVisible(route.id) ? 'ogis-route-btn--on' : 'ogis-route-btn--main'
-          "
+          class="btn btn-sm"
+          :class="isVisible(route.id) ? 'btn-primary' : 'btn-outline-primary'"
           :aria-pressed="isVisible(route.id)"
-          :title="isVisible(route.id) ? t('panel.routes.hideHint') : undefined"
           @click="toggleVisibility(route.id)"
         >
-          <Icon
-            :name="isVisible(route.id) ? 'check' : 'map'"
-            width="14"
-            height="14"
-            aria-hidden="true"
-          />
           {{
             isVisible(route.id)
               ? t("panel.routes.hide")
@@ -171,9 +136,10 @@ const confirmDelete = (route) => {
 
         <button
           v-if="lineGeometry(route)"
-          type="button"
-          class="btn ogis-route-btn"
-          :class="{ 'ogis-route-btn--main': navigating === route.id }"
+          class="btn btn-sm"
+          :class="
+            navigating === route.id ? 'btn-success' : 'btn-outline-success'
+          "
           :disabled="
             !isVisible(route.id) ||
             Boolean(navigating && navigating !== route.id)
@@ -185,7 +151,6 @@ const confirmDelete = (route) => {
               : startNavigation(route.id)
           "
         >
-          <Icon name="nav-arrow" width="14" height="14" aria-hidden="true" />
           {{
             navigating === route.id
               ? t("panel.routes.stop")
@@ -194,20 +159,17 @@ const confirmDelete = (route) => {
         </button>
 
         <details class="ogis-share-menu">
-          <summary class="btn ogis-route-btn">
-            <Icon name="share" width="14" height="14" aria-hidden="true" />
+          <summary class="btn btn-sm btn-outline-secondary">
             {{ t("panel.routes.share") }}
           </summary>
           <div class="ogis-share-menu__items">
             <button
-              type="button"
               class="btn btn-sm btn-outline-secondary"
               @click="onShare($event, route, 'gpx')"
             >
               GPX
             </button>
             <button
-              type="button"
               class="btn btn-sm btn-outline-secondary"
               @click="onShare($event, route, 'geojson')"
             >
@@ -215,6 +177,13 @@ const confirmDelete = (route) => {
             </button>
           </div>
         </details>
+
+        <button
+          class="btn btn-sm btn-outline-danger"
+          @click="confirmDelete(route)"
+        >
+          {{ t("panel.routes.delete") }}
+        </button>
       </div>
     </div>
   </div>
