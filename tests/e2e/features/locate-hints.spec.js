@@ -17,7 +17,7 @@ import { readStoredState } from "../helpers/storage.js";
  * Locate onboarding hints (docs/5.ui.md — Locate hints).
  *
  * The shared fixture disables hints for every other spec; this one opts back
- * in, then walks the chip through Locate → Located → Follow and checks the
+ * in, then walks the chip through Locate → Located → Following and checks the
  * once-only explanation for each state.
  */
 
@@ -74,7 +74,7 @@ test.describe("Locate / Hints", () => {
 
     await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
     await btn.click();
-    await expect(btn).toContainText("Follow", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
     await expect(hintFor(page, "following")).toContainText(
       "Tap again to stop",
       { timeout: LOCATE_TIMEOUT },
