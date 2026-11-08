@@ -31,31 +31,26 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 
 ## Features
 
-- Detailed, free global map — no install, no account
-- Globe view on first load
-- Corner controls for menu and locate, plus a merged Info panel (share links, app info, privacy)
-- GPS locate with compass heading
-- Record GPS tracks and share them as GPX or GeoJSON
-- Import GPX and GeoJSON routes and waypoints, then navigate offline in follow mode — the top-centre navigation card shows a direction arrow with the distance back to the route, or `On route` when you are on it, with a green dashed on-map connector to the nearest point on the route when you are off route within 1 km
-- Show or hide each saved route or recording independently, with direction chevrons on the map
-- Download map regions for offline use (via a service worker)
-- Multilingual — follows your device language
-- Shareable camera views
-- Map view and shared routes, recordings and offline regions sync live across tabs
-- Map view persisted between sessions
-- Locate, route navigation and an active recording restored after a reload or app quit
+- [Offline](docs/12.offline.md) first. Works on any device.
+- Detailed, free global map — no install, no account.
+- Default view is of the user's country (best guess from OS timezone).
+- Corner controls:
+  - Menu
+  - Locate / Follow (GPS position + Compass heading)
+  - Info
+- Record, Share and Import Routes.
+- Navigate Routes, with direction and distance indicators.
+- Offline Maps.
+- Multilingual (OS language).
+- Share what you see
+- Map view persisted between sessions and can be shared as URLs.
 - Light and dark mode, following your device setting
-- Works on any device
-
-> [!NOTE]
-> **Offline maps** — drag a region on the map to download its tiles and glyphs for offline use. A hand-rolled service worker (`public/sw.js`) caches the app shell and map resources; see [docs/12.offline.md](docs/12.offline.md).
 
 ## Drawbacks and Limitations
 
 - Location permissions are required for GPS/Compass features. Some users have a deny-all approach to browser permissions and changing them varies between browsers and devices.
-- The app does not work in the background or when the device is locked — a common limitation of web apps.
+- The app can not acces the user's position when the device is locked — needed for accurate recordings - a common limitation of web apps.
 - The app requires an initial connection to load assets and map tiles, even though it works offline thereafter.
-- Session restore is best-effort and partial: locate, navigation and an active recording are stored durably and survive a normal reload or app quit, provided permission and stored data allow. A hard kill or force-quit can still lose the most recent debounced change. Tab-owned sessions carry a liveness-checked owner id, so a second live tab never restores or clears another tab's session. UI/panel state, map projection, theme, units, locale and saved-recording visibility are not restored.
 
 ## Planned Changes
 
