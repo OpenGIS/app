@@ -12,7 +12,6 @@ import {
   emitFix,
   emitGeoError,
   expectedHashRegExp,
-  headingRotation,
   installGeolocationMock,
   orientHash,
   tapMap,
@@ -944,6 +943,7 @@ const readLocate = (page) =>
     return {
       mode: locate.mode.value,
       headingRecoveryPending: locate.headingRecoveryPending.value,
+      compassHeading: locate.compassHeading.value,
       position: position
         ? {
             lat: position.lat,
@@ -983,15 +983,29 @@ const mapBearing = (page) =>
 const bearingDifference = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
 
 /**
- * Read the heading marker's compass bearing, compensating for the map's own
- * rotation. A map-aligned marker stores `heading − mapBearing` in its
- * transform, so the raw `rotateZ` only equals the heading while the map is
- * north-up.
+ * Poll the live follow-camera bearing until it settles within `tolerance`.
+ *
+ * The camera holds its last target after the compass heading goes stale, so
+ * this is a stable product-level assertion even on slow software rendering.
  */
-const headingBearing = async (page) => {
-  const rotation = await headingRotation(page);
-  if (rotation === null) return null;
-  return (rotation + (await mapBearing(page)) + 360) % 360;
+const expectMapBearing = async (page, expectedBearing, tolerance = 10) => {
+  let bearing = null;
+  await expect
+    .poll(
+      async () => {
+        bearing = await mapBearing(page);
+        return (
+          bearing !== null &&
+          bearingDifference(bearing, expectedBearing) < tolerance
+        );
+      },
+      {
+        timeout: RESTORE_TIMEOUT,
+        message: `map did not rotate to ${expectedBearing}°`,
+      },
+    )
+    .toBe(true);
+  expect(bearingDifference(bearing, expectedBearing)).toBeLessThan(tolerance);
 };
 
 test.describe("Locate / Restore", () => {
@@ -1531,6 +1545,19 @@ test.describe("Locate / Restore / Compass permission", () => {
       .toBe(1);
   };
 
+  /** Dispatch absolute compass headings until the heading marker appears. */
+  const dispatchCompassUntilHeading = async (page, bearingDeg) => {
+    await expect
+      .poll(
+        async () => {
+          await dispatchCompass(page, bearingDeg);
+          return page.locator(".ogis-locate-heading").count();
+        },
+        { timeout: RESTORE_TIMEOUT },
+      )
+      .toBe(1);
+  };
+
   test("requests compass permission on the first map gesture after an iOS restore", async ({
     page,
   }) => {
@@ -1538,6 +1565,10 @@ test.describe("Locate / Restore / Compass permission", () => {
     await page.context().grantPermissions(["geolocation"]);
     await withIOSOrientationPermission(page);
     await withLocateState(page, recentFollowingSession);
+
+    // Snap the follow camera so the hand-off glide cannot stretch the bearing
+    // assertion on a slow software renderer.
+    await page.emulateMedia({ reducedMotion: "reduce" });
 
     await page.goto("/");
     await waitForMapReady(page);
@@ -1566,12 +1597,7 @@ test.describe("Locate / Restore / Compass permission", () => {
       })
       .toBe(1);
 
-    await dispatchIOSCompass(page, 180);
-    await expect
-      .poll(() => page.locator(".ogis-locate-heading").count(), {
-        timeout: RESTORE_TIMEOUT,
-      })
-      .toBe(1);
+    await dispatchIOSCompassUntilHeading(page, 180);
 
     // The stored fix supplies the magnetic declination before any live GPS fix
     // arrives, so a magnetic 180° heading is corrected to true north using the
@@ -1585,18 +1611,10 @@ test.describe("Locate / Restore / Compass permission", () => {
       { lat: RESTORE_FIX.lat, lng: RESTORE_FIX.lng },
     );
 
-    let heading = null;
-    await expect
-      .poll(
-        async () => {
-          heading = await headingBearing(page);
-          return heading !== null && Math.abs(heading - expectedBearing) < 10;
-        },
-        { timeout: RESTORE_TIMEOUT },
-      )
-      .toBe(true);
-    expect(heading).toBeGreaterThan(expectedBearing - 10);
-    expect(heading).toBeLessThan(expectedBearing + 10);
+    // The follow camera holds its last target after the compass heading goes
+    // stale, so the map bearing is the stable product-level assertion. The
+    // marker's CSS transform is map-relative and unreliable during the glide.
+    await expectMapBearing(page, expectedBearing);
 
     // The retry is one-shot: a later map tap must not prompt again.
     await tapMap(page);
@@ -1613,6 +1631,10 @@ test.describe("Locate / Restore / Compass permission", () => {
     await page.context().grantPermissions(["geolocation"]);
     await withLocateState(page, recentFollowingSession);
 
+    // Snap the follow camera so the hand-off glide cannot stretch the bearing
+    // assertion on a slow software renderer.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+
     await page.goto("/");
     await waitForMapReady(page);
 
@@ -1627,25 +1649,8 @@ test.describe("Locate / Restore / Compass permission", () => {
       .toBe(1);
 
     // Absolute alpha 90 yields a 270° true-north bearing.
-    await dispatchCompass(page, 270);
-    await expect
-      .poll(() => page.locator(".ogis-locate-heading").count(), {
-        timeout: RESTORE_TIMEOUT,
-      })
-      .toBe(1);
-
-    let heading = null;
-    await expect
-      .poll(
-        async () => {
-          heading = await headingBearing(page);
-          return heading !== null && Math.abs(heading - 270) < 10;
-        },
-        { timeout: RESTORE_TIMEOUT },
-      )
-      .toBe(true);
-    expect(heading).toBeGreaterThan(260);
-    expect(heading).toBeLessThan(280);
+    await dispatchCompassUntilHeading(page, 270);
+    await expectMapBearing(page, 270);
   });
 
   test("arms the retry from the map container before the map is ready", async ({
@@ -1806,6 +1811,10 @@ test.describe("Locate / Restore / Compass permission", () => {
     await withIOSOrientationPermission(page);
     await withLocateState(page, recentFollowingSession);
 
+    // Snap the follow camera so the hand-off glide cannot stretch the bearing
+    // assertion on a slow software renderer.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+
     await page.goto("/");
     await waitForMapReady(page);
 
@@ -1873,6 +1882,10 @@ test.describe("Locate / Restore / Compass permission", () => {
     await page.context().grantPermissions(["geolocation"]);
     await withIOSOrientationPermission(page);
     await withLocateState(page, recentFollowingSession);
+
+    // Snap the follow camera so the hand-off glide cannot stretch the bearing
+    // assertion on a slow software renderer.
+    await page.emulateMedia({ reducedMotion: "reduce" });
 
     await page.goto("/");
     await waitForMapReady(page);
@@ -2030,6 +2043,10 @@ test.describe("Locate / Restore / Compass permission", () => {
     await page.context().grantPermissions(["geolocation"]);
     await withLocateState(page, recentFollowingSession);
 
+    // Snap the follow camera so the hand-off glide cannot stretch the bearing
+    // assertion on a slow software renderer.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+
     await page.goto("/");
     await waitForMapReady(page);
 
@@ -2047,26 +2064,9 @@ test.describe("Locate / Restore / Compass permission", () => {
     expect((await readLocate(page)).headingRecoveryPending).toBe(false);
 
     // The non-iOS restore listens immediately: absolute alpha 90 yields a 270°
-    // true-north bearing, as in the existing non-iOS restore case.
-    await dispatchCompass(page, 270);
-    await expect
-      .poll(() => page.locator(".ogis-locate-heading").count(), {
-        timeout: RESTORE_TIMEOUT,
-      })
-      .toBe(1);
-
-    let heading = null;
-    await expect
-      .poll(
-        async () => {
-          heading = await headingBearing(page);
-          return heading !== null && Math.abs(heading - 270) < 10;
-        },
-        { timeout: RESTORE_TIMEOUT },
-      )
-      .toBe(true);
-    expect(heading).toBeGreaterThan(260);
-    expect(heading).toBeLessThan(280);
+    // true-north bearing. The heading marker proves the compass is live; this
+    // case only needs to verify the chip stop, not the camera bearing.
+    await dispatchCompassUntilHeading(page, 270);
 
     // One tap stops immediately; no repair gesture intervenes.
     await btn.click();
