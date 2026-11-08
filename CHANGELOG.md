@@ -1,3 +1,10 @@
+## [3.20.1](https://github.com/OpenGIS/app/compare/v3.20.0...v3.20.1) (2026-11-08)
+
+
+### Bug Fixes
+
+* **release:** cut a release for the refactors since v3.20.0 ([c95eda6](https://github.com/OpenGIS/app/commit/c95eda69cc8c4fd9e7fdbdffea3d4c9ecc155d4e))
+
 # [3.20.0](https://github.com/OpenGIS/app/compare/v3.19.1...v3.20.0) (2026-11-05)
 
 
