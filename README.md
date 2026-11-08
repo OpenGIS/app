@@ -41,10 +41,9 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 - Record, Share and Import Routes.
 - Navigate Routes, with direction and distance indicators.
 - Offline Maps.
-- Multilingual (OS language).
-- Share what you see
+- Multilingual - both UI and map names where available (uses OS language).
 - Map view persisted between sessions and can be shared as URLs.
-- Light and dark mode, following your device setting
+- Light and dark mode, following your device setting.
 
 ## Drawbacks and Limitations
 
