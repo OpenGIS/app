@@ -1706,6 +1706,59 @@ test.describe("Locate / Restore / Compass permission", () => {
     );
   });
 
+  test("renders the restored marker when the map becomes ready after the restore", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withLocateState(page, recentFollowingSession);
+
+    // Hold the style response so the restore finishes before MapLibre publishes
+    // its instance at `style.load`. The stored fix is the only position — the
+    // mock never auto-emits and no compass event runs — so the position marker
+    // can only appear via the one-shot `map:ready` retry armed by `syncMarkers`.
+    let releaseStyle;
+    const styleGate = new Promise((resolve) => {
+      releaseStyle = resolve;
+    });
+    await page.route("**/style.json", async (route) => {
+      await styleGate;
+      // Fall through to the suite's map-asset stub, which serves the fixture
+      // style rather than reaching the real network.
+      await route.fallback().catch(() => {});
+    });
+
+    await page.goto("/");
+
+    // Deliberately no `waitForMapReady`: the restore must complete first.
+    await expect(page.locator("#locate-button")).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+
+    // Precondition: the stored fix is restored but MapLibre has not published
+    // its instance, so no marker can exist yet.
+    const mapPublished = () =>
+      page.evaluate(async () => {
+        const { getMapInstance } = await import("/src/composables/useMap.js");
+        return getMapInstance("app") !== null;
+      });
+    expect(await mapPublished()).toBe(false);
+    await expect(page.locator(".ogis-locate-position")).toHaveCount(0);
+    await expect(page.locator(".ogis-locate-heading")).toHaveCount(0);
+
+    releaseStyle();
+    await waitForMapReady(page);
+
+    // The armed one-shot retry must add the stored-fix position marker.
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+    await expect(page.locator(".ogis-locate-heading")).toHaveCount(0);
+    expect(await mapPublished()).toBe(true);
+  });
+
   test("a denied compass retry leaves the position marker and no error UI", async ({
     page,
   }) => {

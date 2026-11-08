@@ -99,6 +99,7 @@ const createLocate = (instanceId) => {
       needsInitialOrient: false, // true until the first fix after activation
       generation: 0, // incremented on start/stop; discards stale callbacks
       mapReadyListener: null, // pending map:ready retry for the orient flight
+      markerReadyListener: null, // pending map:ready retry for the markers
       headingTimeoutId: null, // timeout handle for heading-loss detection
       showConfirmModal: ref(false),
       showErrorModal: ref(false),
@@ -194,6 +195,14 @@ const createLocate = (instanceId) => {
     return el;
   };
 
+  /** Drop any pending map:ready retry for the markers. */
+  const clearMarkerReadyRetry = () => {
+    if (c.markerReadyListener) {
+      emitter.off("map:ready", c.markerReadyListener);
+      c.markerReadyListener = null;
+    }
+  };
+
   /** Detach the map idle listener bound for marker recovery, if any. */
   const clearIdleListener = () => {
     if (c.idleMap && c.idleHandler) {
@@ -227,6 +236,7 @@ const createLocate = (instanceId) => {
     clearIdleListener();
     clearMoveendListener();
     clearMarkerRetry();
+    clearMarkerReadyRetry();
   };
 
   /**
@@ -290,6 +300,22 @@ const createLocate = (instanceId) => {
   };
 
   /**
+   * If the map is not ready yet, retry the marker sync once `map:ready` fires.
+   *
+   * A restored fix — or a first live fix — can arrive before MapLibre publishes
+   * its instance at `style.load`. Without this, `syncMarkers` would return and
+   * no marker would appear until the next position update or map move.
+   */
+  const armMarkerReadyRetry = () => {
+    if (c.markerReadyListener) return;
+    c.markerReadyListener = () => {
+      c.markerReadyListener = null;
+      syncMarkers();
+    };
+    emitter.once("map:ready", c.markerReadyListener);
+  };
+
+  /**
    * Sync both markers to the current position and compass heading.
    * Called after every position or orientation update.
    */
@@ -299,7 +325,10 @@ const createLocate = (instanceId) => {
     if (c.mode.value === null || c.mode.value === "error") return;
     if (!c.position.value) return;
     const map = getMapInstance(instanceId);
-    if (!map) return;
+    if (!map) {
+      armMarkerReadyRetry();
+      return;
+    }
 
     const { lng, lat } = c.position.value;
     const lngLat = [lng, lat];
