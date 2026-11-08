@@ -16,8 +16,12 @@ import { useLocale } from "@/composables/useLocale";
 import { useAttribution } from "@/composables/useAttribution";
 import { useWakeLock } from "@/composables/useWakeLock";
 import { mapStatusMessageKey } from "@/resilience/mapRecovery";
+import { setForcedTheme } from "@/composables/useSettings";
 
 const instanceId = inject("ogisAppId", "app");
+
+// Matrix has no light version: pin Bootstrap to dark whatever the OS prefers.
+setForcedTheme("dark");
 
 // Keep the meta description in sync with the active locale. The static English
 // value in index.html is the no-JS default; this replaces it once the app boots.

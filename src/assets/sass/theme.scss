@@ -20,6 +20,7 @@
 //       f  Share URL textarea
 //       g  Layout and structural styles
 //       h  Attribution chip, disclosures & scale offset
+// #7  Matrix theme (always on), see themes/
 // ============================================================
 
 // ── #1  Bootstrap functions ───────────────────────────────────
@@ -1725,3 +1726,9 @@ $font-size-base: 0.9375rem; // 15 px
   border-color: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);
 }
+
+// #7  Matrix theme
+// ─────────────────────────────────────────────────────────────
+// Scoped to <html data-ogis-theme="matrix">, set in index.html.
+
+@import "themes/matrix";

@@ -1,0 +1,497 @@
+// ============================================================
+// Matrix theme  ·  src/assets/sass/themes/_matrix.scss
+//
+// A showcase for the Themeability discussion
+// (https://github.com/orgs/OpenGIS/discussions/5): always dark,
+// bright green text, in the style of the film The Matrix. <html data-ogis-theme="matrix">
+// (index.html) turns it on and src/App.vue pins Bootstrap's dark theme,
+// so everything here builds on the dark-mode rules and only swaps
+// colours, fonts and a few flourishes.
+//
+// Black surfaces, glowing green monospace text, square corners and
+// falling code behind the side panel (components/ui/matrix-rain.vue).
+//
+// The map is deliberately left alone: no rule here targets the map
+// canvas, its layers or the navigation connector drawn over it.
+// ============================================================
+
+$matrix-bright: #00ff41; // phosphor green: text, active states, glow
+$matrix-mid: #00c032; // secondary text
+$matrix-dim: #008f11; // muted text and borders
+$matrix-deep: #0b3d14; // quiet borders
+$matrix-pale: #d6ffdc; // names and headings
+$matrix-glow: rgba(0, 255, 65, 0.55);
+$matrix-font:
+  ui-monospace, "SFMono-Regular", "Cascadia Mono", "Roboto Mono", Menlo,
+  Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
+
+[data-ogis-theme="matrix"] {
+  --ogis-matrix-bright: #{$matrix-bright};
+  --ogis-matrix-dim: #{$matrix-dim};
+
+  // Bootstrap tokens used by modals, forms and links outside the panel.
+  --bs-body-bg: #000;
+  --bs-body-color: #{$matrix-bright};
+  --bs-secondary-color: #{$matrix-dim};
+  --bs-tertiary-color: #{$matrix-dim};
+  --bs-emphasis-color: #{$matrix-pale};
+  --bs-border-color: #{$matrix-deep};
+  --bs-link-color: #{$matrix-bright};
+  --bs-link-color-rgb: 0, 255, 65;
+  --bs-primary: #{$matrix-bright};
+  --bs-primary-rgb: 0, 255, 65;
+  --bs-body-font-family: #{$matrix-font};
+  --ogis-ui-green: #{$matrix-bright};
+  --ogis-ui-green-rgb: 0, 255, 65;
+  --ogis-ui-green-ink: #001a00;
+  --ogis-privacy-accent: #{$matrix-bright};
+
+  body {
+    font-family: $matrix-font;
+  }
+
+  ::selection {
+    background: $matrix-bright;
+    color: #001a00;
+  }
+
+  // ── Side panel ──────────────────────────────────────────────
+
+  .offcanvas.ogis-panel {
+    --bs-offcanvas-bg: rgba(0, 6, 0, 0.94);
+    --ogis-panel-green: #{$matrix-bright};
+    --ogis-panel-green-ink: #001a00;
+    --bs-primary: #{$matrix-bright};
+    --bs-primary-rgb: 0, 255, 65;
+    --bs-success: #{$matrix-bright};
+    --bs-success-rgb: 0, 255, 65;
+    --bs-link-color: #{$matrix-bright};
+    --bs-link-color-rgb: 0, 255, 65;
+    --bs-link-hover-color: #{$matrix-pale};
+    --bs-link-hover-color-rgb: 214, 255, 220;
+    color: $matrix-bright;
+    font-family: $matrix-font;
+    // Nearly opaque here, so the blur adds GPU work (costly on iPhones)
+    // without changing what you see.
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-right: 1px solid $matrix-dim !important;
+    box-shadow:
+      0 0 24px rgba(0, 255, 65, 0.3),
+      inset -1px 0 0 rgba(0, 255, 65, 0.35);
+  }
+
+  // The rain canvas sits under the panel content.
+  .ogis-matrix-rain {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.2;
+  }
+
+  .ogis-panel .offcanvas-body {
+    position: relative;
+    z-index: 1;
+  }
+
+  // Panel tokens shared by Routes, Recordings, Offline Maps and Info.
+  .ogis-routes-titlebar,
+  .ogis-routes-list,
+  .ogis-recordings-panel,
+  .ogis-offline-panel,
+  .ogis-info-panel {
+    --ogis-trail: #{$matrix-bright};
+    --ogis-trail-ink: #001a00;
+    --ogis-trail-soft: rgba(0, 255, 65, 0.12);
+    --ogis-trail-soft-ink: #{$matrix-bright};
+    --ogis-track-card-bg: rgba(0, 14, 0, 0.9);
+    --ogis-track-btn-bg: rgba(0, 0, 0, 0.6);
+    --ogis-track-btn-ink: #{$matrix-bright};
+    --ogis-route-muted: #{$matrix-dim};
+  }
+
+  // Tab strip
+  .panel-nav {
+    background: rgba(0, 0, 0, 0.88) !important;
+    border-bottom: 1px solid $matrix-dim !important;
+  }
+
+  .panel-nav .icon-btn {
+    color: $matrix-dim;
+  }
+
+  .panel-nav .icon-btn[aria-pressed="true"] {
+    color: $matrix-bright;
+    text-shadow: 0 0 8px $matrix-bright;
+    filter: drop-shadow(0 0 5px $matrix-glow);
+  }
+
+  // Titles: a prompt in front and a cursor after, in every language.
+  .ogis-section-title {
+    color: $matrix-bright;
+    letter-spacing: 0.06em;
+    text-shadow:
+      0 0 6px $matrix-bright,
+      0 0 18px rgba(0, 255, 65, 0.45);
+
+    // The "/ ''" alt text keeps screen readers (VoiceOver) from reading the
+    // decoration out loud; browsers without it keep the first declaration.
+    &::before {
+      content: "> ";
+      content: "> " / "";
+      color: $matrix-mid;
+    }
+
+    &::after {
+      content: "_";
+      content: "_" / "";
+      margin-left: 0.1em;
+    }
+  }
+
+  .ogis-section-heading,
+  .ogis-map3d-card__title {
+    color: $matrix-pale;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  // Full-width calls to action: an outlined, glowing terminal button.
+  .ogis-cta {
+    --bs-btn-color: #{$matrix-bright};
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: #{$matrix-bright};
+    --bs-btn-active-color: #001a00;
+    --bs-btn-active-bg: #{$matrix-bright};
+    --bs-btn-active-border-color: #{$matrix-bright};
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-shadow: 0 0 6px $matrix-bright;
+    box-shadow:
+      0 0 10px rgba(0, 255, 65, 0.45),
+      inset 0 0 12px rgba(0, 255, 65, 0.2);
+  }
+
+  .ogis-cta--danger {
+    --bs-btn-color: #ff4d4d;
+    --bs-btn-border-color: #ff4d4d;
+    --bs-btn-active-bg: #ff4d4d;
+    --bs-btn-active-border-color: #ff4d4d;
+    text-shadow: 0 0 6px rgba(255, 77, 77, 0.8);
+    box-shadow: 0 0 10px rgba(255, 77, 77, 0.4);
+  }
+
+  // Cards: square, with a bright edge on the left.
+  .ogis-track-card,
+  .ogis-live-card {
+    border: 1px solid $matrix-deep;
+    border-left: 3px solid $matrix-bright;
+    border-radius: 2px;
+    box-shadow: 0 0 14px rgba(0, 255, 65, 0.1);
+    color: $matrix-bright;
+  }
+
+  .ogis-track-name {
+    color: $matrix-pale;
+    text-shadow: 0 0 6px rgba(0, 255, 65, 0.9);
+  }
+
+  .ogis-track-card__meta,
+  .ogis-hint,
+  .text-body-tertiary,
+  .text-muted {
+    color: $matrix-dim !important;
+  }
+
+  // English only: a terminal-style prefix on route distances.
+  &[lang^="en"] .ogis-routes-list .ogis-track-card__meta::before {
+    content: "DIST// ";
+    content: "DIST// " / "";
+  }
+
+  // The colour dot keeps each route's own colour so it matches its line on
+  // the map; it only turns square and glows.
+  .ogis-track-swatch {
+    border-radius: 0;
+    box-shadow: 0 0 6px currentColor;
+  }
+
+  .ogis-track-card__rename,
+  .ogis-track-card__remove {
+    --bs-btn-color: #{$matrix-mid};
+    border-radius: 2px;
+  }
+
+  // Card buttons
+  .ogis-track-btn,
+  .ogis-share-menu > summary {
+    --bs-btn-color: #{$matrix-bright};
+    --bs-btn-bg: rgba(0, 0, 0, 0.6);
+    --bs-btn-border-color: #{$matrix-deep};
+    --bs-btn-active-color: #001a00;
+    --bs-btn-active-bg: #{$matrix-bright};
+    --bs-btn-active-border-color: #{$matrix-bright};
+    --bs-btn-disabled-color: #{$matrix-deep};
+    --bs-btn-disabled-bg: transparent;
+    --bs-btn-disabled-border-color: #{$matrix-deep};
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .ogis-track-btn:disabled,
+  .ogis-track-btn.disabled {
+    border-style: dashed;
+    opacity: 1;
+  }
+
+  .ogis-track-btn--show {
+    --bs-btn-border-color: #{$matrix-dim};
+  }
+
+  .ogis-track-btn--main,
+  .ogis-track-btn--on,
+  .ogis-track-card__actions .ogis-track-btn--on {
+    --bs-btn-color: #001a00;
+    --bs-btn-bg: #{$matrix-bright};
+    --bs-btn-border-color: #{$matrix-bright};
+    --bs-btn-active-color: #001a00;
+    --bs-btn-active-bg: #{$matrix-bright};
+    box-shadow: 0 0 14px rgba(0, 255, 65, 0.6);
+  }
+
+  .ogis-share-menu__items {
+    background: #000;
+    border: 1px solid $matrix-dim;
+    border-radius: 2px;
+    box-shadow: 0 0 14px rgba(0, 255, 65, 0.35);
+  }
+
+  .ogis-panel .btn-outline-secondary {
+    --bs-btn-color: #{$matrix-bright};
+    --bs-btn-border-color: #{$matrix-deep};
+    --bs-btn-active-color: #001a00;
+    --bs-btn-active-bg: #{$matrix-bright};
+    --bs-btn-active-border-color: #{$matrix-bright};
+    border-radius: 2px;
+  }
+
+  // Inputs (rename field, share link, zoom range)
+  .form-control,
+  .form-select,
+  .ogis-rename-input {
+    background-color: #000;
+    color: $matrix-bright;
+    border-color: $matrix-dim;
+    border-radius: 2px;
+    font-family: $matrix-font;
+
+    &:focus {
+      border-color: $matrix-bright;
+      box-shadow: 0 0 0 0.2rem rgba(0, 255, 65, 0.25);
+    }
+  }
+
+  .form-range {
+    accent-color: $matrix-bright;
+  }
+
+  .progress {
+    background: $matrix-deep;
+    border-radius: 0;
+  }
+
+  .progress-bar {
+    background: $matrix-bright;
+    box-shadow: 0 0 8px $matrix-glow;
+  }
+
+  .badge {
+    border-radius: 2px;
+  }
+
+  // Monospace is wider than the normal font, so the Offline Maps zoom row
+  // puts its From / To fields on a second line, below the title, instead
+  // of pushing them past the panel edge on phones.
+  .ogis-zoom-row {
+    flex-wrap: wrap;
+  }
+
+  .ogis-zoom-row__title {
+    flex-basis: 100%;
+    color: $matrix-pale;
+  }
+
+  // Small phones (iPhone SE and similar): drop the extra letter spacing so
+  // button labels such as "Guidez-moi" stay on one line.
+  @media (max-width: 359.98px) {
+    .ogis-cta,
+    .ogis-track-btn,
+    .ogis-share-menu > summary,
+    .ogis-modal .btn {
+      letter-spacing: 0;
+    }
+  }
+
+  // Info panel
+  .ogis-info-footer {
+    background: rgba(0, 6, 0, 0.94);
+    border-top-color: $matrix-dim !important;
+  }
+
+  .sidebar-section.border-top,
+  .sidebar-section.border-bottom {
+    border-color: $matrix-deep !important;
+  }
+
+  .ogis-about-section .lead {
+    color: $matrix-pale;
+  }
+
+  .ogis-about-logo {
+    filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(5);
+  }
+
+  .ogis-map3d-card__icon {
+    color: $matrix-bright;
+    filter: drop-shadow(0 0 4px $matrix-glow);
+  }
+
+  // ── Pop-ups ─────────────────────────────────────────────────
+
+  .ogis-modal .modal-content {
+    background: rgba(0, 8, 0, 0.96);
+    color: $matrix-bright;
+    border: 1px solid $matrix-bright;
+    border-radius: 2px;
+    box-shadow:
+      0 0 30px rgba(0, 255, 65, 0.35),
+      inset 0 0 20px rgba(0, 255, 65, 0.08);
+    font-family: $matrix-font;
+  }
+
+  .ogis-modal .modal-title,
+  .ogis-modal h5,
+  .ogis-modal h6 {
+    color: $matrix-pale;
+    text-shadow: 0 0 6px $matrix-glow;
+  }
+
+  .ogis-modal .modal-header,
+  .ogis-modal .modal-footer {
+    border-color: $matrix-deep;
+  }
+
+  .ogis-modal .btn {
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .ogis-modal .btn-primary,
+  .ogis-modal .btn-success {
+    --bs-btn-color: #001a00;
+    --bs-btn-bg: #{$matrix-bright};
+    --bs-btn-border-color: #{$matrix-bright};
+    --bs-btn-active-color: #001a00;
+    --bs-btn-active-bg: #{$matrix-bright};
+    --bs-btn-active-border-color: #{$matrix-bright};
+  }
+
+  .ogis-modal .btn-danger {
+    --bs-btn-color: #ff4d4d;
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: #ff4d4d;
+    --bs-btn-active-color: #000;
+    --bs-btn-active-bg: #ff4d4d;
+    --bs-btn-active-border-color: #ff4d4d;
+  }
+
+  .ogis-modal .btn-secondary,
+  .ogis-modal .btn-outline-secondary,
+  .ogis-modal .btn-light {
+    --bs-btn-color: #{$matrix-bright};
+    --bs-btn-bg: transparent;
+    --bs-btn-border-color: #{$matrix-dim};
+    --bs-btn-active-color: #001a00;
+    --bs-btn-active-bg: #{$matrix-bright};
+    --bs-btn-active-border-color: #{$matrix-bright};
+  }
+
+  .btn-close {
+    filter: invert(1) sepia(1) hue-rotate(70deg) saturate(8);
+  }
+
+  // ── Controls on top of the map (not the map itself) ────────
+
+  .icon-btn--chip {
+    background: rgba(0, 0, 0, 0.82);
+    color: $matrix-bright;
+    border: 1px solid $matrix-dim;
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.35);
+    font-family: $matrix-font;
+
+    &[aria-pressed="true"] {
+      background: rgba(0, 30, 0, 0.9);
+      border-color: $matrix-bright;
+      box-shadow: 0 0 16px rgba(0, 255, 65, 0.6);
+    }
+  }
+
+  .ogis-attribution-chip a {
+    color: $matrix-bright;
+  }
+
+  .maplibregl-ctrl-scale {
+    background-color: rgba(0, 0, 0, 0.82);
+    border-color: $matrix-bright;
+    color: $matrix-bright;
+    font-family: $matrix-font;
+  }
+
+  // Guide me box
+  .ogis-nav-control {
+    background: rgba(0, 0, 0, 0.88);
+    color: $matrix-bright;
+    border: 1px solid $matrix-bright;
+    border-radius: 2px;
+    box-shadow: 0 0 16px rgba(0, 255, 65, 0.45);
+    font-family: $matrix-font;
+  }
+
+  .ogis-nav-control__value {
+    color: $matrix-pale;
+    text-shadow: 0 0 6px $matrix-glow;
+  }
+
+  .ogis-nav-control__caption {
+    color: $matrix-dim;
+  }
+
+  // Locate tips
+  .ogis-locate-hint {
+    background: rgba(0, 0, 0, 0.9);
+    color: $matrix-bright;
+    border: 1px solid $matrix-bright;
+    border-radius: 2px;
+    box-shadow: 0 0 16px rgba(0, 255, 65, 0.45);
+    font-family: $matrix-font;
+  }
+
+  .ogis-map-status {
+    background: rgba(0, 0, 0, 0.9);
+    color: $matrix-bright;
+    border: 1px solid $matrix-bright;
+    border-radius: 2px;
+  }
+}
+
+// Rain is shown only in the Matrix theme; keep the canvas out of layout
+// everywhere else in case it is ever mounted.
+:root:not([data-ogis-theme="matrix"]) .ogis-matrix-rain {
+  display: none;
+}
