@@ -1,3 +1,11 @@
+## [3.20.2](https://github.com/OpenGIS/app/compare/v3.20.1...v3.20.2) (2026-11-08)
+
+
+### Bug Fixes
+
+* **locate:** render restored marker when map becomes ready ([2b71753](https://github.com/OpenGIS/app/commit/2b71753fdc8b2ba4643eda9e27800b68c7411751))
+* **locate:** restore heading with one tap after restart ([0034448](https://github.com/OpenGIS/app/commit/0034448f0ec2c0b50e8ae54901b855af4187233c))
+
 ## [3.20.1](https://github.com/OpenGIS/app/compare/v3.20.0...v3.20.1) (2026-11-08)
 
 
