@@ -22,8 +22,12 @@ permissions:
   contents: read
 
 concurrency:
+  # The newest push owns the release. A superseded run is cancelled instead of
+  # spending a full e2e matrix on a commit that master has already moved past —
+  # semantic-release refuses a checkout that is behind the remote, so such a run
+  # would finish green having released nothing.
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 jobs:
   unit:
