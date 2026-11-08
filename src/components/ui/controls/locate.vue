@@ -7,7 +7,7 @@ import LocateError from "@/components/modals/locate-error.vue";
 import LocateHint from "@/components/ui/controls/locate-hint.vue";
 import { useLocateHints } from "@/composables/useLocateHints";
 
-const { mode, cycle } = useLocate();
+const { mode, cycle, headingRecoveryPending } = useLocate();
 const { t } = useLocale();
 const { dismiss: dismissHint } = useLocateHints();
 
@@ -54,6 +54,6 @@ const label = computed(() => {
     :aria-label="label"
     @click="onClick"
   />
-  <LocateHint :mode="mode" />
+  <LocateHint :mode="mode" :heading-pending="headingRecoveryPending" />
   <LocateError />
 </template>

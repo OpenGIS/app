@@ -20,7 +20,7 @@ import { usePersistedState } from "@/resilience/persistedState";
  */
 
 /** Chip states that carry a hint, in the order a user meets them. */
-export const LOCATE_HINT_KEYS = ["idle", "active", "following"];
+export const LOCATE_HINT_KEYS = ["idle", "active", "following", "heading"];
 
 /** How long a hint stays up before it fades on its own. */
 export const LOCATE_HINT_DURATION_MS = 8000;
@@ -37,11 +37,18 @@ const MODAL_RETRY_MS = 750;
 /**
  * Map a locate mode to its hint key.
  *
+ * The `heading` key is an exceptional state: Following, but with the compass
+ * still pending after a restored session on iOS. It reuses the same once-only
+ * hint machinery as the other states.
+ *
  * @param {'active'|'following'|'error'|null} mode
- * @returns {'idle'|'active'|'following'|null}
+ * @param {{ headingPending?: boolean }} [options] - `headingPending` selects
+ *   the `heading` key while Following.
+ * @returns {'idle'|'active'|'following'|'heading'|null}
  */
-export const hintKeyForMode = (mode) => {
+export const hintKeyForMode = (mode, { headingPending = false } = {}) => {
   if (mode === null || mode === undefined) return "idle";
+  if (mode === "following" && headingPending) return "heading";
   if (mode === "active" || mode === "following") return mode;
   return null; // 'error' has its own modal
 };
@@ -90,7 +97,7 @@ const createHints = (instanceId) => {
     instanceId,
   );
 
-  const current = ref(null); // the hint on screen: 'idle'|'active'|'following'|null
+  const current = ref(null); // the hint on screen: 'idle'|'active'|'following'|'heading'|null
   let pendingTimer = null;
   let hideTimer = null;
 
@@ -117,11 +124,13 @@ const createHints = (instanceId) => {
    * Show the hint for a locate mode, once, after a short delay.
    *
    * @param {'active'|'following'|'error'|null} mode
-   * @param {{ boot?: boolean }} [options] - `boot` uses the longer first delay.
+   * @param {{ boot?: boolean, headingPending?: boolean }} [options] - `boot`
+   *   uses the longer first delay; `headingPending` selects the heading hint
+   *   while Following.
    */
-  const showFor = (mode, { boot = false } = {}) => {
+  const showFor = (mode, { boot = false, headingPending = false } = {}) => {
     dismiss();
-    const key = hintKeyForMode(mode);
+    const key = hintKeyForMode(mode, { headingPending });
     if (!key || isDisabled() || isSeen(key)) return;
 
     const attempt = () => {
@@ -151,7 +160,7 @@ const createHints = (instanceId) => {
 };
 
 /**
- * @returns {{ current: import('vue').Ref<'idle'|'active'|'following'|null>, showFor: Function, dismiss: Function, isSeen: Function, reset: Function }}
+ * @returns {{ current: import('vue').Ref<'idle'|'active'|'following'|'heading'|null>, showFor: Function, dismiss: Function, isSeen: Function, reset: Function }}
  */
 export const useLocateHints = (explicitInstanceId) => {
   const instanceId = explicitInstanceId ?? inject("ogisAppId", "app");

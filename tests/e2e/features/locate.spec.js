@@ -943,6 +943,7 @@ const readLocate = (page) =>
     const position = locate.position.value;
     return {
       mode: locate.mode.value,
+      headingRecoveryPending: locate.headingRecoveryPending.value,
       position: position
         ? {
             lat: position.lat,
@@ -970,6 +971,28 @@ const readActiveModes = (page) =>
     const { useActions } = await import("/src/composables/useActions.js");
     return useActions("app").activeModes.value;
   });
+
+/** Read the live map bearing through the page's own module graph. */
+const mapBearing = (page) =>
+  page.evaluate(async () => {
+    const { getMapInstance } = await import("/src/composables/useMap.js");
+    return getMapInstance("app").getBearing();
+  });
+
+/** Smallest absolute angular difference between two bearings, in degrees. */
+const bearingDifference = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+
+/**
+ * Read the heading marker's compass bearing, compensating for the map's own
+ * rotation. A map-aligned marker stores `heading − mapBearing` in its
+ * transform, so the raw `rotateZ` only equals the heading while the map is
+ * north-up.
+ */
+const headingBearing = async (page) => {
+  const rotation = await headingRotation(page);
+  if (rotation === null) return null;
+  return (rotation + (await mapBearing(page)) + 360) % 360;
+};
 
 test.describe("Locate / Restore", () => {
   test("restores an active session with the stored last fix", async ({
@@ -1465,6 +1488,49 @@ test.describe("Locate / Restore / Compass permission", () => {
     ownerId: "dead-owner",
   };
 
+  // The Active fixture mirrors the Following one; only the restored mode differs.
+  const recentActiveSession = { ...recentFollowingSession, mode: "active" };
+
+  /**
+   * True-north bearing for an iOS magnetic compass heading at the stored fix.
+   *
+   * The stored fix supplies the magnetic declination before any live fix
+   * arrives, so the production `magvar` package at those coordinates corrects
+   * the heading, as in the map-gesture cases above.
+   */
+  const expectedIOSBearing = (page, magneticHeading) =>
+    page.evaluate(
+      async ({ heading, fix }) => {
+        // Vite serves the optimised package with a default export.
+        const { magvar } = (await import("/@id/magvar")).default;
+        return (heading + magvar(fix.lat, fix.lng) + 360) % 360;
+      },
+      {
+        heading: magneticHeading,
+        fix: { lat: RESTORE_FIX.lat, lng: RESTORE_FIX.lng },
+      },
+    );
+
+  /**
+   * Dispatch iOS compass headings until the repaired listener receives one.
+   *
+   * `retryOrientation` attaches its listener only after the permission promise
+   * settles, so a dispatch issued immediately after the chip tap can land
+   * before the listener exists. Retrying through `expect.poll` waits for the
+   * attachment without relying on a fixed sleep.
+   */
+  const dispatchIOSCompassUntilHeading = async (page, headingDeg) => {
+    await expect
+      .poll(
+        async () => {
+          await dispatchIOSCompass(page, headingDeg);
+          return page.locator(".ogis-locate-heading").count();
+        },
+        { timeout: RESTORE_TIMEOUT },
+      )
+      .toBe(1);
+  };
+
   test("requests compass permission on the first map gesture after an iOS restore", async ({
     page,
   }) => {
@@ -1519,18 +1585,18 @@ test.describe("Locate / Restore / Compass permission", () => {
       { lat: RESTORE_FIX.lat, lng: RESTORE_FIX.lng },
     );
 
-    let rotation = null;
+    let heading = null;
     await expect
       .poll(
         async () => {
-          rotation = await headingRotation(page);
-          return rotation !== null && Math.abs(rotation - expectedBearing) < 10;
+          heading = await headingBearing(page);
+          return heading !== null && Math.abs(heading - expectedBearing) < 10;
         },
         { timeout: RESTORE_TIMEOUT },
       )
       .toBe(true);
-    expect(rotation).toBeGreaterThan(expectedBearing - 10);
-    expect(rotation).toBeLessThan(expectedBearing + 10);
+    expect(heading).toBeGreaterThan(expectedBearing - 10);
+    expect(heading).toBeLessThan(expectedBearing + 10);
 
     // The retry is one-shot: a later map tap must not prompt again.
     await tapMap(page);
@@ -1568,18 +1634,18 @@ test.describe("Locate / Restore / Compass permission", () => {
       })
       .toBe(1);
 
-    let rotation = null;
+    let heading = null;
     await expect
       .poll(
         async () => {
-          rotation = await headingRotation(page);
-          return rotation !== null && Math.abs(rotation - 270) < 10;
+          heading = await headingBearing(page);
+          return heading !== null && Math.abs(heading - 270) < 10;
         },
         { timeout: RESTORE_TIMEOUT },
       )
       .toBe(true);
-    expect(rotation).toBeGreaterThan(260);
-    expect(rotation).toBeLessThan(280);
+    expect(heading).toBeGreaterThan(260);
+    expect(heading).toBeLessThan(280);
   });
 
   test("arms the retry from the map container before the map is ready", async ({
@@ -1677,5 +1743,285 @@ test.describe("Locate / Restore / Compass permission", () => {
       .toBe(1);
     await expect(page.getByText("Unable to Locate")).toBeHidden();
     await expect(page.getByText("Trust")).toBeHidden();
+  });
+
+  test("a compass event rotates the restored follow camera before the next fix", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withIOSOrientationPermission(page);
+    await withLocateState(page, recentFollowingSession);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    // Restoring a session must never prompt on its own.
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      0,
+    );
+
+    await tapMap(page);
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    // The restored fix supplies the magnetic declination before any live GPS
+    // fix arrives, so a magnetic 180° heading is corrected to true north using
+    // the production `magvar` package at the stored coordinates.
+    const expectedBearing = await page.evaluate(
+      async (fix) => {
+        // Vite serves the optimised package with a default export.
+        const { magvar } = (await import("/@id/magvar")).default;
+        return (180 + magvar(fix.lat, fix.lng) + 360) % 360;
+      },
+      { lat: RESTORE_FIX.lat, lng: RESTORE_FIX.lng },
+    );
+
+    // The restored `lastFix` is the only position throughout: the geolocation
+    // mock never auto-emits, so any rotation can only come from this compass
+    // event rotating the follow camera directly.
+    await dispatchIOSCompass(page, 180);
+
+    let bearing = null;
+    await expect
+      .poll(
+        async () => {
+          bearing = await mapBearing(page);
+          return (
+            bearing !== null && bearingDifference(bearing, expectedBearing) < 10
+          );
+        },
+        {
+          timeout: RESTORE_TIMEOUT,
+          message: `follow camera did not rotate to ${expectedBearing}°`,
+        },
+      )
+      .toBe(true);
+    expect(bearingDifference(bearing, expectedBearing)).toBeLessThan(10);
+  });
+
+  test("a chip tap repairs a restored iOS Following session and stays Following", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withIOSOrientationPermission(page);
+    await withLocateState(page, recentFollowingSession);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    // Restoring a session must never prompt on its own.
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      0,
+    );
+
+    // The first chip tap is the repair gesture: it requests orientation
+    // permission inside the click and must leave the tracking mode untouched.
+    await btn.click();
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+    await expect(btn).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    // A magnetic 180° heading is corrected to true north at the stored fix, and
+    // the follow camera damps towards that bearing.
+    await dispatchIOSCompassUntilHeading(page, 180);
+    await expect(page.locator(".ogis-locate-heading")).toHaveCount(1);
+
+    const expectedBearing = await expectedIOSBearing(page, 180);
+    let bearing = null;
+    await expect
+      .poll(
+        async () => {
+          bearing = await mapBearing(page);
+          return (
+            bearing !== null && bearingDifference(bearing, expectedBearing) < 10
+          );
+        },
+        {
+          timeout: RESTORE_TIMEOUT,
+          message: `follow camera did not rotate to ${expectedBearing}°`,
+        },
+      )
+      .toBe(true);
+    expect(bearingDifference(bearing, expectedBearing)).toBeLessThan(10);
+
+    // The repair is consumed by the first tap: a second tap stops normally.
+    await btn.click();
+    await expect(btn).toContainText("Locate", { timeout: LOCATE_TIMEOUT });
+    await expect(page.locator(".ogis-locate-position")).toHaveCount(0);
+    await expect(page.locator(".ogis-locate-heading")).toHaveCount(0);
+  });
+
+  test("a chip tap enters Following from a restored iOS Active session and repairs", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withIOSOrientationPermission(page);
+    await withLocateState(page, recentActiveSession);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Located", { timeout: RESTORE_TIMEOUT });
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      0,
+    );
+
+    // The first chip tap follows and repairs in one gesture.
+    await btn.click();
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+    await expect(btn).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+
+    await dispatchIOSCompassUntilHeading(page, 90);
+    await expect(page.locator(".ogis-locate-heading")).toHaveCount(1);
+  });
+
+  test("a denied chip repair keeps Following without an error", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withIOSOrientationPermission(page, "denied");
+    await withLocateState(page, recentFollowingSession);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    await btn.click();
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    // The denial settles quietly: Following, the position marker and no error
+    // surface stay exactly as they were.
+    await page.waitForTimeout(200);
+    await expect(btn).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+    await expect(page.locator(".ogis-locate-heading")).toHaveCount(0);
+    await expect(
+      page.locator('.ogis-modal[aria-labelledby="locate-error-title"]'),
+    ).toHaveCount(0);
+    await expect(page.getByText("Unable to Locate")).toBeHidden();
+
+    // A second tap then behaves normally and stops.
+    await btn.click();
+    await expect(btn).toContainText("Locate", { timeout: LOCATE_TIMEOUT });
+    await expect(page.locator(".ogis-locate-position")).toHaveCount(0);
+    await expect(page.locator(".ogis-locate-heading")).toHaveCount(0);
+  });
+
+  test("a chip tap stops a non-iOS restored Following session without a repair", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withLocateState(page, recentFollowingSession);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    // Off iOS there is no deferred permission repair to arm.
+    expect((await readLocate(page)).headingRecoveryPending).toBe(false);
+
+    // The non-iOS restore listens immediately: absolute alpha 90 yields a 270°
+    // true-north bearing, as in the existing non-iOS restore case.
+    await dispatchCompass(page, 270);
+    await expect
+      .poll(() => page.locator(".ogis-locate-heading").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    let heading = null;
+    await expect
+      .poll(
+        async () => {
+          heading = await headingBearing(page);
+          return heading !== null && Math.abs(heading - 270) < 10;
+        },
+        { timeout: RESTORE_TIMEOUT },
+      )
+      .toBe(true);
+    expect(heading).toBeGreaterThan(260);
+    expect(heading).toBeLessThan(280);
+
+    // One tap stops immediately; no repair gesture intervenes.
+    await btn.click();
+    await expect(btn).toContainText("Locate", { timeout: LOCATE_TIMEOUT });
+    await expect(page.locator(".ogis-locate-position")).toHaveCount(0);
+    await expect(page.locator(".ogis-locate-heading")).toHaveCount(0);
+    expect(
+      await page.evaluate(() => window.__orientationPermissionCalls),
+    ).toBeUndefined();
   });
 });

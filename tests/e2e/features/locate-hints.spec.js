@@ -6,10 +6,14 @@ import {
 import { waitForMapReady } from "../helpers/panel";
 import {
   LOCATE_FIX as FIX,
+  dispatchIOSCompass,
   expectedHashRegExp,
+  installGeolocationMock,
   orientHash,
   waitForCameraSettle,
   withGrantedLocateStorage,
+  withIOSOrientationPermission,
+  withLocateSession,
 } from "../helpers/locate.js";
 import { readStoredState } from "../helpers/storage.js";
 
@@ -104,5 +108,114 @@ test.describe("Locate / Hints", () => {
     await waitForMapReady(page);
     await page.waitForTimeout(2500);
     await expect(hint(page)).toHaveCount(0);
+  });
+});
+
+// ─── Locate / Hints / Restored heading ──────────────────────────────────────
+
+// A recent Following session restored on iOS: the geolocation grant survives
+// in storage, but the session-only orientation grant does not, so the compass
+// starts pending until the next user gesture. These cases pin the hint that
+// explains the pending compass.
+const recentFollowingSession = {
+  permissionGranted: true,
+  mode: "following",
+  lastFix: {
+    lat: FIX.latitude,
+    lng: FIX.longitude,
+    accuracy: 12,
+    heading: null,
+    at: Date.now(),
+  },
+  ownerId: "dead-owner",
+};
+
+test.describe("Locate / Hints / Restored heading", () => {
+  test.beforeEach(async ({ page }) => {
+    await withHints(page);
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withIOSOrientationPermission(page);
+    await withLocateSession(page, recentFollowingSession);
+    await page.goto("/");
+    await waitForMapReady(page);
+  });
+
+  test("shows the heading hint while the restored compass is pending", async ({
+    page,
+  }) => {
+    const btn = page.locator("#locate-button");
+
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    await expect(hintFor(page, "heading")).toContainText("Compass is off", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await expect(hintFor(page, "following")).toHaveCount(0);
+
+    // The chip tap is the repair gesture: it requests orientation permission
+    // without leaving Following.
+    await btn.click();
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(1);
+
+    await expect(hintFor(page, "heading")).toHaveCount(0);
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+
+    // `retryOrientation` attaches its listener only once the permission
+    // promise settles, so retry the dispatch until the heading marker exists.
+    await expect
+      .poll(
+        async () => {
+          await dispatchIOSCompass(page, 90);
+          return page.locator(".ogis-locate-heading").count();
+        },
+        { timeout: LOCATE_TIMEOUT },
+      )
+      .toBe(1);
+  });
+
+  test("does not repeat the heading hint after it has been seen", async ({
+    page,
+  }) => {
+    await expect(hintFor(page, "heading")).toContainText("Compass is off", {
+      timeout: LOCATE_TIMEOUT,
+    });
+
+    // Let the debounced seen-write land, then reload into the same session.
+    await page.waitForTimeout(600);
+    await page.reload();
+    await waitForMapReady(page);
+
+    // Cover the boot and change delays before asserting it stayed away. A
+    // different hint may appear here; only the heading hint must not.
+    await page.waitForTimeout(2500);
+    await expect(hintFor(page, "heading")).toHaveCount(0);
+  });
+});
+
+test.describe("Locate / Hints / Restored heading (non-iOS)", () => {
+  test.beforeEach(async ({ page }) => {
+    await withHints(page);
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withLocateSession(page, recentFollowingSession);
+    await page.goto("/");
+    await waitForMapReady(page);
+  });
+
+  test("does not show the heading hint without an orientation permission request", async ({
+    page,
+  }) => {
+    const btn = page.locator("#locate-button");
+
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    await expect(hintFor(page, "heading")).toHaveCount(0);
+    await expect(hintFor(page, "following")).toContainText(
+      "Tap again to stop",
+      { timeout: LOCATE_TIMEOUT },
+    );
   });
 });

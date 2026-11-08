@@ -5,6 +5,7 @@ import { useLocateHints } from "@/composables/useLocateHints";
 
 const props = defineProps({
   mode: { type: String, default: null },
+  headingPending: { type: Boolean, default: false },
 });
 
 const { t } = useLocale();
@@ -14,14 +15,15 @@ const text = computed(() => {
   if (current.value === "idle") return t("locate.hint.idle");
   if (current.value === "active") return t("locate.hint.active");
   if (current.value === "following") return t("locate.hint.following");
+  if (current.value === "heading") return t("locate.hint.heading");
   return "";
 });
 
 let booted = false;
 watch(
-  () => props.mode,
-  (mode) => {
-    showFor(mode, { boot: !booted });
+  [() => props.mode, () => props.headingPending],
+  ([mode, headingPending]) => {
+    showFor(mode, { boot: !booted, headingPending });
     booted = true;
   },
   { immediate: true },

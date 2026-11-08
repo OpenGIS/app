@@ -61,7 +61,7 @@ function smoothAngle(current, next, factor) {
  * Manages GPS tracking state, map markers, and the permission flow.
  * State is cached per app instance and shared across all callers.
  *
- * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, restoreComplete: Promise<void>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function, dispose: Function }}
+ * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, headingRecoveryPending: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, restoreComplete: Promise<void>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function, dispose: Function }}
  */
 const createLocate = (instanceId) => {
   if (!locateCache.has(instanceId)) {
@@ -90,6 +90,7 @@ const createLocate = (instanceId) => {
       position: ref(null), // Position | null
       compassHeading: ref(null), // smoothed DeviceOrientation compass bearing
       headingLost: ref(false), // true when orientation events have stopped arriving
+      headingRecoveryPending: ref(false), // true when the next chip tap should repair the compass
       smoothedHeading: null, // internal: raw float used for smoothing
       magneticDeclination: 0, // degrees East; corrects webkitCompassHeading to true north
       lastFix: null, // { lat, lng, atMs } of the previous accepted fix
@@ -401,6 +402,7 @@ const createLocate = (instanceId) => {
 
       // Valid reading received — clear any loss state and reset the watchdog.
       c.headingLost.value = false;
+      c.headingRecoveryPending.value = false;
       scheduleHeadingTimeout();
 
       // iOS Safari provides a magnetic compass heading via webkitCompassHeading
@@ -424,6 +426,16 @@ const createLocate = (instanceId) => {
       }
       c.compassHeading.value = Math.round(c.smoothedHeading);
       syncMarkers();
+
+      if (c.mode.value === "following" && c.position.value) {
+        feedFollowCamera(
+          c.position.value.lat,
+          c.position.value.lng,
+          c.lastSpeedMps,
+          c.lastCourseDeg,
+          performance.now(),
+        );
+      }
     };
 
     // deviceorientationabsolute always provides an absolute compass bearing.
@@ -612,6 +624,7 @@ const createLocate = (instanceId) => {
     stopWatcher();
     stopOrientationWatching();
     removeMarkers();
+    c.headingRecoveryPending.value = false;
 
     // A restore that fails before its first fix is silent: the user never
     // started this session, so there is nothing to report and no modal to show.
@@ -751,6 +764,7 @@ const createLocate = (instanceId) => {
    */
   const startWatching = async ({ restore = false } = {}) => {
     if (c.disposed) return;
+    c.headingRecoveryPending.value = false;
     // A normal start (or a fresh restore) owns the permission flow; drop any
     // retry armed for the previous restored session.
     clearOrientationGestureRetry();
@@ -847,6 +861,19 @@ const createLocate = (instanceId) => {
       return;
     }
 
+    if (c.headingRecoveryPending.value) {
+      const canRepair =
+        c.compassHeading.value === null &&
+        (c.mode.value === "active" || c.mode.value === "following");
+      if (canRepair) {
+        c.headingRecoveryPending.value = false;
+        if (c.mode.value === "active") enterFollowing();
+        retryOrientation().catch(() => {});
+        return;
+      }
+      c.headingRecoveryPending.value = false;
+    }
+
     if (c.mode.value === null) {
       requestPermission(startWatching);
     } else if (c.mode.value === "active") {
@@ -934,6 +961,7 @@ const createLocate = (instanceId) => {
     clearOrientRetry();
     clearOrientationGestureRetry();
     c.needsInitialOrient = false;
+    c.headingRecoveryPending.value = false;
     followCamera.stop();
     resetDerivation();
     stopWatcher();
@@ -976,6 +1004,7 @@ const createLocate = (instanceId) => {
    * DeviceOrientationEvent permission.
    */
   const retryOrientation = async () => {
+    c.headingRecoveryPending.value = false;
     stopOrientationWatching();
     const granted = await requestOrientationPermission();
     if (granted) {
@@ -1076,12 +1105,18 @@ const createLocate = (instanceId) => {
       c.restoring = true;
       await startWatching({ restore: true });
 
-      if (c.mode.value === "active" && storedMode === "following") {
-        enterFollowing();
-      }
-
       if (c.mode.value !== "active" && c.mode.value !== "following") {
         return;
+      }
+
+      // The orientation grant is session-only, so a restored session may have
+      // no compass heading. Flag it for the next chip tap to repair inside its
+      // user gesture, before the Following hint reads the mode and flag.
+      c.headingRecoveryPending.value =
+        hasOrientationPermissionRequest() && c.compassHeading.value === null;
+
+      if (c.mode.value === "active" && storedMode === "following") {
+        enterFollowing();
       }
 
       // Stay in restoring mode until the first accepted fix, so an early
@@ -1157,6 +1192,7 @@ const createLocate = (instanceId) => {
     c.smoothedHeading = null;
     c.compassHeading.value = null;
     c.headingLost.value = false;
+    c.headingRecoveryPending.value = false;
     c.pendingCallback = null;
     c.showConfirmModal.value = false;
     c.showErrorModal.value = false;
@@ -1172,6 +1208,7 @@ const createLocate = (instanceId) => {
     position: computed(() => c.position.value),
     compassHeading: computed(() => c.compassHeading.value),
     headingLost: computed(() => c.headingLost.value),
+    headingRecoveryPending: computed(() => c.headingRecoveryPending.value),
     permissionGranted: computed(() => c.storage.permissionGranted),
     showConfirmModal: c.showConfirmModal,
     showErrorModal: c.showErrorModal,

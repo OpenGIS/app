@@ -20,6 +20,18 @@ describe("hintKeyForMode", () => {
     expect(hintKeyForMode("following")).toBe("following");
     expect(hintKeyForMode("error")).toBeNull();
   });
+
+  it("selects the heading key only while Following awaits a compass", () => {
+    expect(hintKeyForMode("following", { headingPending: true })).toBe(
+      "heading",
+    );
+    expect(hintKeyForMode("following", { headingPending: false })).toBe(
+      "following",
+    );
+    expect(hintKeyForMode("active", { headingPending: true })).toBe("active");
+    expect(hintKeyForMode(null, { headingPending: true })).toBe("idle");
+    expect(hintKeyForMode("error", { headingPending: true })).toBeNull();
+  });
 });
 
 describe("hydrateLocateHints", () => {
@@ -32,6 +44,12 @@ describe("hydrateLocateHints", () => {
   it("recovers from malformed data", () => {
     expect(hydrateLocateHints(null)).toEqual({ seen: [] });
     expect(hydrateLocateHints({ seen: "idle" })).toEqual({ seen: [] });
+  });
+
+  it("keeps a seen heading key while filtering and de-duplicating", () => {
+    expect(
+      hydrateLocateHints({ seen: ["heading", "bogus", "heading", "idle"] }),
+    ).toEqual({ seen: ["heading", "idle"] });
   });
 });
 
@@ -93,6 +111,35 @@ describe("useLocateHints", () => {
 
     expect(hints.current.value).toBe("following");
     expect(hints.isSeen("active")).toBe(false);
+  });
+
+  it("shows the heading hint while Following awaits a compass", () => {
+    const hints = useLocateHints(ID);
+    hints.showFor("following", { headingPending: true });
+
+    vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
+    expect(hints.current.value).toBe("heading");
+    expect(hints.isSeen("heading")).toBe(true);
+    expect(hints.isSeen("following")).toBe(false);
+  });
+
+  it("shows the heading hint only once", () => {
+    const hints = useLocateHints(ID);
+    hints.showFor("following", { headingPending: true });
+    vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
+    hints.dismiss();
+
+    hints.showFor("following", { headingPending: true });
+    vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
+    expect(hints.current.value).toBeNull();
+  });
+
+  it("ignores the heading flag outside Following", () => {
+    const hints = useLocateHints(ID);
+    hints.showFor("active", { headingPending: true });
+    vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
+    expect(hints.current.value).toBe("active");
+    expect(hints.isSeen("heading")).toBe(false);
   });
 
   it("has no hint for the error state", () => {
