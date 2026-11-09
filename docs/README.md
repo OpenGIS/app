@@ -1,6 +1,6 @@
 ---
-git_hash: "02cb70d82bf0584a5e370bdc28db76f0a131b835"
-modified: "2026-11-06"
+git_hash: "2952687ac5d42204ac53d226df51a23e584cf404"
+modified: "2026-11-09"
 ---
 
 # ogis.app — Docs
@@ -23,7 +23,7 @@ Developer documentation for the ogis.app codebase.
 | [5. UI](./5.ui.md)                                       | `useUI` and `useActions` APIs: responsive breakpoints, panel, corner controls, actions and map modes, wake lock                  |
 | [6. GeoJSON](./6.geojson.md)                             | `useGeoJSON` API: rendering features with styles and direction chevrons                                                          |
 | [7. Locale](./7.locale.md)                               | `useLocale` API: translations, language resolution                                                                               |
-| [8. Theme](./8.theme.md)                                 | Bootstrap SCSS theme architecture and green palette                                                                              |
+| [8. Theme](./8.theme.md)                                 | Single default theme: Bootstrap SCSS with the dark palette compiled as the base `:root` and a green accent                       |
 | [9. Testing](./9.testing.md)                             | Unit and E2E strategy, rendering modes, fixtures, screenshot matrix                                                              |
 | [10. Features](./10.features.md)                         | Adding a core feature (internal plugin pattern)                                                                                  |
 | [11. Routes](./11.routes.md)                             | GPX/GeoJSON import, route and waypoint rendering, visibility, follow-mode navigation                                             |

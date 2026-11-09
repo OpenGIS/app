@@ -32,7 +32,7 @@ function readNavigatorLanguages() {
 /**
  * Module-level reactive list of the user's preferred languages — the single
  * source of truth for locale resolution, kept live by the `languagechange`
- * event (mirrors `systemDark` in useSettings).
+ * event.
  */
 export const navigatorLanguages = ref(readNavigatorLanguages());
 

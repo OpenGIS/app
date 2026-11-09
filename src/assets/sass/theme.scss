@@ -1,8 +1,11 @@
+@use "sass:map";
+
 // ============================================================
 // ogis.app Theme  ·  src/assets/sass/theme.scss
 //
 // A GPS-trail-inspired Bootstrap 5.3 theme with a green accent
-// and dark navbar, making the UI feel native to the map beneath it.
+// and a dark default palette, making the UI feel native to the
+// map beneath it.
 //
 // Structure
 // ─────────────────────────────────────────────────────────
@@ -30,13 +33,11 @@
 @import "bootstrap/scss/functions";
 
 // ── #2  App palette ───────────────────────────────────────────
-// Four base hues. Adjust these alone to shift the entire theme
-// without touching individual components.
+// A single accent hue. The default palette is dark, drawn from
+// Bootstrap's dark variables; adjust this one value to retheme
+// the accent without touching individual components.
 
 $app-green: #39d353; // GPS marker green  — primary accent
-$app-black: #111111; // near-black        — reserved, currently unused
-$app-white: #ffffff; // clean white       — light-mode panel base
-$app-ink: #1a1f1a; // near-black green  — body text in light mode
 
 // ── #3  Bootstrap variable overrides ─────────────────────────
 // Only the defaults we intentionally change. Unmentioned
@@ -44,14 +45,6 @@ $app-ink: #1a1f1a; // near-black green  — body text in light mode
 
 // Brand
 $primary: $app-green;
-
-// Body (light mode)
-$body-bg: $app-white;
-$body-color: $app-ink;
-
-// Borders — featherlight so they don't crowd the map
-$border-color: rgba(0, 0, 0, 0.09);
-$border-color-translucent: rgba(0, 0, 0, 0.09);
 
 // Panel geometry — slightly narrower than Bootstrap's 400 px default
 $offcanvas-horizontal-width: 340px;
@@ -66,7 +59,53 @@ $font-size-base: 0.9375rem; // 15 px
 
 @import "bootstrap/scss/variables";
 @import "bootstrap/scss/variables-dark";
+
+// Default palette: Bootstrap's dark palette is the base
+$body-color: $body-color-dark;
+$body-bg: $body-bg-dark;
+$body-secondary-color: $body-secondary-color-dark;
+$body-secondary-bg: $body-secondary-bg-dark;
+$body-tertiary-color: $body-tertiary-color-dark;
+$body-tertiary-bg: $body-tertiary-bg-dark;
+$body-emphasis-color: $body-emphasis-color-dark;
+$border-color: $border-color-dark;
+$border-color-translucent: $border-color-translucent-dark;
+$headings-color: $headings-color-dark;
+$link-color: $link-color-dark;
+$link-hover-color: $link-hover-color-dark;
+$code-color: $code-color-dark;
+$mark-color: $mark-color-dark;
+$mark-bg: $mark-bg-dark;
+$form-valid-color: $form-valid-color-dark;
+$form-valid-border-color: $form-valid-border-color-dark;
+$form-invalid-color: $form-invalid-color-dark;
+$form-invalid-border-color: $form-invalid-border-color-dark;
+
+// Values Bootstrap bakes into data URIs / roots before this point
+$navbar-light-toggler-icon-bg: $navbar-dark-toggler-icon-bg;
+$accordion-button-icon: $accordion-button-icon-dark;
+$accordion-button-active-icon: $accordion-button-active-icon-dark;
+$form-select-indicator: $form-select-indicator-dark;
+$form-switch-bg-image: $form-switch-bg-image-dark;
+$carousel-indicator-active-bg: $carousel-indicator-active-bg-dark;
+$carousel-caption-color: $carousel-caption-color-dark;
+$carousel-control-icon-filter: $carousel-control-icon-filter-dark;
+
 @import "bootstrap/scss/maps";
+
+$theme-colors-text: map.merge($theme-colors-text, $theme-colors-text-dark);
+$theme-colors-bg-subtle: map.merge(
+  $theme-colors-bg-subtle,
+  $theme-colors-bg-subtle-dark
+);
+$theme-colors-border-subtle: map.merge(
+  $theme-colors-border-subtle,
+  $theme-colors-border-subtle-dark
+);
+
+// MUST stay after maps: the dark maps must exist before disabling dark mode
+$enable-dark-mode: false;
+
 @import "bootstrap/scss/mixins";
 @import "bootstrap/scss/root";
 
@@ -126,6 +165,10 @@ $font-size-base: 0.9375rem; // 15 px
 // panel width without needing to access the offcanvas element.
 
 :root {
+  // The default palette is dark, so native controls and scrollbars
+  // render dark from the start — no runtime theme attribute needed.
+  color-scheme: dark;
+
   // Mobile safe-area insets (notch, status bar, home indicator).
   // Exposed as custom properties so tests can simulate real insets.
   --ogis-safe-top: env(safe-area-inset-top, 0px);
@@ -138,10 +181,9 @@ $font-size-base: 0.9375rem; // 15 px
   // $offcanvas-horizontal-width (340px) wherever there is room.
   --ogis-panel-width: min(#{$offcanvas-horizontal-width}, calc(100vw - 4rem));
 
-  // Privacy bar affordance. The light value keeps the disclosure icon at
-  // roughly 3.5:1 on the frosted panel; the dark value can use the brighter
-  // brand green.
-  --ogis-privacy-accent: #1f9d45;
+  // Privacy bar affordance — the single brand-green accent used for
+  // the disclosure icon and its focus outline.
+  --ogis-privacy-accent: #39d353;
 }
 
 // #6b  Side panel (Bootstrap Offcanvas)
@@ -152,15 +194,9 @@ $font-size-base: 0.9375rem; // 15 px
   padding-top: var(--ogis-safe-top);
   padding-bottom: var(--ogis-safe-bottom);
   padding-left: var(--ogis-safe-left);
-  --bs-offcanvas-bg: rgba(255, 255, 255, 0.82);
+  --bs-offcanvas-bg: rgba(10, 18, 10, 0.82);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border-right: 1px solid rgba(0, 0, 0, 0.07) !important;
-  box-shadow: 3px 0 28px rgba(0, 0, 0, 0.08);
-}
-
-[data-bs-theme="dark"] .ogis-panel {
-  --bs-offcanvas-bg: rgba(10, 18, 10, 0.82);
   border-right: 1px solid rgba(255, 255, 255, 0.07) !important;
   box-shadow: 3px 0 28px rgba(0, 0, 0, 0.4);
 }
@@ -169,11 +205,6 @@ $font-size-base: 0.9375rem; // 15 px
 // ─────────────────────────────────────────────────────────────
 
 .panel-nav {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border-bottom-color: rgba(0, 0, 0, 0.07) !important;
-}
-
-[data-bs-theme="dark"] .panel-nav {
   background: rgba(10, 18, 10, 0.94) !important;
   border-bottom-color: rgba(255, 255, 255, 0.07) !important;
 }
@@ -182,10 +213,6 @@ $font-size-base: 0.9375rem; // 15 px
 // ─────────────────────────────────────────────────────────────
 
 .sidebar-section.border-top {
-  border-top-color: rgba(0, 0, 0, 0.07) !important;
-}
-
-[data-bs-theme="dark"] .sidebar-section.border-top {
   border-top-color: rgba(255, 255, 255, 0.08) !important;
 }
 
@@ -204,16 +231,8 @@ $font-size-base: 0.9375rem; // 15 px
 // ─────────────────────────────────────────────────────────────
 
 .icon-btn {
-  color: var(--bs-secondary-color);
-  transition: color 0.15s ease;
-
-  &[aria-pressed="true"] {
-    color: var(--bs-primary);
-  }
-}
-
-[data-bs-theme="dark"] .icon-btn {
   color: rgba(255, 255, 255, 0.55);
+  transition: color 0.15s ease;
 
   &[aria-pressed="true"] {
     color: var(--bs-primary);
@@ -393,9 +412,9 @@ $font-size-base: 0.9375rem; // 15 px
   width: max-content;
   max-width: min(17rem, calc(100vw - 1.5rem));
   padding: 0.65rem 0.9rem;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(10, 18, 10, 0.92);
   backdrop-filter: blur(12px) saturate(160%);
   -webkit-backdrop-filter: blur(12px) saturate(160%);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
@@ -422,11 +441,6 @@ $font-size-base: 0.9375rem; // 15 px
 
 .ogis-locate-hint__text {
   position: relative;
-}
-
-[data-bs-theme="dark"] .ogis-locate-hint {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(10, 18, 10, 0.92);
 }
 
 .ogis-locate-hint-enter-active,
@@ -578,13 +592,13 @@ $font-size-base: 0.9375rem; // 15 px
   box-sizing: border-box;
   max-width: calc(100vw - 11rem);
   padding: 0.9rem 1rem 0.9rem 0.85rem;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(10, 18, 10, 0.82);
   backdrop-filter: blur(12px) saturate(160%);
   -webkit-backdrop-filter: blur(12px) saturate(160%);
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
-  color: var(--bs-secondary-color);
+  color: rgba(255, 255, 255, 0.7);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   pointer-events: none;
@@ -612,6 +626,13 @@ $font-size-base: 0.9375rem; // 15 px
     height: 24px;
     transform-origin: center;
   }
+}
+
+// The card variant uses a stronger icon-disc tint than the base; the chip
+// and pill variants drop the background, and no-variant keeps the base tint
+// above.
+.ogis-nav-control[data-variant="card"] .ogis-nav-control__icon {
+  background: rgba(var(--bs-primary-rgb), 0.22);
 }
 
 .ogis-nav-control__body {
@@ -722,34 +743,10 @@ $font-size-base: 0.9375rem; // 15 px
 }
 
 .ogis-nav-control[data-state="on-route"] .ogis-nav-control__icon {
-  color: #198754;
-}
-
-.ogis-nav-control[data-variant="card"][data-state="on-route"]
-  .ogis-nav-control__icon {
-  background: rgba(25, 135, 84, 0.14);
-}
-
-[data-bs-theme="dark"] .ogis-nav-control {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(10, 18, 10, 0.82);
-  color: rgba(255, 255, 255, 0.7);
-}
-
-[data-bs-theme="dark"]
-  .ogis-nav-control[data-variant="card"]
-  .ogis-nav-control__icon {
-  background: rgba(var(--bs-primary-rgb), 0.22);
-}
-
-[data-bs-theme="dark"]
-  .ogis-nav-control[data-state="on-route"]
-  .ogis-nav-control__icon {
   color: #75b798;
 }
 
-[data-bs-theme="dark"]
-  .ogis-nav-control[data-variant="card"][data-state="on-route"]
+.ogis-nav-control[data-variant="card"][data-state="on-route"]
   .ogis-nav-control__icon {
   background: rgba(25, 135, 84, 0.24);
 }
@@ -770,12 +767,12 @@ $font-size-base: 0.9375rem; // 15 px
   gap: 0.4rem;
   padding: 0.4rem 0.7rem;
   border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 18, 10, 0.82);
   backdrop-filter: blur(12px) saturate(160%);
   -webkit-backdrop-filter: blur(12px) saturate(160%);
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
-  color: var(--bs-secondary-color);
+  color: rgba(255, 255, 255, 0.7);
 
   .icon-btn__label {
     position: static;
@@ -801,7 +798,7 @@ $font-size-base: 0.9375rem; // 15 px
 
   &[aria-pressed="true"] {
     color: var(--bs-primary);
-    background: rgba(255, 255, 255, 0.92);
+    background: rgba(10, 18, 10, 0.92);
   }
 }
 
@@ -836,17 +833,6 @@ $font-size-base: 0.9375rem; // 15 px
 
   &:focus-visible {
     border-radius: 50%;
-  }
-}
-
-[data-bs-theme="dark"] .icon-btn--chip {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(10, 18, 10, 0.82);
-  color: rgba(255, 255, 255, 0.7);
-
-  &[aria-pressed="true"] {
-    color: var(--bs-primary);
-    background: rgba(10, 18, 10, 0.92);
   }
 }
 
@@ -943,17 +929,9 @@ $font-size-base: 0.9375rem; // 15 px
   position: sticky;
   bottom: 0;
   z-index: 2;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(10, 18, 10, 0.92);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
-}
-
-[data-bs-theme="dark"] .ogis-info-footer {
-  background: rgba(10, 18, 10, 0.92);
-}
-
-[data-bs-theme="dark"] {
-  --ogis-privacy-accent: #39d353;
 }
 
 // Info panel attribution links — interactive here, unlike the chip.
@@ -1028,10 +1006,6 @@ $font-size-base: 0.9375rem; // 15 px
 }
 
 .ogis-privacy-bar > summary:hover {
-  background-color: rgba(0, 0, 0, 0.045);
-}
-
-[data-bs-theme="dark"] .ogis-privacy-bar > summary:hover {
   background-color: rgba(255, 255, 255, 0.07);
 }
 
@@ -1043,11 +1017,7 @@ $font-size-base: 0.9375rem; // 15 px
   overscroll-behavior: contain;
   margin: 0 1rem;
   padding: 0.75rem 0 0.875rem;
-  border-top: 1px solid rgba(0, 0, 0, 0.07);
-}
-
-[data-bs-theme="dark"] .ogis-privacy-bar__body {
-  border-top-color: rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 // Keep the MapLibre scale control clear of the bottom-left attribution chip.
@@ -1070,10 +1040,11 @@ $font-size-base: 0.9375rem; // 15 px
   left: 4.75rem !important;
 }
 
-// Dark theme: MapLibre's scale control ships as a bright white box, which is
-// the only light element left in the dark UI. Recolour it to the app's dark
-// glass surfaces — background, border and text only, geometry untouched.
-[data-bs-theme="dark"] .maplibregl-ctrl-scale {
+// MapLibre's scale control ships as a bright white box, which stands out
+// against the default dark UI. Recolour it to the app's dark glass surfaces —
+// background, border and text only, geometry untouched. Scoped to `.ogis-root`
+// so it wins by specificity regardless of CSS bundle order.
+.ogis-root .maplibregl-ctrl-scale {
   background-color: rgba(10, 18, 10, 0.82);
   border-color: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);

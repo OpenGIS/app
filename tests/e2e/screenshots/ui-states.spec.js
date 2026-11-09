@@ -13,6 +13,7 @@ import {
   normaliseCaptureState,
 } from "../helpers/layout.js";
 import { assertSafeOutputRoot } from "../helpers/screenshotsGuard.js";
+import { expectDefaultTheme } from "../helpers/theme.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 import { DEMO_AREA } from "../../fixtures/map/demoArea.mjs";
 import { createHash } from "node:crypto";
@@ -24,7 +25,7 @@ import { basename } from "node:path";
  *
  * Generates the committed visual-evidence matrix: every core chrome state at
  * six viewport combinations (phone/tablet/desktop × portrait/landscape), all in
- * the project-default dark theme. The two locate permission modals are captured
+ * the default theme. The two locate permission modals are captured
  * at all six viewport combinations, and the four feature states plus eight
  * secondary UI states (idle/paused recording, empty/error routes, empty offline
  * regions, expanded privacy disclosure, locate-following and the locate error
@@ -39,8 +40,9 @@ import { basename } from "node:path";
  * pixel tolerance (see `docs/13.ci.md`). Live map tiles make pixel comparisons brittle, so this spec
  * deliberately snapshots rather than compares (an explicit project decision).
  *
- * Dark is the project default (`colorScheme: "dark"` in playwright.config.js).
- * Light mode is covered by the README hero spec and the settings spec.
+ * The default theme is the project default (`colorScheme: "dark"` in
+ * playwright.config.js pins UA rendering only). OS light mode is covered by the
+ * README hero spec and the settings spec.
  *
  * Every capture asserts zero console.error/pageerror. External Mapterhorn
  * raster 404s are filtered as expected network noise (see trackConsoleErrors).
@@ -944,10 +946,7 @@ for (const vp of VIEWPORTS) {
       await page.goto(`/${BASE_HASH}`);
       await stabilizeCaptureRendering(page);
       await waitForMapIdle(page, testInfo);
-      await expect(page.locator("html")).toHaveAttribute(
-        "data-bs-theme",
-        "dark",
-      );
+      await expectDefaultTheme(page);
 
       // closed — no panel. Desktop auto-opens the Info pane, so close it first.
       await closePanel(page);
@@ -1095,10 +1094,7 @@ for (const vp of VIEWPORTS) {
       await page.goto(`/${BASE_HASH}`);
       await stabilizeCaptureRendering(page);
       await waitForMapIdle(page, testInfo);
-      await expect(page.locator("html")).toHaveAttribute(
-        "data-bs-theme",
-        "dark",
-      );
+      await expectDefaultTheme(page);
 
       // Confirmation modal — desktop auto-opens the Info pane; close it so the
       // map chrome behind the modal is the captured default state.
@@ -1123,7 +1119,7 @@ for (const vp of VIEWPORTS) {
   });
 }
 
-// ─── Feature states — desktop landscape, dark ────────────────────────────────
+// ─── Feature states — desktop landscape, default theme ───────────────────────
 // Reach patterns mirror routes.spec.js, offline.spec.js and recordings.spec.js.
 
 test.describe("Feature states — desktop landscape", () => {
@@ -1316,7 +1312,7 @@ test.describe("Feature states — desktop landscape", () => {
   });
 });
 
-// ─── Secondary UI states — desktop landscape, dark ───────────────────────────
+// ─── Secondary UI states — desktop landscape, default theme ──────────────────
 // The empty, paused and error states that sit beside the core chrome states and
 // the fully-populated feature states. Reach patterns mirror recordings.spec.js,
 // routes.spec.js, offline.spec.js, core.spec.js and locate.spec.js.

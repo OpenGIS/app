@@ -3,17 +3,11 @@ import {
   trackConsoleErrors,
   expectNoConsoleErrors,
 } from "../helpers/console.js";
+import { expectDefaultTheme } from "../helpers/theme.js";
 
 // Assert a clean console for every test in this spec (see helpers/console.js).
 test.beforeEach(({ page }) => trackConsoleErrors(page));
 test.afterEach(({ page }) => expectNoConsoleErrors(page));
-
-/** Returns the app theme root — <html>, which carries data-bs-theme. */
-function themeRoot(page) {
-  // The theme attribute lives on <html> (applied by useSettings) so that
-  // teleported modals, which render outside .ogis-root, inherit it too.
-  return page.locator("html");
-}
 
 /** Simulates the browser/OS changing its preferred language at runtime. */
 async function setBrowserLanguages(page, languages) {
@@ -34,48 +28,52 @@ test.describe("Appearance", () => {
   test.describe("OS prefers dark", () => {
     test.use({ colorScheme: "dark" });
 
-    test("data-bs-theme is dark when the OS prefers dark", async ({ page }) => {
+    test("the default theme renders when the OS prefers dark", async ({
+      page,
+    }) => {
       await page.goto("/");
       await page.waitForSelector(".ogis-map canvas");
 
-      await expect(themeRoot(page)).toHaveAttribute("data-bs-theme", "dark");
+      await expectDefaultTheme(page);
     });
   });
 
   test.describe("OS prefers light", () => {
     test.use({ colorScheme: "light" });
 
-    test("data-bs-theme is light when the OS prefers light", async ({
+    test("the default theme renders when the OS prefers light", async ({
       page,
     }) => {
       await page.goto("/");
       await page.waitForSelector(".ogis-map canvas");
 
-      await expect(themeRoot(page)).toHaveAttribute("data-bs-theme", "light");
+      await expectDefaultTheme(page);
     });
   });
 
-  test("data-bs-theme follows a runtime OS theme change", async ({ page }) => {
-    // Start in light, then simulate the OS switching to dark while the app is open.
+  test("the default theme survives a runtime OS preference flip", async ({
+    page,
+  }) => {
+    // Start in light, then simulate the OS switching to dark while the app is
+    // open. The app no longer follows the preference, so nothing should change.
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/");
     await page.waitForSelector(".ogis-map canvas");
 
-    const root = themeRoot(page);
-    await expect(root).toHaveAttribute("data-bs-theme", "light");
+    await expectDefaultTheme(page);
 
     await page.emulateMedia({ colorScheme: "dark" });
-    await expect(root).toHaveAttribute("data-bs-theme", "dark");
+    await expectDefaultTheme(page);
 
     // ...and back to light again.
     await page.emulateMedia({ colorScheme: "light" });
-    await expect(root).toHaveAttribute("data-bs-theme", "light");
+    await expectDefaultTheme(page);
   });
 
-  test.describe("OS prefers dark — teleported modal", () => {
-    test.use({ colorScheme: "dark" });
+  test.describe("OS prefers light — teleported modal", () => {
+    test.use({ colorScheme: "light" });
 
-    test("a teleported modal inherits the dark theme from <html>", async ({
+    test("a teleported modal inherits the default theme from <html>", async ({
       page,
     }) => {
       await page.goto("/");
@@ -86,29 +84,7 @@ test.describe("Appearance", () => {
       await page.locator("#locate-button").click();
       await page.waitForSelector("#locate-confirm-title");
 
-      await expect(themeRoot(page)).toHaveAttribute("data-bs-theme", "dark");
-
-      const { modalBg, appBg } = await page.evaluate(() => {
-        const content = document
-          .querySelector("#locate-confirm-title")
-          .closest(".modal-content");
-        const root = document.querySelector(".ogis-root");
-
-        // Resolve the dark body background from inside the app root. The root
-        // is themed in both builds, so it is a reliable dark reference even if
-        // <html> were left un-themed.
-        const probe = document.createElement("div");
-        probe.style.backgroundColor = "var(--bs-body-bg)";
-        root.appendChild(probe);
-        const appBg = getComputedStyle(probe).backgroundColor;
-        probe.remove();
-
-        return { modalBg: getComputedStyle(content).backgroundColor, appBg };
-      });
-
-      // A modal teleported to <body> renders outside .ogis-root, so it only
-      // matches the app's dark background when data-bs-theme is on <html>.
-      expect(modalBg).toBe(appBg);
+      await expectDefaultTheme(page, { modal: true });
     });
   });
 });

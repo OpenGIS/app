@@ -1,48 +1,7 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { nextTick } from "vue";
 import { localeDefaultUnits, useSettings } from "@/composables/useSettings";
 import { navigatorLanguages } from "@/composables/useLocale";
-
-/**
- * Load a fresh copy of useSettings with a controllable window.matchMedia.
- * useSettings reads matchMedia at import time, so the stub must be installed
- * (and modules reset) before the dynamic import.
- */
-async function loadSystemTheme(initialMatches) {
-  vi.resetModules();
-
-  const listeners = [];
-  let matches = initialMatches;
-
-  const mql = {
-    media: "(prefers-color-scheme: dark)",
-    get matches() {
-      return matches;
-    },
-    addEventListener: (type, listener) => {
-      if (type === "change") listeners.push(listener);
-    },
-    removeEventListener: () => {},
-  };
-
-  vi.stubGlobal(
-    "matchMedia",
-    vi.fn(() => mql),
-  );
-
-  const { useSettings } = await import("@/composables/useSettings");
-  const { emitter } = await import("@/emitter.js");
-
-  /** Simulate the OS switching theme, notifying captured change listeners. */
-  const setMatches = (value) => {
-    matches = value;
-    for (const listener of listeners) {
-      listener({ matches, media: mql.media });
-    }
-  };
-
-  return { useSettings, emitter, setMatches };
-}
 
 describe("localeDefaultUnits", () => {
   it("returns 'imperial' for en-US", () => {
@@ -146,87 +105,14 @@ describe("useSettings — OS-derived units", () => {
   });
 });
 
-describe("useSettings — system theme", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-  });
+describe("useSettings — no theme logic", () => {
+  it("exposes only units and never writes a theme attribute", () => {
+    const settings = useSettings();
 
-  it("resolves dark when the system prefers dark", async () => {
-    const { useSettings } = await loadSystemTheme(true);
-    const { resolvedTheme, isDark } = useSettings("unit-theme-dark");
+    expect(Object.keys(settings).sort()).toEqual(["isMetric", "resolvedUnits"]);
+    expect(settings.resolvedTheme).toBeUndefined();
+    expect(settings.isDark).toBeUndefined();
 
-    expect(resolvedTheme.value).toBe("dark");
-    expect(isDark.value).toBe(true);
-  });
-
-  it("resolves light when the system prefers light", async () => {
-    const { useSettings } = await loadSystemTheme(false);
-    const { resolvedTheme, isDark } = useSettings("unit-theme-light");
-
-    expect(resolvedTheme.value).toBe("light");
-    expect(isDark.value).toBe(false);
-  });
-
-  it("reacts to a runtime system theme change via the change listener", async () => {
-    const { useSettings, setMatches } = await loadSystemTheme(false);
-    const { resolvedTheme, isDark } = useSettings("unit-theme-change");
-
-    expect(resolvedTheme.value).toBe("light");
-
-    setMatches(true);
-    await nextTick();
-    expect(resolvedTheme.value).toBe("dark");
-    expect(isDark.value).toBe(true);
-
-    setMatches(false);
-    await nextTick();
-    expect(resolvedTheme.value).toBe("light");
-    expect(isDark.value).toBe(false);
-  });
-
-  it("emits theme:change with the resolved theme on system changes", async () => {
-    const { useSettings, emitter, setMatches } = await loadSystemTheme(false);
-    useSettings("unit-theme-emit");
-
-    const received = [];
-    const listener = (theme) => received.push(theme);
-    emitter.on("theme:change", listener);
-
-    setMatches(true);
-    await nextTick();
-    setMatches(false);
-    await nextTick();
-
-    emitter.off("theme:change", listener);
-    expect(received).toEqual(["dark", "light"]);
-  });
-
-  it("applies the resolved theme to the document root on load", async () => {
-    await loadSystemTheme(true);
-    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
-  });
-
-  it("updates the document root attribute on a system theme change", async () => {
-    const { setMatches } = await loadSystemTheme(false);
-    expect(document.documentElement.getAttribute("data-bs-theme")).toBe(
-      "light",
-    );
-
-    setMatches(true);
-    await nextTick();
-    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
-  });
-
-  it("shares the module-level system preference across instances", async () => {
-    const { useSettings, setMatches } = await loadSystemTheme(false);
-    const first = useSettings("unit-theme-instance-a");
-    const second = useSettings("unit-theme-instance-b");
-
-    setMatches(true);
-    await nextTick();
-
-    expect(first.resolvedTheme.value).toBe("dark");
-    expect(second.resolvedTheme.value).toBe("dark");
+    expect(document.documentElement.hasAttribute("data-bs-theme")).toBe(false);
   });
 });

@@ -46,10 +46,10 @@ export default defineConfig({
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: `http://localhost:${E2E_PORT}`,
 
-    /* Dark is the default scheme for tests/screenshots. The app follows the
-       OS/browser prefers-color-scheme setting (no in-app toggle), so light mode
-       is verified explicitly by a dedicated ui-states spec test rather than by
-       defaulting the whole suite to it. */
+    /* Dark is the emulated OS/browser scheme for tests/screenshots — a
+       UA-rendering pin, not an app mode. The app always renders its single
+       default theme regardless of this preference; OS light mode is verified
+       explicitly by the settings and README hero specs. */
     colorScheme: "dark",
 
     /* Pin the browser locale so units/date formatting is deterministic across

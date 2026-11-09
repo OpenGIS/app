@@ -222,7 +222,7 @@ onMounted(() => {
                   <span class="text-truncate pe-2">{{
                     resourceLabel(map)
                   }}</span>
-                  <span class="badge text-bg-light">{{
+                  <span class="badge text-bg-secondary">{{
                     visibilityLabel(map.visibility)
                   }}</span>
                 </li>
@@ -248,7 +248,7 @@ onMounted(() => {
                   <span class="text-truncate pe-2">{{
                     resourceLabel(collection)
                   }}</span>
-                  <span class="badge text-bg-light">
+                  <span class="badge text-bg-secondary">
                     {{ visibilityLabel(collection.visibility) }}
                   </span>
                 </li>

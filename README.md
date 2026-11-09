@@ -11,9 +11,7 @@ A _loveletter_ to the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem 
 
 ## Screenshots
 
-![ogis.app — dark theme](DARK.jpg)
-
-![ogis.app — light theme](LIGHT.jpg)
+![ogis.app](HERO.jpg)
 
 ## Technical overview
 
@@ -43,7 +41,7 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 - Offline Maps.
 - Multilingual - both UI and map names where available (uses OS language).
 - Map view persisted between sessions and can be shared as URLs.
-- Light and dark mode, following your device setting.
+- One default theme with a dark palette, independent of your device setting.
 
 ## Drawbacks and Limitations
 
@@ -93,11 +91,11 @@ The canonical loop, from first checkout to merge. Deep dives are linked inline:
 4. **Format** — `npm run format`. CI gates on `npm run format:check`.
 5. **Pre-push gate** — `npm run check` (Prettier check + unit tests) before pushing.
 6. **Commit and push** — Conventional Commits only (see [Contributing](#contributing)).
-7. **CI is the gate** — green `ci.yml` on your pushed commits means done: the unit suite, the commit-message check and the functional E2E suite. The screenshot matrix is deliberately outside the push path — verified on pull requests and healed on `master` on its own schedule; see [Screenshot matrix](#screenshot-matrix). The full local E2E run (`npm run test:e2e` — the functional specs plus the README heroes; the matrix is a separate capture) is an optional fallback — offline, or when the local GPU functional path is specifically wanted. See [CI](docs/13.ci.md).
+7. **CI is the gate** — green `ci.yml` on your pushed commits means done: the unit suite, the commit-message check and the functional E2E suite. The screenshot matrix is deliberately outside the push path — verified on pull requests and healed on `master` on its own schedule; see [Screenshot matrix](#screenshot-matrix). The full local E2E run (`npm run test:e2e` — the functional specs plus the README hero; the matrix is a separate capture) is an optional fallback — offline, or when the local GPU functional path is specifically wanted. See [CI](docs/13.ci.md).
 
 ### Screenshot matrix
 
-The committed PNGs under [`screenshots/`](screenshots/) are visual evidence that ships with the repository: core chrome states and the locate permission modals across phone, tablet and desktop in both orientations, plus the fully-populated feature states and secondary UI states at desktop landscape. Captures run in a dedicated, always-software-rendered Playwright project with a dark theme and a pinned locale, so they are reproducible run-to-run on a given machine.
+The committed PNGs under [`screenshots/`](screenshots/) are visual evidence that ships with the repository: core chrome states and the locate permission modals across phone, tablet and desktop in both orientations, plus the fully-populated feature states and secondary UI states at desktop landscape. Captures run in a dedicated, always-software-rendered Playwright project with the browser colour scheme and locale pinned, so they are reproducible run-to-run on a given machine.
 
 - **Local** — `npm run test:matrix` captures into a gitignored temp directory; local runs never touch the committed PNGs. `npm run screenshots:diff` reports what moved, whether comparing a local capture against the committed matrix or two local capture trees before and after a change; `npm run screenshots:bundle` builds the same reviewable diff bundle the workflow attaches — before/after/pixel-diff PNGs plus a self-contained HTML index.
 - **CI verification** — the `Screenshots` GitHub workflow captures the matrix on macOS shards and verifies the captures against the committed PNGs within a strict pixel tolerance: sub-level anti-aliasing drift is tolerated and reported, while real changes fail. An aggregate job checks the full matrix in both directions; on a pull request a move opens a diff bundle (and, for same-repository PRs, a sticky comment with inline diffs).
@@ -137,7 +135,7 @@ The end-to-end journey, checkout to release:
 3. **Run the pre-push gate** — `npm run check` (Prettier check + unit tests).
 4. **Commit** — a [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/): `<type>(optional scope): <description>`, e.g. `fix(offline): purge stale tile URLs`. The [type table](docs/13.ci.md#conventional-commits-are-required) maps types to release impact; breaking changes use `!` or a `BREAKING CHANGE:` footer.
 5. **Push and open a PR** — a `master` push runs `ci.yml` alone (unit suite, commit check, functional E2E; release and deploy follow); a PR additionally runs the `Screenshots` workflow, which verifies the committed matrix and opens a diff bundle (plus a sticky comment on same-repository PRs) when it moves. A red matrix on a PR is a review signal for a real visual change — advisory only, as no branch protection is configured.
-6. **After merge** — the `release` job cuts versions, changelogs and GitHub releases from the commit messages; the README heroes refresh automatically on each release; a genuinely moved screenshot matrix is re-baselined by the next scheduled (or manually dispatched) `Screenshots` run on `master`.
+6. **After merge** — the `release` job cuts versions, changelogs and GitHub releases from the commit messages; the README hero refreshes automatically on each release; a genuinely moved screenshot matrix is re-baselined by the next scheduled (or manually dispatched) `Screenshots` run on `master`.
 
 [AGENTS.md](AGENTS.md) is the project's conventions file — the same journey, commands and gates in agent-facing form.
 
