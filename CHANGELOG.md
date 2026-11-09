@@ -1,3 +1,10 @@
+## [3.20.3](https://github.com/OpenGIS/app/compare/v3.20.2...v3.20.3) (2026-11-09)
+
+
+### Bug Fixes
+
+* **locate:** repair compass on map tap and keep hint ([2952687](https://github.com/OpenGIS/app/commit/2952687ac5d42204ac53d226df51a23e584cf404))
+
 ## [3.20.2](https://github.com/OpenGIS/app/compare/v3.20.1...v3.20.2) (2026-11-08)
 
 
