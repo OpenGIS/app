@@ -322,7 +322,7 @@ $enable-dark-mode: false;
   height: 100%;
   // The map owns all touch gestures: block the browser's native
   // pull-to-refresh and edge-swipe back/forward navigation so drags
-  // on the map (pan, region drawing) are never hijacked.
+  // on the map (pan and zoom) are never hijacked.
   touch-action: none;
   overscroll-behavior: none;
   transition:

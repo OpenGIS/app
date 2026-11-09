@@ -58,22 +58,20 @@ describe("DEMO — slice provenance", () => {
 });
 
 describe("DEMO — geometry invariants", () => {
-  it("keeps the slice bbox, offline region and route inside the bounds", () => {
+  it("keeps the slice bbox and route inside the bounds", () => {
     expect(containsBox(DEMO.bounds, DEMO.sliceBBox)).toBe(true);
-    expect(containsBox(DEMO.bounds, DEMO.offlineRegion)).toBe(true);
     expect(containsBox(DEMO.bounds, bboxOf(DEMO.route))).toBe(true);
     for (const point of DEMO.route) {
       expect(containsPoint(DEMO.bounds, point)).toBe(true);
     }
   });
 
-  it("places the centre inside the bounds and offline region", () => {
+  it("places the centre inside the bounds", () => {
     expect(containsPoint(DEMO.bounds, DEMO.center)).toBe(true);
-    expect(containsPoint(DEMO.offlineRegion, DEMO.center)).toBe(true);
   });
 
   it("orientates every box west<east and south<north", () => {
-    for (const box of [DEMO.sliceBBox, DEMO.bounds, DEMO.offlineRegion]) {
+    for (const box of [DEMO.sliceBBox, DEMO.bounds]) {
       expect(box.west).toBeLessThan(box.east);
       expect(box.south).toBeLessThan(box.north);
     }

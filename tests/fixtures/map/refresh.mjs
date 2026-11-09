@@ -44,7 +44,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { mapDefaults } from "../../../src/defaults/maplibre.js";
-import { tileUrlTemplateToUrl } from "../../../src/features/offline/tiles.js";
+import { tileUrlTemplateToUrl } from "./tiles.mjs";
 import { DEMO_AREA } from "./demoArea.mjs";
 import { paddedTiles } from "./enumerate.mjs";
 

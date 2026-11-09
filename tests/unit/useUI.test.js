@@ -122,8 +122,8 @@ describe("useUI / Panel", () => {
     const ui = await freshUseUI();
     expect(ui.activePanel.value).toBeNull();
 
-    ui.setActivePanel("offline");
-    expect(ui.activePanel.value).toBe("offline");
+    ui.setActivePanel("routes");
+    expect(ui.activePanel.value).toBe("routes");
   });
 });
 
@@ -177,7 +177,7 @@ describe("useUI / Menu status", () => {
 describe("useUI / Pane separation", () => {
   it("toggleInfo opens the info pane without changing the menu tab", async () => {
     const ui = await freshUseUI();
-    ui.setActivePanel("offline");
+    ui.setActivePanel("routes");
 
     ui.toggleInfo();
 
@@ -185,7 +185,7 @@ describe("useUI / Pane separation", () => {
     expect(ui.isInfoVisible.value).toBe(true);
     expect(ui.isMenuVisible.value).toBe(false);
     expect(ui.isPanelVisible.value).toBe(true);
-    expect(ui.activePanel.value).toBe("offline");
+    expect(ui.activePanel.value).toBe("routes");
   });
 
   it("toggleInfo closes the info pane on the second call", async () => {
@@ -251,12 +251,12 @@ describe("useUI / Pane separation", () => {
 
   it("openInfo opens the info pane without changing the menu tab", async () => {
     const ui = await freshUseUI();
-    ui.setActivePanel("offline");
+    ui.setActivePanel("routes");
 
     ui.openInfo();
 
     expect(ui.isInfoVisible.value).toBe(true);
-    expect(ui.activePanel.value).toBe("offline");
+    expect(ui.activePanel.value).toBe("routes");
   });
 
   it("closePanel closes whichever pane is visible", async () => {

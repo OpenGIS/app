@@ -16,7 +16,6 @@ import {
 } from "./resilience/errors.js";
 import { installFeature } from "./resilience/boot.js";
 
-import { OfflineFeature } from "./features/offline/index.js";
 import { RoutesFeature } from "./features/routes/index.js";
 // Auth features — commented out: the app is currently in SPA front-end only mode
 // (no backend). Re-enable when the API/auth backend is available.
@@ -183,7 +182,6 @@ const boot = () => {
   // --- Install core features ---
   // Each feature is isolated: one failing install is reported and rolled back
   // without preventing the others from installing or the app from mounting.
-  installFeature("offline", OfflineFeature, featureCtx);
   installFeature("routes", RoutesFeature, featureCtx);
   // Auth features — commented out (SPA front-end only mode).
   // installFeature("account", AccountFeature, featureCtx);

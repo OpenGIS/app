@@ -465,7 +465,7 @@ function createManager(instanceId) {
  *   `dispose()` is terminal teardown for one instance: it removes the
  *   lifecycle listeners, cleans up the map source and layers, clears the
  *   in-memory feature sets and drops the cached manager. It is shared by
- *   routes and offline, so a single feature must not call it.
+ *   routes, so a single feature must not call it.
  *
  * @example
  * // In a Vue component

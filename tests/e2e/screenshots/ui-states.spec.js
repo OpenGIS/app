@@ -27,8 +27,8 @@ import { basename } from "node:path";
  * six viewport combinations (phone/tablet/desktop × portrait/landscape), all in
  * the default theme. The two locate permission modals are captured
  * at all six viewport combinations, and the feature states plus the remaining
- * secondary UI states (empty/error routes, empty offline regions, expanded
- * privacy disclosure, locate-following and the locate error chip) at the
+ * secondary UI states (empty/error routes, expanded privacy disclosure,
+ * locate-following and the locate error chip) at the
  * desktop landscape viewport.
  *
  * These PNGs are COMMITTED ARTEFACTS — the canonical visual evidence that
@@ -88,11 +88,6 @@ const BASE_HASH = `#map=${DEMO_AREA.screenshotZoom}/${DEMO_CENTER.lat.toFixed(6)
 
 // Feature states are captured at the desktop landscape viewport only.
 const FEATURE_DIR = `${OUT_ROOT}/desktop/landscape`;
-
-// Fixed epoch for every value the UI derives from `Date.now()` — seeded region
-// timestamps. Rendering wall-clock time makes captures drift between runs;
-// pinning the source makes the rendered strings stable and reproducible.
-const FIXED_TIMESTAMP = Date.parse("2024-01-01T00:00:00Z");
 
 // device → orientation → viewport (width × height).
 const VIEWPORTS = [
@@ -624,52 +619,12 @@ const capture = async (page, dir, name) => {
       const diagName = `${dir
         .replace(`${OUT_ROOT}/`, "")
         .replaceAll("/", "-")}-${name}.json`;
-      // Lossless evidence is expensive under SwiftShader, so record it only for
-      // the feature state that has shown run-to-run variance. The JSON
-      // snapshot above is cheap and is still recorded for every capture.
-      const lossless = name === "feature-offline";
-      if (lossless) {
-        // The committed capture is now lossless PNG, so a full-page diag copy
-        // would duplicate it exactly. Record only the raw map canvas, which
-        // isolates the map render from the surrounding chrome.
-        try {
-          const canvasPng = await page
-            .locator(".ogis-map canvas")
-            .screenshot({ type: "png" });
-          writeFileSync(`${diagDir}/${diagName}.canvas.png`, canvasPng);
-        } catch {
-          // Lossless evidence is optional.
-        }
-      }
-      // Time-series evidence: is the accepted frame already a stable fixed
-      // point, or is the map still drifting? Capture the raw canvas three times
-      // with a render burst between, and record the lossless hashes. If they
-      // stop changing immediately the accepted state is converged; if the first
-      // hashes differ from later ones, capture accepted a transient frame.
-      let canvasStability = null;
-      if (lossless) {
-        try {
-          const hashes = [];
-          for (let i = 0; i < 3; i++) {
-            const shot = await page
-              .locator(".ogis-map canvas")
-              .screenshot({ type: "png" });
-            hashes.push(createHash("sha256").update(shot).digest("hex"));
-            await renderOnce(page);
-            await presentFrames(page);
-          }
-          canvasStability = hashes;
-        } catch {
-          // Stability probe is optional.
-        }
-      }
       const diag = await collectDiagnostics(page);
       writeFileSync(
         `${diagDir}/${diagName}`,
         JSON.stringify(
           {
             sha256: createHash("sha256").update(buffer).digest("hex"),
-            canvasStability,
             diag,
           },
           null,
@@ -1030,7 +985,7 @@ for (const vp of VIEWPORTS) {
 }
 
 // ─── Feature states — desktop landscape, default theme ───────────────────────
-// Reach patterns mirror routes.spec.js and offline.spec.js.
+// Reach patterns mirror routes.spec.js.
 
 test.describe("Feature states — desktop landscape", () => {
   test.use({ viewport: { width: 1280, height: 720 } });
@@ -1103,76 +1058,12 @@ test.describe("Feature states — desktop landscape", () => {
     await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "feature-route-navigating");
   });
-
-  test("feature offline region @screenshots", async ({ page }, testInfo) => {
-    // Seed one downloaded region so the panel shows its list state. The
-    // displayed `createdAt` is pinned so the rendered date never drifts.
-    await page.addInitScript(
-      ({ center, fixedTimestamp, bounds }) => {
-        // The panel's storage summary reads the live Storage API, whose usage
-        // grows as the profile's caches change between runs. Pin both values so
-        // the rendered "x of y used" text and bar are stable.
-        if (navigator.storage) {
-          Object.defineProperty(navigator.storage, "estimate", {
-            configurable: true,
-            value: async () => ({ usage: 1048576, quota: 1073741824 }),
-          });
-          Object.defineProperty(navigator.storage, "persisted", {
-            configurable: true,
-            value: async () => true,
-          });
-        }
-        localStorage.setItem(
-          "ogis_view_app",
-          JSON.stringify({
-            mapView: { center, zoom: 14 },
-          }),
-        );
-        localStorage.setItem(
-          "ogis_offline-regions_app",
-          JSON.stringify([
-            {
-              id: "test-region-1",
-              name: "Test Region",
-              createdAt: fixedTimestamp,
-              bounds,
-              minZoom: 10,
-              maxZoom: 11,
-              tileCount: 12,
-              estimatedBytes: 720000,
-            },
-          ]),
-        );
-      },
-      {
-        center: DEMO_CENTER,
-        fixedTimestamp: FIXED_TIMESTAMP,
-        bounds: DEMO.offlineRegion,
-      },
-    );
-
-    await page.goto(`/${BASE_HASH}`);
-    await stabilizeCaptureRendering(page);
-    await waitForMapIdle(page, testInfo);
-
-    await openPanelTab(page, { name: /offline maps/i });
-    await waitForLayoutSettled(page, testInfo);
-    await expect(
-      page.locator(".ogis-panel").getByText("Test Region"),
-    ).toBeVisible();
-    // The demo food POI sits on the terrain surface, so the terrain
-    // depth-visibility factor can land on either side of the "in front" test
-    // depending on when the depth framebuffer was last drawn; the shared
-    // normalisation pins it, as it does for every other capture.
-    await normaliseCaptureState(page, testInfo);
-    await capture(page, FEATURE_DIR, "feature-offline");
-  });
 });
 
 // ─── Secondary UI states — desktop landscape, default theme ──────────────────
 // The empty and error states that sit beside the core chrome states and the
 // fully-populated feature states. Reach patterns mirror routes.spec.js,
-// offline.spec.js, core.spec.js and locate.spec.js.
+// core.spec.js and locate.spec.js.
 
 test.describe("Secondary UI states — desktop landscape", () => {
   test.use({ viewport: { width: 1280, height: 720 } });
@@ -1219,36 +1110,6 @@ test.describe("Secondary UI states — desktop landscape", () => {
     );
     await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "routes-error");
-  });
-
-  test("secondary offline empty state @screenshots", async ({
-    page,
-  }, testInfo) => {
-    await withGrantedStorage(page);
-    // Pin the live Storage API values the panel's summary reads, but seed no
-    // region: the panel renders the empty "Downloaded Regions" state.
-    await page.addInitScript(() => {
-      if (navigator.storage) {
-        Object.defineProperty(navigator.storage, "estimate", {
-          configurable: true,
-          value: async () => ({ usage: 1048576, quota: 1073741824 }),
-        });
-        Object.defineProperty(navigator.storage, "persisted", {
-          configurable: true,
-          value: async () => true,
-        });
-      }
-    });
-    await page.goto(`/${BASE_HASH}`);
-    await stabilizeCaptureRendering(page);
-    await waitForMapIdle(page, testInfo);
-
-    await openPanelTab(page, { name: /offline maps/i });
-    await expect(
-      page.locator(".ogis-panel").getByText("No regions downloaded yet."),
-    ).toBeVisible();
-    await normaliseCaptureState(page, testInfo);
-    await capture(page, FEATURE_DIR, "offline-empty");
   });
 
   test("secondary privacy disclosure @screenshots", async ({

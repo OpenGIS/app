@@ -140,7 +140,7 @@ const main = () => {
         `Invalid commit message${invalid.length > 1 ? "s" : ""} found:`,
         ...lines,
         "",
-        "Subjects must follow Conventional Commits, e.g. `feat(ui): add offline panel`.",
+        "Subjects must follow Conventional Commits, e.g. `feat(ui): add routes panel`.",
         `Allowed types (see docs/13.ci.md): ${ALLOWED_TYPES.join(", ")}.`,
       ].join("\n"),
     );

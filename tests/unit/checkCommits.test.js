@@ -42,7 +42,7 @@ describe("resolveRange", () => {
 
 describe("isConventional", () => {
   const cases = [
-    ["feat(ui): add offline panel", true],
+    ["feat(ui): add routes panel", true],
     ["fix: handle missing tile cache", true],
     ["chore!: drop legacy endpoint", true],
     ["docs: update testing guide", true],

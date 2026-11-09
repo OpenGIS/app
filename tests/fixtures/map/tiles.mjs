@@ -1,14 +1,29 @@
-// offline/tiles.js — pure tile-math helpers for the offline download feature.
-// No DOM or map dependencies, so these are unit-testable in isolation.
+/**
+ * Pure tile-math helpers for the map fixture generator and its unit tests.
+ *
+ * No DOM, network or map dependencies, so the generator and the test oracle
+ * share exactly the same geometry without drifting apart.
+ */
+
+/**
+ * Clamp a tile coordinate into the valid Web Mercator range for a zoom.
+ *
+ * @param {number} value
+ * @param {number} max - Highest valid tile index (`2^z - 1`).
+ * @returns {number}
+ */
+function clampTile(value, max) {
+  return Math.max(0, Math.min(max, value));
+}
 
 /**
  * Convert a longitude/latitude pair to a Web Mercator slippy-map tile
  * coordinate at zoom z.
  *
- * @param {number} lng - Longitude in degrees (-180..180)
- * @param {number} lat - Latitude in degrees (-85.05..85.05)
- * @param {number} z - Zoom level
- * @returns {{ x: number, y: number }} Integer tile coordinates
+ * @param {number} lng - Longitude in degrees (-180..180).
+ * @param {number} lat - Latitude in degrees (-85.05..85.05).
+ * @param {number} z - Zoom level.
+ * @returns {{ x: number, y: number }} Integer tile coordinates.
  */
 export function lonLatToTile(lng, lat, z) {
   const n = 2 ** z;
@@ -29,7 +44,7 @@ export function lonLatToTile(lng, lat, z) {
  * whole longitude range, which is safe and simple.
  *
  * @param {{ west: number, south: number, east: number, north: number }} bounds
- * @param {number} z - Zoom level
+ * @param {number} z - Zoom level.
  * @returns {{ xMin: number, xMax: number, yMin: number, yMax: number }}
  */
 export function tileBoundsToRange(bounds, z) {
@@ -64,10 +79,6 @@ export function tileBoundsToRange(bounds, z) {
     yMin: clampTile(yMin, max),
     yMax: clampTile(yMax, max),
   };
-}
-
-function clampTile(v, max) {
-  return Math.max(0, Math.min(max, v));
 }
 
 /**
@@ -111,48 +122,4 @@ export function tileUrlTemplateToUrl(template, z, x, y) {
     .replace("{x}", x)
     .replace(/\{-y\}/g, -y)
     .replace("{y}", y);
-}
-
-/**
- * Resolve a source object (from map.getStyle().sources) to a concrete tile
- * URL template plus its min/max zoom range.
- *
- * Sources with a `tiles` array use the first template directly. Sources with
- * a `url` (TileJSON) — e.g. the `openmaptiles` planet source whose path
- * contains a dated slug — are fetched and their tiles[0] template used, so
- * downloads always target the CURRENT planet build.
- *
- * @param {Object} source - A source entry from map.getStyle().sources
- * @returns {Promise<{ template: string, minzoom: number, maxzoom: number }>}
- */
-export async function resolveSourceTiles(source) {
-  let minzoom = source.minzoom != null ? source.minzoom : 0;
-  let maxzoom = source.maxzoom != null ? source.maxzoom : 22;
-
-  let template;
-  if (Array.isArray(source.tiles) && source.tiles.length > 0) {
-    template = source.tiles[0];
-  } else if (source.url) {
-    const response = await fetch(source.url);
-    if (!response.ok) {
-      throw new Error(`Failed to load TileJSON from ${source.url}`);
-    }
-    const tileJSON = await response.json();
-    const tiles = tileJSON.tiles || [];
-    if (tiles.length === 0) {
-      throw new Error(`No tiles in TileJSON from ${source.url}`);
-    }
-    template = tiles[0];
-    // Prefer the TileJSON's own zoom range when the source doesn't specify one.
-    if (source.minzoom == null && tileJSON.minzoom != null) {
-      minzoom = tileJSON.minzoom;
-    }
-    if (source.maxzoom == null && tileJSON.maxzoom != null) {
-      maxzoom = tileJSON.maxzoom;
-    }
-  } else {
-    throw new Error("Source has neither a tiles array nor a url");
-  }
-
-  return { template, minzoom, maxzoom };
 }

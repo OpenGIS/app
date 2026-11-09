@@ -7,7 +7,7 @@
  * production code and test oracle. No DOM, network or map dependencies.
  */
 
-import { enumerateTiles } from "../../../src/features/offline/tiles.js";
+import { enumerateTiles } from "./tiles.mjs";
 
 /** Default padding: one tile margin at each zoom. */
 export const DEFAULT_TILE_MARGIN = 1;

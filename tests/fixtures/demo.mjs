@@ -34,9 +34,6 @@ const MIN_HALF = { lng: 0.02, lat: 0.012 };
 /** Half-extents the bounds target overall (≈0.10° × 0.05°). */
 const TARGET_HALF = { lng: 0.05, lat: 0.025 };
 
-/** Half-extents of the seeded offline region, well inside the bounds. */
-const OFFLINE_HALF = { lng: 0.01, lat: 0.006 };
-
 const EARTH_RADIUS_M = 6_371_000;
 const toRadians = (degrees) => (degrees * Math.PI) / 180;
 
@@ -157,13 +154,6 @@ export const DEMO = {
   },
   /** Zoom the committed screenshot matrix uses. */
   screenshotZoom: 16,
-  /** Small seeded offline region inside `bounds`. */
-  offlineRegion: {
-    west: centerLng - OFFLINE_HALF.lng,
-    south: centerLat - OFFLINE_HALF.lat,
-    east: centerLng + OFFLINE_HALF.lng,
-    north: centerLat + OFFLINE_HALF.lat,
-  },
   /** Opening slice points, exported as the GPX route excerpt. */
   route: rawSlice.slice(0, ROUTE_POINTS).map(toPoint),
 };

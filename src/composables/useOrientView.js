@@ -17,10 +17,6 @@ const ANGLE_EPSILON_DEG = 0.01;
  *   zoom that fits the line-of-sight horizon disc, keeping the active
  *   projection and using a distance-scaled, gently-paced duration.
  *
- * `switchProjection` is the scoped projection facility: it switches to a
- * given projection and returns an idempotent restore handle that reapplies
- * the previously active one.
- *
  * Flights never set `essential`, so MapLibre automatically zeroes their
  * durations for reduced-motion users, and never use `maxDuration`, which would
  * make the flight instant.
@@ -29,40 +25,10 @@ const ANGLE_EPSILON_DEG = 0.01;
  *   `inject('ogisAppId')` when omitted.
  * @returns {{
  *   orientView: (options?: { target?: { lat: number, lng: number } }) => boolean,
- *   switchProjection: (type?: string) => () => void,
  * }}
  */
 export const useOrientView = (explicitInstanceId) => {
   const instanceId = explicitInstanceId ?? inject("ogisAppId", "app");
-
-  /**
-   * Scoped projection switch. Resolves the map the same way `orientView`
-   * does; with no map it returns a safe no-op. When the current projection
-   * differs from `type`, switches to it. Returns an idempotent restore
-   * handle that reapplies the previous projection, skipping the restore when
-   * that value is unknown or already active.
-   *
-   * @param {string} [type] - Projection to switch to.
-   * @returns {() => void} Restore handle, safe to call multiple times.
-   */
-  const switchProjection = (type = "mercator") => {
-    const map = getMapInstance(instanceId);
-    if (!map) return () => {};
-
-    const previous = map.getProjection?.()?.type;
-    if (previous !== type) {
-      map.setProjection({ type });
-    }
-
-    let restored = false;
-    return () => {
-      if (restored) return;
-      restored = true;
-      if (!previous) return;
-      if (map.getProjection?.()?.type === previous) return;
-      map.setProjection({ type: previous });
-    };
-  };
 
   /** Reset bearing and pitch to 0, skipping the ease when already there. */
   const resetRotation = (map) => {
@@ -127,5 +93,5 @@ export const useOrientView = (explicitInstanceId) => {
     return true;
   };
 
-  return { orientView, switchProjection };
+  return { orientView };
 };

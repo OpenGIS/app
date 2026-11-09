@@ -60,32 +60,6 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Handle messages from the app. Used to purge deleted regions' tiles from the
-// map cache so storage is actually freed. Replies to the sender's port with
-// the number of URLs successfully deleted.
-self.addEventListener("message", (event) => {
-  const data = event.data || {};
-  if (data.type !== "DELETE_URLS" || !Array.isArray(data.urls)) return;
-
-  const port = event.ports && event.ports[0];
-  event.waitUntil(
-    caches
-      .open(MAP_CACHE)
-      .then((cache) =>
-        Promise.allSettled(data.urls.map((url) => cache.delete(url))),
-      )
-      .then((results) => {
-        const deleted = results.filter(
-          (r) => r.status === "fulfilled" && r.value === true,
-        ).length;
-        if (port) port.postMessage({ type: "DELETE_URLS_DONE", deleted });
-      })
-      .catch(() => {
-        if (port) port.postMessage({ type: "DELETE_URLS_DONE", deleted: 0 });
-      }),
-  );
-});
-
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 

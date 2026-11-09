@@ -340,67 +340,6 @@ test.describe("Map actions / Random while following / desktop", () => {
     await captureScreen(page, "desktop-random");
   });
 
-  test("starting a region draw ends following and exposes the draw mode", async ({
-    page,
-  }) => {
-    await page.goto("/");
-    await waitForMapReady(page);
-
-    await startFollowing(page);
-
-    const root = page.locator(".ogis-root");
-    const panel = page.locator(".ogis-panel");
-
-    await expect(root).toHaveAttribute("data-modes", /follow/, {
-      timeout: ACTION_TIMEOUT,
-    });
-
-    await openMenuTab(page, "Offline");
-    await waitForPanelSettled(page);
-    await expect(root).toHaveAttribute("data-pane", "menu", {
-      timeout: ACTION_TIMEOUT,
-    });
-    await expect(panel).toHaveClass(/show/, { timeout: ACTION_TIMEOUT });
-
-    await page.getByRole("button", { name: "Select region" }).click();
-
-    // Starting the draw claims the map: following ends as a hand-off, so the
-    // watcher and its marker stay alive while the draw mode owns the camera.
-    const locate = page.locator("#locate-button");
-    await expect(locate).toContainText("Located", {
-      timeout: ACTION_TIMEOUT,
-    });
-    await expect(root).toHaveAttribute("data-modes", /draw/, {
-      timeout: ACTION_TIMEOUT,
-    });
-    await expect(root).not.toHaveAttribute("data-modes", /follow/, {
-      timeout: ACTION_TIMEOUT,
-    });
-    await expect(panel).toHaveClass(/show/, { timeout: ACTION_TIMEOUT });
-    await expect(root).toHaveAttribute("data-pane", "menu", {
-      timeout: ACTION_TIMEOUT,
-    });
-    await expect
-      .poll(() => page.evaluate(() => window.__geo.count()), {
-        timeout: ACTION_TIMEOUT,
-      })
-      .toBeGreaterThan(0);
-
-    await page.getByRole("button", { name: /Drawing/ }).click();
-
-    await expect(root).not.toHaveAttribute("data-modes", /draw/, {
-      timeout: ACTION_TIMEOUT,
-    });
-    await expect(locate).toContainText("Located", {
-      timeout: ACTION_TIMEOUT,
-    });
-    await expect
-      .poll(() => page.evaluate(() => window.__geo.count()), {
-        timeout: ACTION_TIMEOUT,
-      })
-      .toBeGreaterThan(0);
-  });
-
   test("showing a route ends following and keeps the locate watcher", async ({
     page,
   }) => {

@@ -27,11 +27,11 @@ import { DEMO } from "../demo.mjs";
 const CENTER = DEMO.center;
 
 /**
- * Modest box around the demo centre. It covers the zoom-16 screenshot viewport
- * and the seeded offline region. The generator pads this box by at least one
+ * Modest box around the demo centre. It covers the zoom-16 screenshot
+ * viewport. The generator pads this box by at least one
  * tile margin at every zoom, so a 1280×720 viewport at `screenshotZoom`
  * centred on the demo centre never hits a gap. Tiles outside the padded box
- * (e.g. the larger z10–11 offline drag, or GB/CH cold-start fits) are not
+ * (e.g. GB/CH cold-start fits) are not
  * vendored; the middleware degrades those to an instant empty 200, mirroring
  * the glyph fallback. The box is deliberately small — vendoring whole regions
  * at high zoom explodes the file count.

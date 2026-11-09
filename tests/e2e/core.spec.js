@@ -168,7 +168,9 @@ test.describe("Info pane / Pane separation", () => {
     await expect(chipText).toHaveCount(0);
   });
 
-  test("visiting Info keeps the active menu tab", async ({ page }) => {
+  test("Routes is the default menu tab and stays active across an Info visit", async ({
+    page,
+  }) => {
     await withViewStorage(page);
     await page.goto("/");
     await waitForMapReady(page);
@@ -181,20 +183,25 @@ test.describe("Info pane / Pane separation", () => {
       await page.locator(".panel-nav").waitFor();
     }
 
-    const offlineTab = page
-      .locator(".panel-nav")
-      .getByRole("button", { name: /offline maps/i });
-    await offlineTab.click();
-    await expect(offlineTab).toHaveAttribute("aria-pressed", "true");
+    // Routes is the only feature tab and therefore the default selection.
+    const routesTab = () =>
+      page.locator(".panel-nav").getByRole("button", { name: /^routes$/i });
+    await expect(routesTab()).toHaveAttribute("aria-pressed", "true");
 
-    // Open Info via the chip, then reopen the menu pane.
+    // Open Info via the chip, then reopen the menu pane: the active tab survives.
     await page.locator("#attribution-button").click();
     await expect(page.locator(".ogis-info-panel")).toBeVisible();
     await page.locator("#menu-button").click();
+    await expect(routesTab()).toHaveAttribute("aria-pressed", "true");
 
-    await expect(
-      page.locator(".panel-nav").getByRole("button", { name: /offline maps/i }),
-    ).toHaveAttribute("aria-pressed", "true");
+    // A fresh boot re-applies Routes as the default selection.
+    await page.reload();
+    await waitForMapReady(page);
+    if (!(await page.locator(".panel-nav").isVisible())) {
+      await page.locator("#menu-button").click();
+      await page.locator(".panel-nav").waitFor();
+    }
+    await expect(routesTab()).toHaveAttribute("aria-pressed", "true");
   });
 });
 
@@ -291,7 +298,7 @@ test.describe("Info panel", () => {
 
     const privacy = panel.locator(".ogis-privacy-section");
     await expect(privacy).toContainText(
-      "Routes, offline maps and settings are stored on this device.",
+      "Routes and settings are stored on this device.",
     );
     await expect(privacy).toContainText("Third-party Data Sources");
     await expect(privacy).toContainText("public sources");

@@ -115,13 +115,9 @@ describe("DEMO_AREA — geometry", () => {
     expect(DEMO_AREA.screenshotZoom).toBe(DEMO.screenshotZoom);
   });
 
-  it("contains the demo slice, offline region and GPX route", () => {
+  it("contains the demo slice and GPX route", () => {
     const { west, south, east, north } = DEMO_AREA.bounds;
-    for (const box of [
-      DEMO.sliceBBox,
-      DEMO.offlineRegion,
-      bboxOf(DEMO.route),
-    ]) {
+    for (const box of [DEMO.sliceBBox, bboxOf(DEMO.route)]) {
       expect(containsBox(DEMO_AREA.bounds, box)).toBe(true);
     }
     for (const { lat, lng } of [...DEMO.slice, ...DEMO.route]) {

@@ -15,21 +15,21 @@ A _loveletter_ to the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem 
 
 ## Technical overview
 
-ogis.app is a **Vue 3 + Vite** single-page application and an **installable PWA** ([`public/manifest.json`](public/manifest.json), `display: standalone`) — the map is [MapLibre GL JS](https://maplibre.org/) with a Bootstrap SCSS theme, and a hand-rolled service worker ([`public/sw.js`](public/sw.js), no Workbox) provides the app shell and offline map support. The backend features (account, maps, collections) are disabled in the current SPA front-end only mode.
+ogis.app is a **Vue 3 + Vite** single-page application and an **installable PWA** ([`public/manifest.json`](public/manifest.json), `display: standalone`) — the map is [MapLibre GL JS](https://maplibre.org/) with a Bootstrap SCSS theme, and a hand-rolled service worker ([`public/sw.js`](public/sw.js), no Workbox) caches the app shell and opportunistically caches map resources as they are viewed. The backend features (account, maps, collections) are disabled in the current SPA front-end only mode.
 
-- **Entry point** — [`src/main.js`](src/main.js) reads the URL parameters, creates the Vue app, installs the core features and mounts to `#app`.
-- **Resilience** — persisted stores use a versioned envelope with hydration and quarantine; boot failures are contained and a static fallback covers a failed module load. The map view and the shared route and offline-region stores sync live across tabs, while locate and route-navigation sessions restore durably in the tab that owns them; a liveness probe stops another live tab from restoring or clearing them. Critical transitions flush immediately, and map recovery surfaces style and WebGL failures. See [State and resilience](docs/16.state-and-resilience.md).
+- **Entry point** — [`src/main.js`](src/main.js) reads the URL parameters, creates the Vue app, installs the core feature (Routes) and mounts to `#app`.
+- **Resilience** — persisted stores use a versioned envelope with hydration and quarantine; boot failures are contained and a static fallback covers a failed module load. The map view and the shared route store sync live across tabs, while locate and route-navigation sessions restore durably in the tab that owns them; a liveness probe stops another live tab from restoring or clearing them. Critical transitions flush immediately, and map recovery surfaces style and WebGL failures. See [State and resilience](docs/16.state-and-resilience.md).
 - **Features** — self-contained bundles registered from `src/main.js`; each is a plain object with an `install(ctx)` method that registers a side-panel tab and/or a corner control chip. See [Features](docs/10.features.md).
 - **Tracks** — route and waypoint documents share a versioned `v: 2` model in [`src/utils/track/`](src/utils/track/) for import, export, distance and legacy migration; GeoJSON is a render/export projection. See [Tracks](docs/15.tracks.md).
-- **Actions and modes** — camera-taking actions claim the map from sustained modes (following, offline draw, route navigation) so state is reconciled before the camera moves. See [UI actions and map modes](docs/5.ui.md#ui-actions-and-map-modes).
+- **Actions and modes** — camera-taking actions claim the map from sustained modes (following, route navigation) so state is reconciled before the camera moves. See [UI actions and map modes](docs/5.ui.md#ui-actions-and-map-modes).
 - **Composables** — per-instance state lives in `src/composables/`, cached in a module-level `Map` keyed by the instance id (the `?id=` URL parameter). See [Instances](docs/3.instances.md).
-- **Offline** — the service worker caches the app shell and map resources; the Offline feature pre-warms its cache by fetching every tile and glyph URL for a region. See [Offline](docs/12.offline.md).
+- **Offline** — the service worker caches the app shell for offline boot and opportunistically caches map resources as they are fetched; there is no explicit region download, so offline map coverage is whatever was previously viewed online. See [Offline](docs/12.offline.md).
 
 Full developer documentation lives in [docs/README.md](docs/README.md).
 
 ## Features
 
-- [Offline](docs/12.offline.md) first. Works on any device.
+- Installable and offline-capable — the app shell boots without a network, and previously viewed map areas stay available.
 - Detailed, free global map — no install, no account.
 - Default view is of the user's country (best guess from OS timezone).
 - Corner controls:
@@ -38,7 +38,6 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
   - Info
 - Import and share GPX/GeoJSON routes.
 - Navigate Routes, with direction and distance indicators.
-- Offline Maps.
 - Multilingual - both UI and map names where available (uses OS language).
 - Map view persisted between sessions and can be shared as URLs.
 - One default theme with a dark palette, independent of your device setting.
@@ -47,7 +46,7 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 
 - Location permissions are required for GPS/Compass features. Some users have a deny-all approach to browser permissions and changing them varies between browsers and devices.
 - The app cannot access the user's position when the device is locked — needed for live location and route navigation — a common limitation of web apps.
-- The app requires an initial connection to load assets and map tiles, even though it works offline thereafter.
+- The app requires an initial connection to load. Afterwards the app shell boots offline and previously viewed map areas remain available, but areas never viewed online are not cached.
 
 ## Planned Changes
 
@@ -133,7 +132,7 @@ The end-to-end journey, checkout to release:
 1. **Set up** — see [Quick start](#quick-start).
 2. **Make the change** — follow the [Development workflow](#development-workflow).
 3. **Run the pre-push gate** — `npm run check` (Prettier check + unit tests).
-4. **Commit** — a [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/): `<type>(optional scope): <description>`, e.g. `fix(offline): purge stale tile URLs`. The [type table](docs/13.ci.md#conventional-commits-are-required) maps types to release impact; breaking changes use `!` or a `BREAKING CHANGE:` footer.
+4. **Commit** — a [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/): `<type>(optional scope): <description>`, e.g. `fix(routes): keep visibility after reload`. The [type table](docs/13.ci.md#conventional-commits-are-required) maps types to release impact; breaking changes use `!` or a `BREAKING CHANGE:` footer.
 5. **Push and open a PR** — a `master` push runs `ci.yml` alone (unit suite, commit check, functional E2E; release and deploy follow); a PR additionally runs the `Screenshots` workflow, which verifies the committed matrix and opens a diff bundle (plus a sticky comment on same-repository PRs) when it moves. A red matrix on a PR is a review signal for a real visual change — advisory only, as no branch protection is configured.
 6. **After merge** — the `release` job cuts versions, changelogs and GitHub releases from the commit messages; the README hero refreshes automatically on each release; a genuinely moved screenshot matrix is re-baselined by the next scheduled (or manually dispatched) `Screenshots` run on `master`.
 

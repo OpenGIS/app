@@ -262,16 +262,7 @@
             // Keep this list in sync with the store namespaces in
             // src/resilience/persistedState.js so reset matches exactly the
             // current instance and never a suffix-colliding one.
-            var namespaces = [
-              "view",
-              "recordings",
-              "routes",
-              "offline-regions",
-              "locate",
-              "navigation",
-              "recording-active",
-              "sync",
-            ];
+            var namespaces = ["view", "routes", "locate", "navigation", "sync"];
             var isInstanceStateKey = function (key) {
               for (var i = 0; i < namespaces.length; i += 1) {
                 var namespace = namespaces[i];

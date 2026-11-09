@@ -154,14 +154,14 @@ test.describe("Feature install isolation", () => {
   test("a feature whose install throws is contained", async ({ page }) => {
     trackConsoleErrors(page);
 
-    // Serve a deterministic stand-in for one feature module. Vite requests the
-    // source path directly in dev, so the interception is reliable and the
-    // replacement has no imports of its own.
-    await page.route("**/src/features/offline/index.js*", (route) =>
+    // Serve a deterministic stand-in for the Routes feature module. Vite
+    // requests the source path directly in dev, so the interception is reliable
+    // and the replacement has no imports of its own.
+    await page.route("**/src/features/routes/index.js*", (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/javascript",
-        body: `export const OfflineFeature = { install() { throw new Error("offline install failed"); } };`,
+        body: `export const RoutesFeature = { install() { throw new Error("routes install failed"); } };`,
       }),
     );
 
@@ -171,16 +171,17 @@ test.describe("Feature install isolation", () => {
     await expect(page.locator(".ogis-root")).toBeVisible();
     await expect(page.locator("[data-ogis-boot-fallback]")).toBeHidden();
 
-    // Later features still installed and the panel chrome is intact.
-    await openMenuTab(page, "Routes");
-    await expect(
-      page.getByText(
-        "No routes yet. Import a GPX or GeoJSON file to get started.",
-      ),
-    ).toBeVisible();
-    await expect(
-      page.locator(".panel-nav").getByRole("button", { name: "Routes" }),
-    ).toBeVisible();
+    // The failure is rolled back: the Routes tab never registers, while the
+    // core chrome, map and Info pane remain intact.
+    await expect(page.locator("#menu-button")).toBeVisible();
+    await expect(page.locator(".ogis-map")).toHaveAttribute(
+      "data-map-ready",
+      "true",
+    );
+    await expect(page.locator(".ogis-info-panel")).toBeVisible();
+    await expect(page.locator(".ogis-privacy-section")).toContainText(
+      "Routes and settings are stored on this device.",
+    );
 
     // The failure is contained and reported through the debug channel, not
     // surfaced as a console or page error.
@@ -195,28 +196,23 @@ test.describe("Corrupt stored state", () => {
     trackConsoleErrors(page);
 
     await page.addInitScript(() => {
+      // A non-array routes store is rejected by the hydrator, quarantined, and
+      // replaced with the empty default.
       localStorage.setItem(
-        "ogis_offline-regions_app",
-        JSON.stringify([
-          {
-            id: "broken",
-            name: "Broken region",
-            bounds: { west: 10, south: 0, east: -10, north: 1 },
-            minZoom: 60,
-            maxZoom: 1,
-            tileCount: -5,
-            estimatedBytes: -1,
-            createdAt: "never",
-          },
-        ]),
+        "ogis_routes_app",
+        JSON.stringify({ id: "broken", name: "Broken route", points: "nope" }),
       );
     });
 
     await page.goto("/");
     await waitForMapReady(page);
 
-    await openMenuTab(page, "Offline Maps");
-    await expect(page.getByText("No regions downloaded yet.")).toBeVisible();
+    await openMenuTab(page, "Routes");
+    await expect(
+      page.getByText(
+        "No routes yet. Import a GPX or GeoJSON file to get started.",
+      ),
+    ).toBeVisible();
 
     expectNoConsoleErrors(page);
   });

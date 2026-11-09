@@ -1,5 +1,5 @@
 ---
-git_hash: "2952687ac5d42204ac53d226df51a23e584cf404"
+git_hash: "98f58d223db814ee0b8403abbdde2370c6dfed95"
 modified: "2026-11-09"
 ---
 
@@ -27,7 +27,7 @@ Developer documentation for the ogis.app codebase.
 | [9. Testing](./9.testing.md)                             | Unit and E2E strategy, rendering modes, fixtures, screenshot matrix                                                              |
 | [10. Features](./10.features.md)                         | Adding a core feature (internal plugin pattern)                                                                                  |
 | [11. Routes](./11.routes.md)                             | GPX/GeoJSON import, route and waypoint rendering, visibility, follow-mode navigation                                             |
-| [12. Offline](./12.offline.md)                           | Offline region download: service worker, tile enumeration, storage                                                               |
+| [12. Offline](./12.offline.md)                           | PWA app shell and opportunistic map cache: service worker, cache names, offline coverage, update and reset                       |
 | [13. CI](./13.ci.md)                                     | GitHub Actions: jobs, artefacts, screenshot-matrix verification, conventional commits, release, deploy                           |
 | [14. Icons](./14.icons.md)                               | End-to-end icon pipeline and pipeline-only UI policy: sources, generated bundle, `icons:build`, codepoints, guards               |
 | [15. Tracks](./15.tracks.md)                             | Canonical v2 track model: segments, waypoints, import/export, migration, caveats                                                 |

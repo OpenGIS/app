@@ -180,9 +180,9 @@ export const waitForLayoutSettled = async (page, testInfo) => {
  * tile's *data* finishes loading (`TerrainTileManager.anyTilesAfterTime`
  * compares a `now()` timestamp against the painter's `Date.now()`, so it never
  * fires). A symbol that sits on the terrain surface can therefore be sampled
- * once as "in front" and once, after an unrelated camera change, as "slightly
- * behind" — a sub-pixel alpha difference (observed on the demo's food POI in
- * `feature-offline`, and on phone/landscape labels). Clearing the depth buffer
+ * once, after an unrelated camera change, as "slightly behind" — a sub-pixel
+ * alpha difference (observed on the demo's food POI and on phone/landscape
+ * labels). Clearing the depth buffer
  * to the far plane and freezing the depth pass makes the factor exactly 1 for
  * every symbol, matching the committed capture. Applied per-capture (a page
  * reload builds a fresh painter, so the freeze does not survive it).

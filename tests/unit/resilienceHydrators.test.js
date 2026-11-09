@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { __resetPersistedStateForTests } from "@/resilience/persistedState";
 import { hydrateRoutes } from "@/resilience/hydrators/routes.js";
-import { hydrateOfflineRegions } from "@/resilience/hydrators/offlineRegions.js";
 import { hydrateLocate } from "@/resilience/hydrators/locate.js";
 import { hydrateNavigation } from "@/resilience/hydrators/navigation.js";
 import { hydrateSync } from "@/resilience/hydrators/sync.js";
@@ -27,17 +26,6 @@ const v2Route = () => ({
   ],
   waypoints: [],
   color: "#e74c3c",
-});
-
-const validRegion = () => ({
-  id: "region-1",
-  name: "Test Region",
-  createdAt: TIMESTAMP,
-  bounds: { west: -60, south: 45, east: -55, north: 50 },
-  minZoom: 10,
-  maxZoom: 11,
-  tileCount: 12,
-  estimatedBytes: 720000,
 });
 
 beforeEach(() => {
@@ -115,54 +103,6 @@ describe("routes hydrator", () => {
       color: "#e74c3c",
       source: { format: "gpx" },
     });
-  });
-});
-
-describe("offline-regions hydrator", () => {
-  it("drops malformed regions and keeps valid ones", () => {
-    const result = hydrateOfflineRegions([
-      null,
-      "junk",
-      { ...validRegion(), id: "" },
-      { ...validRegion(), bounds: { west: 10, south: 0, east: -10, north: 1 } },
-      { ...validRegion(), bounds: { west: -181, south: 0, east: 1, north: 1 } },
-      { ...validRegion(), minZoom: 12, maxZoom: 11 },
-      { ...validRegion(), tileCount: -1 },
-      { ...validRegion(), estimatedBytes: -1 },
-      { ...validRegion(), createdAt: "never" },
-      { ...validRegion(), name: 42 },
-      { ...validRegion(), name: "   " },
-      validRegion(),
-    ]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("region-1");
-  });
-
-  it("keeps the first region when ids collide", () => {
-    const result = hydrateOfflineRegions([
-      { ...validRegion(), id: "same", name: "First" },
-      { ...validRegion(), id: "same", name: "Second" },
-      { ...validRegion(), id: "other", name: "Other" },
-    ]);
-
-    expect(result).toHaveLength(2);
-    expect(result[0].name).toBe("First");
-    expect(result[1].name).toBe("Other");
-  });
-
-  it("rejects a non-array top level", () => {
-    expect(() => hydrateOfflineRegions({})).toThrow();
-  });
-
-  it("keeps every retained region safe for panel formatting", () => {
-    const [region] = hydrateOfflineRegions([
-      { ...validRegion(), tileCount: 3, estimatedBytes: 100 },
-    ]);
-
-    expect(typeof region.name).toBe("string");
-    expect(region.tileCount.toLocaleString()).toBe("3");
-    expect(Number.isNaN(new Date(region.createdAt).getTime())).toBe(false);
   });
 });
 
