@@ -313,11 +313,13 @@ export const dispatchIOSCompass = (page, headingDeg) =>
   }, headingDeg);
 
 /**
- * Dispatch a `pointerdown` on the map container (never on a control or panel),
- * which is where the restored-session compass retry is armed.
+ * Dispatch a `click` on the map container (never on a control or panel), which
+ * is where the restored-session compass retry is armed. The retry listens for
+ * `click` because WebKit only treats a mouse `pointerdown` as transient
+ * activation — a touch tap needs `click` (or an equivalent non-mouse event).
  */
 export const tapMap = (page) =>
-  page.locator(".ogis-map").dispatchEvent("pointerdown");
+  page.locator(".ogis-map").dispatchEvent("click");
 
 /**
  * Read the heading marker's current rotation in degrees, or null while the

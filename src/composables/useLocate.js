@@ -107,7 +107,7 @@ const createLocate = (instanceId) => {
       watcherId: null,
       orientationListener: null, // { eventName, handler }
       orientationGestureTarget: null, // map element armed for a gesture retry
-      orientationGestureHandler: null, // one-shot pointerdown handler
+      orientationGestureHandler: null, // one-shot click handler
       orientationGestureReadyListener: null, // pending map:ready arming
       positionMarker: null,
       headingMarker: null,
@@ -722,7 +722,7 @@ const createLocate = (instanceId) => {
     }
     if (c.orientationGestureTarget && c.orientationGestureHandler) {
       c.orientationGestureTarget.removeEventListener(
-        "pointerdown",
+        "click",
         c.orientationGestureHandler,
         { capture: true },
       );
@@ -731,7 +731,14 @@ const createLocate = (instanceId) => {
     c.orientationGestureHandler = null;
   };
 
-  /** Attach the one-shot pointerdown retry to a resolved map container. */
+  /**
+   * Attach the one-shot click retry to a resolved map container.
+   *
+   * A `click` fires after WebKit grants transient activation for a touch tap;
+   * `pointerdown` only counts for a mouse there, so a touch `pointerdown` would
+   * let `requestPermission()` reject with `NotAllowedError` and consume the
+   * retry silently. `click` covers both touch and mouse gestures.
+   */
   const attachOrientationGestureRetry = (target) => {
     if (!target || c.orientationGestureHandler) return;
     c.orientationGestureTarget = target;
@@ -741,9 +748,8 @@ const createLocate = (instanceId) => {
       if (c.compassHeading.value !== null) return;
       retryOrientation().catch(() => {});
     };
-    target.addEventListener("pointerdown", c.orientationGestureHandler, {
+    target.addEventListener("click", c.orientationGestureHandler, {
       capture: true,
-      passive: true,
     });
   };
 
@@ -751,9 +757,13 @@ const createLocate = (instanceId) => {
    * Arm a one-shot orientation permission retry on the next map gesture.
    *
    * A restore cannot prompt at boot, so on iOS the orientation listener starts
-   * silently and stays idle until permission exists. The first pointerdown on
-   * the map itself — never on a control or panel — requests permission once and
-   * starts watching; if a heading is already available it only clears itself.
+   * silently and stays idle until permission exists. The first map click/tap —
+   * never on a control or panel — requests permission once and starts watching;
+   * if a heading is already available it only clears itself.
+   *
+   * The listener uses `click` rather than `pointerdown`: WebKit only treats
+   * `pointerdown` as transient activation for a mouse, whereas `click`,
+   * `touchend` and non-mouse `pointerup` cover touch gestures too.
    *
    * A boot restore can finish before MapLibre publishes its instance at
    * `style.load`, so this prefers the live map container, falls back to the

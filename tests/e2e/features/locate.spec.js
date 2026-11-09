@@ -1490,9 +1490,9 @@ test.describe("Locate / Restore", () => {
 
 /**
  * A boot restore cannot prompt for iOS orientation permission, so it listens
- * silently and arms a one-shot retry on the first map gesture. These cases pin
- * that contract: the iOS prompt on the first map tap, the non-iOS auto-listen,
- * and a graceful denial that leaves the position marker in place.
+ * silently and arms a one-shot retry on the first map click/tap. These cases
+ * pin that contract: the iOS prompt on the first map tap, the non-iOS
+ * auto-listen, and a graceful denial that leaves the position marker in place.
  */
 test.describe("Locate / Restore / Compass permission", () => {
   const recentFollowingSession = {
@@ -1622,6 +1622,61 @@ test.describe("Locate / Restore / Compass permission", () => {
     expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
       1,
     );
+  });
+
+  test("a map pointerdown does not consume the retry, a click does", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await withIOSOrientationPermission(page);
+    await withLocateState(page, recentFollowingSession);
+
+    // Snap the follow camera so the hand-off glide cannot stretch the bearing
+    // assertion on a slow software renderer.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Following", {
+      timeout: RESTORE_TIMEOUT,
+    });
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+
+    // Restoring a session must never prompt on its own.
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      0,
+    );
+
+    // Regression: a `pointerdown` must not consume the retry. WebKit only
+    // treats a mouse pointerdown as transient activation, so listening on it
+    // would silently use up the one-shot retry on a touch tap.
+    await page.locator(".ogis-map").dispatchEvent("pointerdown");
+    await page.waitForTimeout(200);
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      0,
+    );
+    await expect(btn).toContainText("Following");
+
+    // The click is the gesture that requests permission, without leaving
+    // Following.
+    await page.locator(".ogis-map").dispatchEvent("click");
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+    await expect(btn).toContainText("Following", { timeout: RESTORE_TIMEOUT });
+
+    // The repaired compass rotates the follow camera.
+    await dispatchIOSCompassUntilHeading(page, 180);
+    await expectMapBearing(page, await expectedIOSBearing(page, 180));
   });
 
   test("starts orientation listening on restore without a prompt on non-iOS", async ({
@@ -2076,5 +2131,51 @@ test.describe("Locate / Restore / Compass permission", () => {
     expect(
       await page.evaluate(() => window.__orientationPermissionCalls),
     ).toBeUndefined();
+  });
+
+  // A real touch tap must also arm the retry: Chromium derives a synthetic
+  // click from a tap, which is the gesture WebKit grants transient activation
+  // for (unlike a non-mouse pointerdown).
+  test.describe("touch device", () => {
+    test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+    test("a touch tap on the map requests compass permission", async ({
+      page,
+    }) => {
+      await installGeolocationMock(page);
+      await page.context().grantPermissions(["geolocation"]);
+      await withIOSOrientationPermission(page);
+      await withLocateState(page, recentFollowingSession);
+
+      await page.goto("/");
+      await waitForMapReady(page);
+
+      const btn = page.locator("#locate-button");
+      await expect(btn).toContainText("Following", {
+        timeout: RESTORE_TIMEOUT,
+      });
+      await expect
+        .poll(() => page.locator(".ogis-locate-position").count(), {
+          timeout: RESTORE_TIMEOUT,
+        })
+        .toBe(1);
+      expect(
+        await page.evaluate(() => window.__orientationPermissionCalls),
+      ).toBe(0);
+
+      // Tap the lower-left map area, clear of the corner controls and the
+      // attribution chip.
+      const mapBox = await page.locator(".ogis-map").boundingBox();
+      await page.touchscreen.tap(mapBox.x + 48, mapBox.y + mapBox.height - 260);
+
+      await expect
+        .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+          timeout: RESTORE_TIMEOUT,
+        })
+        .toBe(1);
+      await expect(btn).toContainText("Following", {
+        timeout: RESTORE_TIMEOUT,
+      });
+    });
   });
 });

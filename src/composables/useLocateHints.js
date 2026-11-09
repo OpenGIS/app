@@ -11,6 +11,11 @@ import { usePersistedState } from "@/resilience/persistedState";
  * remembered as seen (`ogis_locate-hints_{instanceId}`), so a returning user
  * never sees it again.
  *
+ * The `heading` hint is the exception: it stays visible for as long as the
+ * restored Following session has no compass, rather than showing once for
+ * eight seconds. It disappears when that pending state ends (compass repaired,
+ * Following stopped, or a chip/map retry clears the flag) or when dismissed.
+ *
  * Hints never cover a dialog: while a modal is open (the locate permission
  * prompt, an error modal, …) the pending hint waits until it closes.
  *
@@ -34,12 +39,16 @@ export const LOCATE_HINT_CHANGE_DELAY_MS = 400;
 /** How often a pending hint re-checks whether a modal has closed. */
 const MODAL_RETRY_MS = 750;
 
+/** Hints that stay up while their state persists instead of showing once. */
+const PERSISTENT_HINT_KEYS = new Set(["heading"]);
+
 /**
  * Map a locate mode to its hint key.
  *
  * The `heading` key is an exceptional state: Following, but with the compass
- * still pending after a restored session on iOS. It reuses the same once-only
- * hint machinery as the other states.
+ * still pending after a restored session on iOS. Unlike the other keys it is
+ * persistent rather than once-only — it stays up while the pending state lasts
+ * and ignores the seen record and the hide timer.
  *
  * @param {'active'|'following'|'error'|null} mode
  * @param {{ headingPending?: boolean }} [options] - `headingPending` selects
@@ -123,6 +132,10 @@ const createHints = (instanceId) => {
   /**
    * Show the hint for a locate mode, once, after a short delay.
    *
+   * Persistent hints (the `heading` key) are the exception to the once-only
+   * behaviour: they ignore the seen record, stay up while their pending state
+   * lasts and have no hide timer.
+   *
    * @param {'active'|'following'|'error'|null} mode
    * @param {{ boot?: boolean, headingPending?: boolean }} [options] - `boot`
    *   uses the longer first delay; `headingPending` selects the heading hint
@@ -131,7 +144,8 @@ const createHints = (instanceId) => {
   const showFor = (mode, { boot = false, headingPending = false } = {}) => {
     dismiss();
     const key = hintKeyForMode(mode, { headingPending });
-    if (!key || isDisabled() || isSeen(key)) return;
+    const persistent = PERSISTENT_HINT_KEYS.has(key);
+    if (!key || isDisabled() || (!persistent && isSeen(key))) return;
 
     const attempt = () => {
       if (isModalOpen()) {
@@ -140,6 +154,7 @@ const createHints = (instanceId) => {
       }
       pendingTimer = null;
       current.value = key;
+      if (persistent) return;
       markSeen(key);
       hideTimer = setTimeout(dismiss, hintDuration());
     };

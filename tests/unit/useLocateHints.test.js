@@ -119,19 +119,46 @@ describe("useLocateHints", () => {
 
     vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
     expect(hints.current.value).toBe("heading");
-    expect(hints.isSeen("heading")).toBe(true);
+    expect(hints.isSeen("heading")).toBe(false);
     expect(hints.isSeen("following")).toBe(false);
+
+    // Persistent: there is no hide timer, so it outlives the normal duration.
+    vi.advanceTimersByTime(LOCATE_HINT_DURATION_MS + 1);
+    expect(hints.current.value).toBe("heading");
   });
 
-  it("shows the heading hint only once", () => {
+  it("keeps the heading hint until dismissed and shows it again", () => {
+    const hints = useLocateHints(ID);
+    hints.showFor("following", { headingPending: true });
+    vi.advanceTimersByTime(
+      LOCATE_HINT_CHANGE_DELAY_MS + LOCATE_HINT_DURATION_MS + 1,
+    );
+    expect(hints.current.value).toBe("heading");
+    expect(hints.isSeen("heading")).toBe(false);
+
+    hints.dismiss();
+    expect(hints.current.value).toBeNull();
+
+    // Not once-only: the next pending state shows it again.
+    hints.showFor("following", { headingPending: true });
+    vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
+    expect(hints.current.value).toBe("heading");
+    expect(hints.isSeen("heading")).toBe(false);
+  });
+
+  it("replaces the heading hint once the compass is available", () => {
     const hints = useLocateHints(ID);
     hints.showFor("following", { headingPending: true });
     vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
-    hints.dismiss();
+    expect(hints.current.value).toBe("heading");
 
-    hints.showFor("following", { headingPending: true });
-    vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
+    // The pending state ends: the heading hint goes at once and the ordinary
+    // following hint takes over after the state-change delay.
+    hints.showFor("following", { headingPending: false });
     expect(hints.current.value).toBeNull();
+    vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
+    expect(hints.current.value).toBe("following");
+    expect(hints.isSeen("heading")).toBe(false);
   });
 
   it("ignores the heading flag outside Following", () => {

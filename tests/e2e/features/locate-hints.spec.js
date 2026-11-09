@@ -22,7 +22,8 @@ import { readStoredState } from "../helpers/storage.js";
  *
  * The shared fixture disables hints for every other spec; this one opts back
  * in, then walks the chip through Locate → Located → Following and checks the
- * once-only explanation for each state.
+ * once-only explanation for each state. The heading hint is the exception: it
+ * persists while the restored compass is pending.
  */
 
 const LOCATE_TIMEOUT = 60000;
@@ -177,22 +178,22 @@ test.describe("Locate / Hints / Restored heading", () => {
       .toBe(1);
   });
 
-  test("does not repeat the heading hint after it has been seen", async ({
-    page,
-  }) => {
+  test("shows the heading hint again after a reload", async ({ page }) => {
     await expect(hintFor(page, "heading")).toContainText("Compass is off", {
       timeout: LOCATE_TIMEOUT,
     });
 
-    // Let the debounced seen-write land, then reload into the same session.
+    // Let any debounced writes land, then reload into the same restored state,
+    // where the session-only orientation grant is still missing.
     await page.waitForTimeout(600);
     await page.reload();
     await waitForMapReady(page);
 
-    // Cover the boot and change delays before asserting it stayed away. A
-    // different hint may appear here; only the heading hint must not.
-    await page.waitForTimeout(2500);
-    await expect(hintFor(page, "heading")).toHaveCount(0);
+    // The heading hint is persistent rather than once-only, so it returns on
+    // the next boot while the compass is still pending.
+    await expect(hintFor(page, "heading")).toContainText("Compass is off", {
+      timeout: LOCATE_TIMEOUT,
+    });
   });
 });
 
