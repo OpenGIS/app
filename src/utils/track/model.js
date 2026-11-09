@@ -47,37 +47,6 @@ export function migrateRoute(raw) {
   };
 }
 
-/** Build a v2 recording document from the legacy saved-recording shape. */
-export function migrateRecording(raw) {
-  if (isV2(raw)) return raw;
-  const doc = {
-    v: 2,
-    id: raw?.id ?? createTrackId(),
-    kind: "recording",
-    name: text(raw?.name),
-    gpxType: null,
-    createdAt: finiteNumber(raw?.timestamp) ?? null,
-    source: { format: "legacy" },
-    segments: [{ points: pointsFrom(raw?.points) }],
-    waypoints: [],
-  };
-  if (Number.isFinite(raw?.duration)) doc.duration = raw.duration;
-  return doc;
-}
-
-/** Migrate the legacy active-recording shape; v2 shapes pass through. */
-export function migrateActiveRecording(raw) {
-  if (!raw || typeof raw !== "object") return raw;
-  if (Array.isArray(raw.segments)) return raw;
-  const { points, startTime, ...rest } = raw;
-  const createdAt = finiteNumber(startTime) ?? finiteNumber(raw?.createdAt);
-  return {
-    ...rest,
-    ...(createdAt !== undefined ? { createdAt } : {}),
-    segments: [{ points: pointsFrom(points) }],
-  };
-}
-
 /** Flatten segment points, excluding document waypoints. */
 export function documentPoints(doc) {
   const points = [];
@@ -247,8 +216,7 @@ const normaliseDocumentId = (value) => {
  * segment points is rejected (`null`). Field-level problems are repaired rather
  * than thrown so a single bad document cannot discard a whole store.
  *
- * @param {*} raw - A stored document, typically after `migrateRecording`,
- *   `migrateRoute` or `migrateActiveRecording`.
+ * @param {*} raw - A stored document, typically after `migrateRoute`.
  * @param {{ kind?: "recording"|"route" }} [options]
  * @returns {Object|null} A v2 track document, or null when no points survive.
  */

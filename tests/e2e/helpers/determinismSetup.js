@@ -34,8 +34,8 @@ import { isDeterministicRun } from "./determinism.js";
  * byte-reproducible output.
  *
  * The cost is a much slower software renderer: a matrix-only run takes ~30 min
- * (vs ~9 min) and the heavyweight record-active reload can hold the renderer
- * main thread for over a minute, which is why the settle ceilings in
+ * (vs ~9 min) and a heavyweight reload can hold the renderer main thread for
+ * over a minute, which is why the settle ceilings in
  * `helpers/layout.js` / `helpers/mapIdle.js` are raised.
  */
 

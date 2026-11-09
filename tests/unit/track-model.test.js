@@ -8,8 +8,6 @@ import {
   documentPoints,
   fileSafeName,
   lineGeometry,
-  migrateActiveRecording,
-  migrateRecording,
   migrateRoute,
   normaliseElevation,
   normalisePoint,
@@ -55,73 +53,6 @@ describe("track model / migration", () => {
       waypoints: [],
     };
     expect(migrateRoute(v2)).toBe(v2);
-  });
-
-  it("migrates a legacy saved recording", () => {
-    const doc = migrateRecording({
-      id: "rec-1",
-      timestamp: 1_700_000_000_000,
-      points: [{ lat: 1, lng: 2, t: 1_700_000_000_000 }],
-      distance: 42,
-      duration: 5000,
-    });
-
-    expect(doc).toMatchObject({
-      v: 2,
-      id: "rec-1",
-      kind: "recording",
-      gpxType: null,
-      createdAt: 1_700_000_000_000,
-      duration: 5000,
-      source: { format: "legacy" },
-      segments: [{ points: [{ lat: 1, lng: 2, t: 1_700_000_000_000 }] }],
-      waypoints: [],
-    });
-    expect(doc).not.toHaveProperty("distance");
-  });
-
-  it("returns an already-v2 recording unchanged", () => {
-    const v2 = {
-      v: 2,
-      id: "rec-2",
-      kind: "recording",
-      name: null,
-      gpxType: null,
-      createdAt: 1_700_000_000_000,
-      source: { format: "gps" },
-      segments: [{ points: [{ lat: 1, lng: 2, t: 1_700_000_000_000 }] }],
-      waypoints: [],
-      duration: 5000,
-      color: "#3498db",
-    };
-    expect(migrateRecording(v2)).toBe(v2);
-  });
-
-  it("omits createdAt and duration when the legacy recording lacks them", () => {
-    const doc = migrateRecording({ id: "rec-3", points: [] });
-
-    expect(doc.createdAt).toBeNull();
-    expect(doc).not.toHaveProperty("duration");
-  });
-
-  it("migrates the legacy active-recording shape", () => {
-    const migrated = migrateActiveRecording({
-      points: [{ lat: 1, lng: 2 }],
-      startTime: 123,
-    });
-
-    expect(migrated).toEqual({
-      createdAt: 123,
-      segments: [{ points: [{ lat: 1, lng: 2 }] }],
-    });
-  });
-
-  it("preserves a v2 active-recording shape", () => {
-    const v2 = {
-      segments: [{ points: [{ lat: 1, lng: 2 }] }],
-      createdAt: 5,
-    };
-    expect(migrateActiveRecording(v2)).toBe(v2);
   });
 });
 

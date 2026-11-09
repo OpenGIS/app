@@ -31,9 +31,9 @@ import {
  * infinite-iteration or paused animation never reaches `"finished"`, so without
  * this evidence the failure is a bare "waitForFunction timed out" with nothing
  * naming what is stuck. The 300 s ceiling (raised from 30 s) covers the
- * single-threaded SwiftShader capture pin, where the heavyweight record-active
- * reload can leave the main thread busy on one long synchronous render for over
- * a minute; the interval poll is only re-evaluated once that render yields.
+ * single-threaded SwiftShader capture pin, where a heavyweight reload can leave
+ * the main thread busy on one long synchronous render for over a minute; the
+ * interval poll is only re-evaluated once that render yields.
  */
 export const waitForAnimationsSettled = async (page) => {
   try {

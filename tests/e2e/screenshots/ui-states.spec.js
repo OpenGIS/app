@@ -26,10 +26,10 @@ import { basename } from "node:path";
  * Generates the committed visual-evidence matrix: every core chrome state at
  * six viewport combinations (phone/tablet/desktop × portrait/landscape), all in
  * the default theme. The two locate permission modals are captured
- * at all six viewport combinations, and the four feature states plus eight
- * secondary UI states (idle/paused recording, empty/error routes, empty offline
- * regions, expanded privacy disclosure, locate-following and the locate error
- * chip) at the desktop landscape viewport.
+ * at all six viewport combinations, and the feature states plus the remaining
+ * secondary UI states (empty/error routes, empty offline regions, expanded
+ * privacy disclosure, locate-following and the locate error chip) at the
+ * desktop landscape viewport.
  *
  * These PNGs are COMMITTED ARTEFACTS — the canonical visual evidence that
  * ships with the repository. A plain local run and CI capture into a gitignored
@@ -55,10 +55,10 @@ import { basename } from "node:path";
 
 // SwiftShader software rendering starves the renderer: map-idle waits, drags
 // and screenshots can each take tens of seconds, and a single test loops all
-// eight states for one viewport. Under 4 concurrent workers a matrix test has
-// been measured at >300 s, which truncated the final `record-active` state
-// (the committed matrix came back short by a few captures). 15 minutes leaves
-// ample headroom for the full per-viewport loop at 4 workers.
+// states for one viewport. Under 4 concurrent workers a matrix test has been
+// measured at >300 s, which truncated the final state (the committed matrix came
+// back short by a few captures). 15 minutes leaves ample headroom for the full
+// per-viewport loop at 4 workers.
 test.setTimeout(900000);
 
 // Local-only resilience for the whole file: under full-suite load a stalled
@@ -90,11 +90,9 @@ const BASE_HASH = `#map=${DEMO_AREA.screenshotZoom}/${DEMO_CENTER.lat.toFixed(6)
 const FEATURE_DIR = `${OUT_ROOT}/desktop/landscape`;
 
 // Fixed epoch for every value the UI derives from `Date.now()` — seeded region
-// and recording timestamps, and the live recording timer. Rendering wall-clock
-// time makes captures drift between runs; pinning the source makes the rendered
-// strings (and the 0:00 elapsed value) stable and reproducible.
+// timestamps. Rendering wall-clock time makes captures drift between runs;
+// pinning the source makes the rendered strings stable and reproducible.
 const FIXED_TIMESTAMP = Date.parse("2024-01-01T00:00:00Z");
-const RECORDING_CLOCK = new Date(FIXED_TIMESTAMP);
 
 // device → orientation → viewport (width × height).
 const VIEWPORTS = [
@@ -728,7 +726,7 @@ const seedDeterministicRandom = (page) =>
 /**
  * Seed only the locate permission — the view storage is deliberately left
  * absent so the capture starts from the app's default view. This lets one page
- * load cover the locate/record states without a mid-test reload.
+ * load cover the locate states without a mid-test reload.
  */
 const seedLocatePermission = (page) =>
   page.addInitScript(() => {
@@ -816,40 +814,6 @@ const waitForOrientHash = async (page) => {
     })
     .toContain(expected);
 };
-
-/**
- * Rebase the demo slice onto the pinned capture clock.
- *
- * Fixture timestamps are unix SECONDS; seeded recording points need the app's
- * `{lat, lng, t}` epoch-MILLISECONDS shape, with the last point landing at
- * `RECORDING_CLOCK` so the crafted ride shares the pinned clock.
- */
-const rebaseSlice = () => {
-  const lastT = DEMO.slice.at(-1).t;
-  return DEMO.slice.map((point) => ({
-    lat: point.lat,
-    lng: point.lng,
-    t: RECORDING_CLOCK.getTime() - (lastT - point.t) * 1000,
-  }));
-};
-
-/**
- * Seed a paused in-progress recording so the feature's crash recovery draws
- * the crafted ride at load, alongside a "Paused" chip.
- */
-const seedPausedRecording = (page) =>
-  page.addInitScript(
-    ({ points, startTime }) => {
-      localStorage.setItem(
-        "ogis_recordings_app",
-        JSON.stringify({ saved: [], active: { points, startTime } }),
-      );
-    },
-    {
-      points: rebaseSlice(),
-      startTime: RECORDING_CLOCK.getTime() - DEMO.sliceDuration * 1000,
-    },
-  );
 
 /**
  * Mouse-drag the map canvas horizontally to collapse the attribution chip.
@@ -1010,60 +974,6 @@ for (const vp of VIEWPORTS) {
       await waitForOrientHash(page);
       await normaliseCaptureState(page, testInfo);
       await capture(page, dir, "locate-active");
-
-      // record-active — a paused in-progress ride is seeded and reloaded so the
-      // Recordings panel starts on its Resume control. Pin Date.now() before
-      // resuming: the live elapsed timer keeps ticking via setInterval, but with
-      // the clock fixed the panel renders a stable elapsed time derived from the
-      // seeded startTime. Open the panel deliberately, then resume from its
-      // control; the panel stays open for the capture.
-      await seedPausedRecording(page);
-      // The locate-active orientation flight persisted its fitted view to the
-      // URL hash; restore the z16 capture view before the reload so the record
-      // states render against the same camera as the rest of the matrix (the
-      // hash outranks the fitted view now stored in localStorage).
-      await page.evaluate(
-        (hash) => history.replaceState(null, "", hash),
-        BASE_HASH,
-      );
-      await page.reload();
-      await stabilizeCaptureRendering(page);
-      await waitForMapIdle(page, testInfo);
-      await page.clock.setFixedTime(RECORDING_CLOCK);
-      // Resuming pushes the current position as the ride's next point; stubbing
-      // the slice end duplicates the track's last point (no spur from the
-      // centre stub used by the locate state).
-      const sliceEnd = DEMO.slice.at(-1);
-      await page.context().setGeolocation({
-        latitude: sliceEnd.lat,
-        longitude: sliceEnd.lng,
-      });
-      await openPanelTab(page, { name: "Recordings", exact: true });
-      await page.getByRole("button", { name: "Resume" }).click();
-      // The Resume control flips to Pause once the ride is active; scoped to
-      // the panel (the heading alone shows for both paused and active rides).
-      await expect(
-        page.locator(".ogis-panel").getByRole("button", { name: "Pause" }),
-      ).toBeVisible();
-      // The panel heading shows for both paused and active rides, so the dot
-      // state is the signal that resume took: only "recording" captures the
-      // active state the old Record chip used to expose.
-      await expect(
-        page.locator("#menu-button .ogis-menu-badge"),
-      ).toHaveAttribute("data-state", "recording");
-      await normaliseCaptureState(page, testInfo);
-      await capture(page, dir, "record-active");
-
-      // record-active-closed — the same active recording with the panel closed,
-      // so the capture shows the menu-chip dot while the recording continues.
-      await closePanel(page);
-      await expect(
-        page.locator("#menu-button .ogis-menu-badge"),
-      ).toHaveAttribute("data-state", "recording");
-      await expect(page.locator("#menu-button .ogis-menu-badge")).toBeVisible();
-      await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
-      await normaliseCaptureState(page, testInfo);
-      await capture(page, dir, "record-active-closed");
     });
   });
 }
@@ -1120,7 +1030,7 @@ for (const vp of VIEWPORTS) {
 }
 
 // ─── Feature states — desktop landscape, default theme ───────────────────────
-// Reach patterns mirror routes.spec.js, offline.spec.js and recordings.spec.js.
+// Reach patterns mirror routes.spec.js and offline.spec.js.
 
 test.describe("Feature states — desktop landscape", () => {
   test.use({ viewport: { width: 1280, height: 720 } });
@@ -1257,65 +1167,12 @@ test.describe("Feature states — desktop landscape", () => {
     await normaliseCaptureState(page, testInfo);
     await capture(page, FEATURE_DIR, "feature-offline");
   });
-
-  test("feature saved recording @screenshots", async ({ page }, testInfo) => {
-    // Seed one legacy saved recording so the panel lists it with its actions;
-    // the app migrates it to v2 on load. The displayed timestamp is pinned so
-    // the rendered date never drifts. Only Show is clicked, so no native
-    // confirm dialog needs handling here.
-    await page.addInitScript(
-      ({ center, recording }) => {
-        localStorage.setItem(
-          "ogis_locate_app",
-          JSON.stringify({ permissionGranted: true }),
-        );
-        localStorage.setItem(
-          "ogis_view_app",
-          JSON.stringify({
-            mapView: { center, zoom: 14 },
-          }),
-        );
-        localStorage.setItem(
-          "ogis_recordings_app",
-          JSON.stringify({ saved: [recording], active: null }),
-        );
-      },
-      {
-        center: DEMO_CENTER,
-        recording: {
-          id: "test-rec-1",
-          timestamp: RECORDING_CLOCK.getTime() - DEMO.sliceDuration * 1000,
-          duration: DEMO.sliceDuration * 1000,
-          distance: DEMO.sliceDistance,
-          points: rebaseSlice(),
-        },
-      },
-    );
-
-    await page.goto(`/${BASE_HASH}`);
-    await stabilizeCaptureRendering(page);
-    await waitForMapIdle(page, testInfo);
-
-    await openPanelTab(page, { name: "Recordings", exact: true });
-    await waitForLayoutSettled(page, testInfo);
-    await expect(
-      page.locator(".ogis-panel").locator(".border-top"),
-    ).toBeVisible();
-
-    // Show the saved recording's track on the map.
-    await page
-      .locator(".ogis-panel")
-      .getByRole("button", { name: "Show", exact: true })
-      .click();
-    await normaliseCaptureState(page, testInfo);
-    await capture(page, FEATURE_DIR, "feature-recordings");
-  });
 });
 
 // ─── Secondary UI states — desktop landscape, default theme ──────────────────
-// The empty, paused and error states that sit beside the core chrome states and
-// the fully-populated feature states. Reach patterns mirror recordings.spec.js,
-// routes.spec.js, offline.spec.js, core.spec.js and locate.spec.js.
+// The empty and error states that sit beside the core chrome states and the
+// fully-populated feature states. Reach patterns mirror routes.spec.js,
+// offline.spec.js, core.spec.js and locate.spec.js.
 
 test.describe("Secondary UI states — desktop landscape", () => {
   test.use({ viewport: { width: 1280, height: 720 } });
@@ -1331,36 +1188,6 @@ test.describe("Secondary UI states — desktop landscape", () => {
 
   test.afterEach(async ({ page }) => {
     expectNoConsoleErrors(page);
-  });
-
-  test("secondary record states @screenshots", async ({ page }, testInfo) => {
-    await withGrantedStorage(page);
-    await page.goto(`/${BASE_HASH}`);
-    await stabilizeCaptureRendering(page);
-    await waitForMapIdle(page, testInfo);
-
-    // Idle — no active ride and no saved recordings.
-    await openPanelTab(page, { name: "Recordings", exact: true });
-    await expect(
-      page.locator(".ogis-panel").getByText("No recordings yet."),
-    ).toBeVisible();
-    await normaliseCaptureState(page, testInfo);
-    await capture(page, FEATURE_DIR, "record-idle");
-
-    // Paused — a seeded in-progress ride reloads into its Resume control, with
-    // the pinned clock keeping the rendered elapsed time stable (the live timer
-    // keeps ticking via setInterval).
-    await seedPausedRecording(page);
-    await page.reload();
-    await stabilizeCaptureRendering(page);
-    await waitForMapIdle(page, testInfo);
-    await page.clock.setFixedTime(RECORDING_CLOCK);
-    await openPanelTab(page, { name: "Recordings", exact: true });
-    await expect(
-      page.locator(".ogis-panel").getByRole("button", { name: "Resume" }),
-    ).toBeVisible();
-    await normaliseCaptureState(page, testInfo);
-    await capture(page, FEATURE_DIR, "record-paused");
   });
 
   test("secondary route states @screenshots", async ({ page }, testInfo) => {

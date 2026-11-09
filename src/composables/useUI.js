@@ -10,9 +10,9 @@ function createState() {
     width: ref(window.innerWidth),
     visiblePane: ref(null),
     isPanelExpanded: ref(false),
-    activePanel: ref("record"),
+    activePanel: ref(null),
     // Generic status signal for the menu chip. Features set it to surface an
-    // at-a-glance indicator while the panel is closed (e.g. "recording").
+    // at-a-glance indicator while the panel is closed (e.g. "active").
     menuBadge: ref(null),
     // Multipurpose navigation indicator for the menu chip. Features set it to
     // surface the current navigation state while the panel is closed.

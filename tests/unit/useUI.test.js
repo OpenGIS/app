@@ -120,7 +120,7 @@ describe("useUI / Panel", () => {
 
   it("setActivePanel updates the activePanel id", async () => {
     const ui = await freshUseUI();
-    expect(ui.activePanel.value).toBe("record");
+    expect(ui.activePanel.value).toBeNull();
 
     ui.setActivePanel("offline");
     expect(ui.activePanel.value).toBe("offline");
@@ -160,24 +160,24 @@ describe("useUI / Menu status", () => {
     expect(uiB.menuNavigation.value).toBe(null);
   });
 
-  it("leaves the record menuBadge independent of menuNavigation", async () => {
+  it("leaves the menuBadge independent of menuNavigation", async () => {
     const ui = await freshUseUI();
 
-    ui.setMenuBadge("recording");
+    ui.setMenuBadge("active");
     ui.setMenuNavigation(navigation);
 
-    expect(ui.menuBadge.value).toBe("recording");
+    expect(ui.menuBadge.value).toBe("active");
     expect(ui.menuNavigation.value).toBe(navigation);
 
     ui.setMenuNavigation(null);
-    expect(ui.menuBadge.value).toBe("recording");
+    expect(ui.menuBadge.value).toBe("active");
   });
 });
 
 describe("useUI / Pane separation", () => {
   it("toggleInfo opens the info pane without changing the menu tab", async () => {
     const ui = await freshUseUI();
-    ui.setActivePanel("record");
+    ui.setActivePanel("offline");
 
     ui.toggleInfo();
 
@@ -185,7 +185,7 @@ describe("useUI / Pane separation", () => {
     expect(ui.isInfoVisible.value).toBe(true);
     expect(ui.isMenuVisible.value).toBe(false);
     expect(ui.isPanelVisible.value).toBe(true);
-    expect(ui.activePanel.value).toBe("record");
+    expect(ui.activePanel.value).toBe("offline");
   });
 
   it("toggleInfo closes the info pane on the second call", async () => {
@@ -246,7 +246,7 @@ describe("useUI / Pane separation", () => {
 
     expect(ui.isMenuVisible.value).toBe(true);
     expect(ui.isInfoVisible.value).toBe(false);
-    expect(ui.activePanel.value).toBe("record");
+    expect(ui.activePanel.value).toBeNull();
   });
 
   it("openInfo opens the info pane without changing the menu tab", async () => {

@@ -1,7 +1,7 @@
 @font-face {
     font-family: "ogis-icons";
-    src: url("./ogis-icons.woff2?9d450abe58457757ca8b644ecdcba9cf") format("woff2"),
-url("./ogis-icons.woff?9d450abe58457757ca8b644ecdcba9cf") format("woff");
+    src: url("./ogis-icons.woff2?ed73a97b73fc146925318ce97a5b0737") format("woff2"),
+url("./ogis-icons.woff?ed73a97b73fc146925318ce97a5b0737") format("woff");
 }
 
 i[class^="oi-"]:before, i[class*=" oi-"]:before {
@@ -41,9 +41,6 @@ i[class^="oi-"]:before, i[class*=" oi-"]:before {
 }
 .oi-route:before {
     content: "\f109";
-}
-.oi-record-btn-fill:before {
-    content: "\f10a";
 }
 .oi-question-circle:before {
     content: "\f10b";

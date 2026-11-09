@@ -1203,7 +1203,7 @@ const createLocate = (instanceId) => {
    * Stops the geolocation watcher, orientation listening, marker sync and the
    * follow camera without writing persisted state, clears transient flags and
    * drops the cached state only when it is still this instance's state. Shared
-   * by recordings and routes, so a single feature must not call it.
+   * by routes, so a single feature must not call it.
    * Idempotent.
    */
   const dispose = () => {

@@ -8,8 +8,6 @@ export {
   documentPoints,
   fileSafeName,
   lineGeometry,
-  migrateActiveRecording,
-  migrateRecording,
   migrateRoute,
   normaliseElevation,
   normalisePoint,

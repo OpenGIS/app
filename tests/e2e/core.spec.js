@@ -291,9 +291,8 @@ test.describe("Info panel", () => {
 
     const privacy = panel.locator(".ogis-privacy-section");
     await expect(privacy).toContainText(
-      "Recordings, routes and settings are stored",
+      "Routes, offline maps and settings are stored on this device.",
     );
-    await expect(privacy).toContainText("last known location");
     await expect(privacy).toContainText("Third-party Data Sources");
     await expect(privacy).toContainText("public sources");
 

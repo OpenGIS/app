@@ -3,7 +3,7 @@ import {
   trackConsoleErrors,
   expectNoConsoleErrors,
 } from "../helpers/console.js";
-import { waitForMapReady, openMenuTab } from "../helpers/panel";
+import { waitForMapReady } from "../helpers/panel";
 import { projectionType } from "../helpers/mapProjection.js";
 import {
   LOCATE_FIX as FIX,
@@ -264,37 +264,6 @@ test.describe("Locate / Confirmation modal", () => {
     expect(await close.evaluate((el) => getComputedStyle(el).opacity)).toBe(
       resting,
     );
-  });
-});
-
-// ─── Locate / Recordings integration ─────────────────────────────────────────
-
-test.describe("Locate / Recordings integration", () => {
-  test.beforeEach(async ({ page }) => {
-    await withNoLocateStorage(page);
-    await page.goto("/");
-    await waitForMapReady(page);
-    // The record control lives inside the Recordings panel now.
-    await openMenuTab(page, "Recordings");
-  });
-
-  test("starting a recording shows the confirmation modal when permission has not been granted", async ({
-    page,
-  }) => {
-    await page.locator("#recordings-start-button").click();
-    await expect(page.getByText("Trust")).toBeVisible();
-  });
-
-  test("cancelling the confirmation from Recordings leaves the recording stopped", async ({
-    page,
-  }) => {
-    await page.locator("#recordings-start-button").click();
-    await expect(page.getByText("Trust")).toBeVisible();
-    await page.getByText("Cancel").click();
-    await expect(page.getByText("Trust")).toBeHidden();
-    // Still idle: the start control remains and no status badge is shown.
-    await expect(page.locator("#recordings-start-button")).toBeVisible();
-    await expect(page.locator(".ogis-menu-badge")).toBeHidden();
   });
 });
 

@@ -38,12 +38,10 @@ const quarantineKey = (namespace, instanceId) =>
 
 const INSTANCE_NAMESPACES = [
   "view",
-  "recordings",
   "routes",
   "offline-regions",
   "locate",
   "navigation",
-  "recording-active",
   "sync",
 ];
 

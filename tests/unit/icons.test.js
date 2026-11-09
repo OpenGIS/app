@@ -41,7 +41,7 @@ const symbolIds = [...sprite.matchAll(/<symbol[^>]*\bid="([^"]+)"/g)].map(
  *  - ogis-logo — About logo in components/panels/info.vue
  *  - direction-arrow — map direction chevrons in composables/useGeoJSON.js
  *  - route / graph-down / file-arrow-down / person-circle / list / map —
- *    feature nav icons in src/features/{recordings,routes,offline,account,
+ *    feature nav icons in src/features/{routes,offline,account,
  *    collections,maps}/index.js
  */
 const REQUIRED_ICON_IDS = [
@@ -76,9 +76,9 @@ describe("vendored icon sprite", () => {
     );
   });
 
-  it("defines 60 symbols with unique ids", () => {
-    expect(symbolIds).toHaveLength(60);
-    expect(new Set(symbolIds).size).toBe(60);
+  it("defines 59 symbols with unique ids", () => {
+    expect(symbolIds).toHaveLength(59);
+    expect(new Set(symbolIds).size).toBe(59);
   });
 });
 
@@ -98,8 +98,8 @@ describe("generated icon output consistency", () => {
     expect(orphans).toEqual(["logo"]);
   });
 
-  it("has 61 generated codepoint entries", () => {
-    expect(Object.keys(generatedCodepoints)).toHaveLength(61);
+  it("has 60 generated codepoint entries", () => {
+    expect(Object.keys(generatedCodepoints)).toHaveLength(60);
   });
 
   it("matches the source codepoints file exactly", () => {

@@ -172,8 +172,12 @@ test.describe("Feature install isolation", () => {
     await expect(page.locator("[data-ogis-boot-fallback]")).toBeHidden();
 
     // Later features still installed and the panel chrome is intact.
-    await openMenuTab(page, "Recordings");
-    await expect(page.getByText("No recordings yet.")).toBeVisible();
+    await openMenuTab(page, "Routes");
+    await expect(
+      page.getByText(
+        "No routes yet. Import a GPX or GeoJSON file to get started.",
+      ),
+    ).toBeVisible();
     await expect(
       page.locator(".panel-nav").getByRole("button", { name: "Routes" }),
     ).toBeVisible();
@@ -191,10 +195,6 @@ test.describe("Corrupt stored state", () => {
     trackConsoleErrors(page);
 
     await page.addInitScript(() => {
-      localStorage.setItem(
-        "ogis_recordings_app",
-        JSON.stringify({ saved: "nope" }),
-      );
       localStorage.setItem(
         "ogis_offline-regions_app",
         JSON.stringify([
@@ -215,20 +215,8 @@ test.describe("Corrupt stored state", () => {
     await page.goto("/");
     await waitForMapReady(page);
 
-    await openMenuTab(page, "Recordings");
-    await expect(page.getByText("No recordings yet.")).toBeVisible();
-
     await openMenuTab(page, "Offline Maps");
     await expect(page.getByText("No regions downloaded yet.")).toBeVisible();
-
-    // The unusable recordings value is preserved for inspection.
-    await expect
-      .poll(() =>
-        page.evaluate(() =>
-          localStorage.getItem("ogis_quarantine_recordings_app"),
-        ),
-      )
-      .not.toBeNull();
 
     expectNoConsoleErrors(page);
   });

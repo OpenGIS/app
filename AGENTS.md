@@ -70,7 +70,7 @@ The `instanceId` is read from the `?id=` URL param (default `'app'`) and passed 
 ogis_{namespace}_{instanceId}
 ```
 
-Examples: `ogis_view_app`, `ogis_recordings_app`. The instance id is always last — this makes keys easy to read in browser DevTools.
+Examples: `ogis_view_app`, `ogis_routes_app`. The instance id is always last — this makes keys easy to read in browser DevTools.
 
 ### Composable pattern
 

@@ -2,8 +2,8 @@ $ogis-icons-font: "ogis-icons";
 
 @font-face {
     font-family: $ogis-icons-font;
-    src: url("./ogis-icons.woff2?9d450abe58457757ca8b644ecdcba9cf") format("woff2"),
-url("./ogis-icons.woff?9d450abe58457757ca8b644ecdcba9cf") format("woff");
+    src: url("./ogis-icons.woff2?ed73a97b73fc146925318ce97a5b0737") format("woff2"),
+url("./ogis-icons.woff?ed73a97b73fc146925318ce97a5b0737") format("woff");
 }
 
 i[class^="oi-"]:before, i[class*=" oi-"]:before {
@@ -27,7 +27,6 @@ $ogis-icons-map: (
     "sidebar-info": "\f107",
     "search": "\f108",
     "route": "\f109",
-    "record-btn-fill": "\f10a",
     "question-circle": "\f10b",
     "position": "\f10c",
     "position-lock": "\f10d",
@@ -107,9 +106,6 @@ $ogis-icons-map: (
 }
 .oi-route:before {
     content: map-get($ogis-icons-map, "route");
-}
-.oi-record-btn-fill:before {
-    content: map-get($ogis-icons-map, "record-btn-fill");
 }
 .oi-question-circle:before {
     content: map-get($ogis-icons-map, "question-circle");

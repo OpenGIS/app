@@ -230,9 +230,8 @@ export const waitForGlyphsQuiesce = async (
  * `_placementDirty`/`_sourcesDirty`/`_styleDirty` hold and fires `idle` only
  * when none do). A stale frame can nevertheless reach the compositor: the map
  * canvas is presented asynchronously, and a screenshot taken in the gap records
- * the previous frame — for the record-active state, the previous frame is the
- * one where a late symbol re-placement had not yet committed, so labels are
- * missing. Compose the app's idle signal, the renderer-state quiet check (which
+ * the previous frame — for a state with a late symbol re-placement, the previous
+ * frame is the one where it had not yet committed, so labels are missing. Compose the app's idle signal, the renderer-state quiet check (which
  * forces two renders and confirms the clean predicate after each), and one final
  * presented frame; `capture()`'s render-then-compare loop is the final
  * confirmation.

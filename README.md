@@ -18,9 +18,9 @@ A _loveletter_ to the [OpenStreetMap](https://www.openstreetmap.org/) ecosystem 
 ogis.app is a **Vue 3 + Vite** single-page application and an **installable PWA** ([`public/manifest.json`](public/manifest.json), `display: standalone`) — the map is [MapLibre GL JS](https://maplibre.org/) with a Bootstrap SCSS theme, and a hand-rolled service worker ([`public/sw.js`](public/sw.js), no Workbox) provides the app shell and offline map support. The backend features (account, maps, collections) are disabled in the current SPA front-end only mode.
 
 - **Entry point** — [`src/main.js`](src/main.js) reads the URL parameters, creates the Vue app, installs the core features and mounts to `#app`.
-- **Resilience** — persisted stores use a versioned envelope with hydration and quarantine; boot failures are contained and a static fallback covers a failed module load. The map view and shared routes, recordings and offline regions sync live across tabs, while locate, route-navigation and active-recording sessions restore durably in the tab that owns them; a liveness probe stops another live tab from restoring or clearing them. Critical transitions flush immediately, recordings restore paused, and map recovery surfaces style and WebGL failures. See [State and resilience](docs/16.state-and-resilience.md).
+- **Resilience** — persisted stores use a versioned envelope with hydration and quarantine; boot failures are contained and a static fallback covers a failed module load. The map view and the shared route and offline-region stores sync live across tabs, while locate and route-navigation sessions restore durably in the tab that owns them; a liveness probe stops another live tab from restoring or clearing them. Critical transitions flush immediately, and map recovery surfaces style and WebGL failures. See [State and resilience](docs/16.state-and-resilience.md).
 - **Features** — self-contained bundles registered from `src/main.js`; each is a plain object with an `install(ctx)` method that registers a side-panel tab and/or a corner control chip. See [Features](docs/10.features.md).
-- **Tracks** — routes, recordings and waypoint documents share a versioned `v: 2` model in [`src/utils/track/`](src/utils/track/) for import, export, distance and legacy migration; GeoJSON is a render/export projection. See [Tracks](docs/15.tracks.md).
+- **Tracks** — route and waypoint documents share a versioned `v: 2` model in [`src/utils/track/`](src/utils/track/) for import, export, distance and legacy migration; GeoJSON is a render/export projection. See [Tracks](docs/15.tracks.md).
 - **Actions and modes** — camera-taking actions claim the map from sustained modes (following, offline draw, route navigation) so state is reconciled before the camera moves. See [UI actions and map modes](docs/5.ui.md#ui-actions-and-map-modes).
 - **Composables** — per-instance state lives in `src/composables/`, cached in a module-level `Map` keyed by the instance id (the `?id=` URL parameter). See [Instances](docs/3.instances.md).
 - **Offline** — the service worker caches the app shell and map resources; the Offline feature pre-warms its cache by fetching every tile and glyph URL for a region. See [Offline](docs/12.offline.md).
@@ -36,7 +36,7 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
   - Menu
   - Locate / Follow (GPS position + Compass heading)
   - Info
-- Record, Share and Import Routes.
+- Import and share GPX/GeoJSON routes.
 - Navigate Routes, with direction and distance indicators.
 - Offline Maps.
 - Multilingual - both UI and map names where available (uses OS language).
@@ -46,7 +46,7 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 ## Drawbacks and Limitations
 
 - Location permissions are required for GPS/Compass features. Some users have a deny-all approach to browser permissions and changing them varies between browsers and devices.
-- The app can not acces the user's position when the device is locked — needed for accurate recordings - a common limitation of web apps.
+- The app cannot access the user's position when the device is locked — needed for live location and route navigation — a common limitation of web apps.
 - The app requires an initial connection to load assets and map tiles, even though it works offline thereafter.
 
 ## Planned Changes
