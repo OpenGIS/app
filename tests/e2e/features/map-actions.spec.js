@@ -168,9 +168,9 @@ const startFollowing = async (page) => {
   const button = page.locator("#locate-button");
 
   await button.click();
-  await expect(button).toContainText("Located", { timeout: FOLLOW_TIMEOUT });
+  await expect(button).toContainText("Locating…", { timeout: FOLLOW_TIMEOUT });
 
-  // The watcher is registered asynchronously after the chip reports Located;
+  // The watcher is registered asynchronously after the chip starts locating;
   // wait for it before publishing a fix.
   await expect
     .poll(() => page.evaluate(() => window.__geo.count()), {
@@ -182,6 +182,7 @@ const startFollowing = async (page) => {
     lat: LOCATE_FIX.latitude,
     lng: LOCATE_FIX.longitude,
   });
+  await expect(button).toContainText("Located", { timeout: FOLLOW_TIMEOUT });
   await expect
     .poll(() => page.locator(".ogis-locate-position").count(), {
       timeout: FOLLOW_TIMEOUT,

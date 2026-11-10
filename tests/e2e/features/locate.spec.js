@@ -14,10 +14,12 @@ import {
   expectedHashRegExp,
   installGeolocationMock,
   orientHash,
+  resolveIOSOrientationPermission,
   tapMap,
   waitForCameraSettle,
   withAppleWebKitPromptPermission,
   withGrantedLocateStorage as withGrantedStorage,
+  withHangingIOSOrientationPermission,
   withHangingPermissionQuery,
   withIOSOrientationPermission,
   withNoLocateStorage,
@@ -57,6 +59,38 @@ const grantGeolocation = (page, coords = FIX) =>
     .context()
     .grantPermissions(["geolocation"])
     .then(() => page.context().setGeolocation(coords));
+
+// Publish the shared demo fix through the geolocation stub once the watcher is
+// registered. The chip shows "Locating…" until this lands.
+const emitDemoFix = async (page) => {
+  await expect
+    .poll(() => page.evaluate(() => window.__geo.count()), {
+      timeout: LOCATE_TIMEOUT,
+    })
+    .toBeGreaterThan(0);
+  await emitFix(page, { lat: FIX.latitude, lng: FIX.longitude });
+};
+
+// Re-enable the once-only onboarding hints (the shared fixture disables them)
+// and hold each one up so a slow renderer cannot fade it mid-assertion.
+const withLocateHints = (page) =>
+  page.addInitScript(() => {
+    window.__ogisDisableHints = false;
+    window.__ogisHintDurationMs = 10 * 60 * 1000;
+  });
+
+const HINTS_KEY = "ogis_locate-hints_app";
+
+const hintFor = (page, key) =>
+  page.locator(`.ogis-locate-hint[data-hint="${key}"]`);
+
+const seenHints = async (page) => {
+  const raw = await page.evaluate(
+    (key) => localStorage.getItem(key),
+    HINTS_KEY,
+  );
+  return raw ? (readStoredState(raw)?.seen ?? []) : [];
+};
 
 // The chip glyph is an inline SVG <use> pointing at the sprite symbol. Read the
 // resolved reference, which normalises `href` and `xlink:href`, so the
@@ -272,7 +306,7 @@ test.describe("Locate / Confirmation modal", () => {
 test.describe("Locate / Active and Following states", () => {
   test.beforeEach(async ({ page }) => {
     await withGrantedStorage(page);
-    await grantGeolocation(page);
+    await installGeolocationMock(page);
     await page.goto("/");
     await waitForMapReady(page);
   });
@@ -281,6 +315,13 @@ test.describe("Locate / Active and Following states", () => {
     page,
   }) => {
     await page.locator("#locate-button").click();
+    // No fix yet: the chip reports progress and keeps the plain position icon.
+    await expect(page.locator("#locate-button")).toContainText("Locating…", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await expectLocateButtonIcon(page, "position");
+
+    await emitDemoFix(page);
     await expect(page.locator("#locate-button")).toContainText("Located", {
       timeout: LOCATE_TIMEOUT,
     });
@@ -290,6 +331,10 @@ test.describe("Locate / Active and Following states", () => {
   test("button advances to Following on second click", async ({ page }) => {
     const btn = page.locator("#locate-button");
     await btn.click();
+    await expect(btn).toContainText("Locating…", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await emitDemoFix(page);
     await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
 
     // Light: the first activation's orientation flight only needs the camera
@@ -303,6 +348,10 @@ test.describe("Locate / Active and Following states", () => {
   test("button returns to Locate on third click", async ({ page }) => {
     const btn = page.locator("#locate-button");
     await btn.click();
+    await expect(btn).toContainText("Locating…", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await emitDemoFix(page);
     await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
 
     // Second click → Following, then a third (stop). Wait for the button to
@@ -321,6 +370,7 @@ test.describe("Locate / Active and Following states", () => {
 
   test("position marker appears on the map when active", async ({ page }) => {
     await page.locator("#locate-button").click();
+    await emitDemoFix(page);
     await expect
       .poll(() => page.locator(".ogis-locate-position").count(), {
         timeout: LOCATE_TIMEOUT,
@@ -335,6 +385,7 @@ test.describe("Locate / Active and Following states", () => {
     const marker = page.locator(".ogis-locate-position");
 
     await btn.click();
+    await emitDemoFix(page);
     await expect
       .poll(() => marker.count(), { timeout: LOCATE_TIMEOUT })
       .toBeGreaterThan(0);
@@ -417,12 +468,15 @@ test.describe("Locate / Critical flush", () => {
 
     const btn = page.locator("#locate-button");
     await btn.click();
-    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).toContainText("Locating…", { timeout: LOCATE_TIMEOUT });
 
+    // The chip can enter Following before a fix exists; it still reports
+    // progress until the first position arrives.
     await btn.click();
-    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).toContainText("Locating…", { timeout: LOCATE_TIMEOUT });
 
-    await emitFix(page, { lat: FIX.latitude, lng: FIX.longitude });
+    await emitDemoFix(page);
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
 
     // No polling: the critical transitions write synchronously, so the stored
     // envelope must already hold the following session and its first fix.
@@ -637,6 +691,206 @@ test.describe("Locate / Error state", () => {
 
     await page.locator("#locate-button").click();
     await expect(page.getByText("Unable to Locate")).toBeVisible();
+  });
+
+  test("an unavailable position auto-opens the cause-specific modal", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await withGrantedStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await page.locator("#locate-button").click();
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(1);
+
+    await emitGeoError(page, 2);
+
+    await expect(page.locator("#locate-button")).toContainText("Error", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await expect(page.locator("#locate-error-title")).toHaveText(
+      "Location Unavailable",
+      { timeout: LOCATE_TIMEOUT },
+    );
+    const modal = page.locator(
+      '.ogis-modal[aria-labelledby="locate-error-title"]',
+    );
+    await expect(modal.locator(".modal-body")).toContainText(
+      "Your device could not determine a location.",
+    );
+    await expect(modal.locator("ol")).toHaveCount(0);
+    await expect(page.locator("#locate-error-retry")).toBeVisible();
+  });
+
+  test("a timeout before the first fix shows the timeout copy", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await withGrantedStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await page.locator("#locate-button").click();
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(1);
+
+    await emitGeoError(page, 3);
+
+    await expect(page.locator("#locate-button")).toContainText("Error", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await expect(page.locator("#locate-error-title")).toHaveText(
+      "Location Timed Out",
+      { timeout: LOCATE_TIMEOUT },
+    );
+    const modal = page.locator(
+      '.ogis-modal[aria-labelledby="locate-error-title"]',
+    );
+    await expect(modal.locator(".modal-body")).toContainText(
+      "No location arrived in time.",
+    );
+    await expect(modal.locator("ol")).toHaveCount(0);
+    await expect(page.locator("#locate-error-retry")).toBeVisible();
+  });
+
+  test("a synchronous watcher failure shows the generic error copy", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await withGrantedStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await page.evaluate(() => {
+      navigator.geolocation.watchPosition = () => {
+        throw new Error("watchPosition is unavailable");
+      };
+    });
+
+    await page.locator("#locate-button").click();
+
+    await expect(page.locator("#locate-button")).toContainText("Error", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    const modal = page.locator(
+      '.ogis-modal[aria-labelledby="locate-error-title"]',
+    );
+    await expect(modal.locator(".modal-body")).toContainText(
+      "Something went wrong while acquiring your location.",
+      { timeout: LOCATE_TIMEOUT },
+    );
+    await expect(modal.locator("ol")).toHaveCount(0);
+    await expect(page.locator("#locate-error-retry")).toBeVisible();
+  });
+
+  test("an error without a code shows the generic error copy", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await withGrantedStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await page.locator("#locate-button").click();
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(1);
+
+    await page.evaluate(() => window.__geo.fail(undefined));
+
+    await expect(page.locator("#locate-button")).toContainText("Error", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    const modal = page.locator(
+      '.ogis-modal[aria-labelledby="locate-error-title"]',
+    );
+    await expect(modal.locator(".modal-body")).toContainText(
+      "Something went wrong while acquiring your location.",
+      { timeout: LOCATE_TIMEOUT },
+    );
+    await expect(modal.locator("ol")).toHaveCount(0);
+  });
+
+  test("retrying a non-denial error clears the cause and restarts the watcher", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await withGrantedStorage(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await page.locator("#locate-button").click();
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(1);
+
+    await emitGeoError(page, 2);
+
+    await expect(page.locator("#locate-error-retry")).toBeVisible({
+      timeout: LOCATE_TIMEOUT,
+    });
+    expect(await page.evaluate(() => window.__geo.count())).toBe(0);
+
+    await page.locator("#locate-error-retry").click();
+
+    await expect(page.locator("#locate-button")).toContainText("Locating…", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await expect(page.getByText("Location Unavailable")).toBeHidden();
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(1);
+    expect((await readLocate(page)).errorCause).toBeNull();
+
+    await emitDemoFix(page);
+    await expect(page.locator("#locate-button")).toContainText("Located", {
+      timeout: LOCATE_TIMEOUT,
+    });
+  });
+
+  test("an unsupported browser shows the access copy without retry", async ({
+    page,
+  }) => {
+    await withGrantedStorage(page);
+    await page.addInitScript(() => {
+      delete Navigator.prototype.geolocation;
+      delete navigator.geolocation;
+    });
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await page.locator("#locate-button").click();
+
+    await expect(page.locator("#locate-button")).toContainText("Error", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await expect(page.locator("#locate-error-title")).toHaveText(
+      "Location Unavailable",
+      { timeout: LOCATE_TIMEOUT },
+    );
+    const modal = page.locator(
+      '.ogis-modal[aria-labelledby="locate-error-title"]',
+    );
+    await expect(modal.locator(".modal-body")).toContainText(
+      "This browser does not provide location access.",
+    );
+    await expect(modal.locator("ol")).toHaveCount(0);
+    await expect(page.locator("#locate-error-retry")).toHaveCount(0);
+    await expect(page.locator("#locate-error-close")).toBeVisible();
   });
 });
 
@@ -911,7 +1165,10 @@ const readLocate = (page) =>
     const position = locate.position.value;
     return {
       mode: locate.mode.value,
+      errorCause: locate.errorCause.value,
       headingRecoveryPending: locate.headingRecoveryPending.value,
+      orientationPromptPending: locate.orientationPromptPending.value,
+      restoreSettled: locate.restoreSettled.value,
       compassHeading: locate.compassHeading.value,
       position: position
         ? {
@@ -1243,6 +1500,9 @@ test.describe("Locate / Restore", () => {
       })
       .toBeNull();
     await expect(page.getByText("Unable to Locate")).toBeHidden();
+    await expect(
+      page.locator('.ogis-modal[aria-labelledby="locate-error-title"]'),
+    ).toBeHidden();
     await expect(page.getByText("Trust")).toBeHidden();
 
     await expect
@@ -1317,6 +1577,10 @@ test.describe("Locate / Restore", () => {
 
     const button = pageA.locator("#locate-button");
     await button.click();
+    await expect(button).toContainText("Locating…", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await emitDemoFix(pageA);
     await expect(button).toContainText("Located", { timeout: LOCATE_TIMEOUT });
     await button.click();
     await expect(button).toContainText("Following", {
@@ -1363,7 +1627,9 @@ test.describe("Locate / Restore", () => {
     await page.locator("#locate-button").click();
     await expect(page.getByText("Trust")).toBeVisible();
     await page.getByRole("button", { name: "I Understand" }).click();
-    await expect(page.locator("#locate-button")).toContainText("Located", {
+    // No fix is emitted here: this test only proves the permission grant
+    // survives the quit, so the chip correctly reports progress.
+    await expect(page.locator("#locate-button")).toContainText("Locating…", {
       timeout: LOCATE_TIMEOUT,
     });
     await expect
@@ -1382,9 +1648,12 @@ test.describe("Locate / Restore", () => {
 
     await reopened.locator("#locate-button").click();
     await expect(reopened.getByText("Trust")).toBeHidden();
-    await expect(reopened.locator("#locate-button")).toContainText("Located", {
-      timeout: LOCATE_TIMEOUT,
-    });
+    await expect(reopened.locator("#locate-button")).toContainText(
+      "Locating…",
+      {
+        timeout: LOCATE_TIMEOUT,
+      },
+    );
   });
 
   test("restores a following session from localStorage with a dead owner", async ({
@@ -1429,12 +1698,20 @@ test.describe("Locate / Restore", () => {
     await waitForMapReady(page);
 
     await page.locator("#locate-button").click();
-    await expect(page.locator("#locate-button")).toContainText("Located", {
+    await expect(page.locator("#locate-button")).toContainText("Locating…", {
       timeout: LOCATE_TIMEOUT,
     });
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBeGreaterThan(0);
     await emitFix(page, {
       lat: RESTORE_FIX.lat,
       lng: RESTORE_FIX.lng,
+    });
+    await expect(page.locator("#locate-button")).toContainText("Located", {
+      timeout: LOCATE_TIMEOUT,
     });
     await expect
       .poll(async () => (await readLocateStorage(page))?.lastFix ?? null, {
@@ -2146,5 +2423,383 @@ test.describe("Locate / Restore / Compass permission", () => {
         timeout: RESTORE_TIMEOUT,
       });
     });
+  });
+});
+
+// ─── Locate / First-use compass denial ──────────────────────────────────────
+
+/**
+ * A denial on a normal first-use start must reach the same honest pending state
+ * as a restore: the persistent heading hint, plus the chip and map repair
+ * gestures. The iOS stub holds its permission promise so the denial can land
+ * after the user has entered Following — the timing a real native prompt can
+ * take — then the repair is asserted from that live Following session.
+ */
+test.describe("Locate / First-use compass denial", () => {
+  /**
+   * Start a first-use session, enter Following while the orientation prompt is
+   * still outstanding, then settle that prompt as denied.
+   *
+   * @returns {Promise<import('@playwright/test').Locator>} The locate chip.
+   */
+  const startFollowingWithDeniedCompass = async (page) => {
+    await withNoLocateStorage(page);
+    await withLocateHints(page);
+    await installGeolocationMock(page);
+    await withHangingIOSOrientationPermission(page);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await btn.click();
+    await expect(page.getByText("Trust")).toBeVisible();
+    await page.getByRole("button", { name: "I understand" }).click();
+
+    // The GPS watcher is live while the native prompt is outstanding, so the
+    // fix can land before the prompt is answered.
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(1);
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBeGreaterThan(0);
+    await emitFix(page, { lat: FIX.latitude, lng: FIX.longitude });
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+
+    await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
+    await btn.click();
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+
+    // Deny only now, on a live Following session.
+    expect(await resolveIOSOrientationPermission(page, "denied")).toBe(true);
+    await expect
+      .poll(async () => (await readLocate(page)).headingRecoveryPending, {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(true);
+
+    return btn;
+  };
+
+  test("a denied first-use prompt shows the persistent heading hint", async ({
+    page,
+  }) => {
+    const btn = await startFollowingWithDeniedCompass(page);
+
+    expect((await readLocate(page)).mode).toBe("following");
+    await expect(hintFor(page, "heading")).toContainText("Compass is off", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await expect(hintFor(page, "following")).toHaveCount(0);
+    await expect(btn).toContainText("Following");
+  });
+
+  test("a chip tap repairs a denied first-use session and stays Following", async ({
+    page,
+  }) => {
+    const btn = await startFollowingWithDeniedCompass(page);
+
+    await expect(hintFor(page, "heading")).toContainText("Compass is off", {
+      timeout: LOCATE_TIMEOUT,
+    });
+
+    // The chip tap is the repair gesture: it requests orientation permission
+    // again inside the click without leaving Following.
+    await btn.click();
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(2);
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    expect((await readLocate(page)).mode).toBe("following");
+
+    // Settle the outstanding repair prompt so the page closes cleanly.
+    expect(await resolveIOSOrientationPermission(page, "denied")).toBe(true);
+  });
+
+  test("a map click repairs a denied first-use session", async ({ page }) => {
+    const btn = await startFollowingWithDeniedCompass(page);
+
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      1,
+    );
+
+    await tapMap(page);
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(2);
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+
+    expect(await resolveIOSOrientationPermission(page, "denied")).toBe(true);
+  });
+
+  test("a granted repair clears the heading hint and resumes Following", async ({
+    page,
+  }) => {
+    const btn = await startFollowingWithDeniedCompass(page);
+
+    await expect(hintFor(page, "heading")).toContainText("Compass is off", {
+      timeout: LOCATE_TIMEOUT,
+    });
+
+    await btn.click();
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(2);
+    expect(await resolveIOSOrientationPermission(page, "granted")).toBe(true);
+
+    // `retryOrientation` attaches its listener only once the permission
+    // promise settles, so retry the dispatch until the heading marker exists.
+    await expect
+      .poll(
+        async () => {
+          await dispatchIOSCompass(page, 90);
+          return page.locator(".ogis-locate-heading").count();
+        },
+        { timeout: LOCATE_TIMEOUT },
+      )
+      .toBe(1);
+
+    await expect(hintFor(page, "heading")).toHaveCount(0);
+    await expect(hintFor(page, "following")).toContainText(
+      "Tap again to stop",
+      {
+        timeout: LOCATE_TIMEOUT,
+      },
+    );
+    expect((await readLocate(page)).headingRecoveryPending).toBe(false);
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+  });
+
+  test("stopping while a retry permission prompt is pending stays stopped", async ({
+    page,
+  }) => {
+    const btn = await startFollowingWithDeniedCompass(page);
+
+    // The map click starts `retryOrientation`; its second permission promise
+    // stays outstanding until this test settles it.
+    await tapMap(page);
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(2);
+    expect(
+      await page.evaluate(() => window.__orientationPermissionPending),
+    ).toBe(true);
+
+    // `retryOrientation` clears the recovery flag synchronously, so the chip
+    // now stops rather than repairing again.
+    await btn.click();
+    await expect(btn).toContainText("Locate", { timeout: LOCATE_TIMEOUT });
+    expect((await readLocate(page)).mode).toBeNull();
+
+    // The stale continuation must not resurrect orientation watching.
+    expect(await resolveIOSOrientationPermission(page, "granted")).toBe(true);
+    await dispatchIOSCompass(page, 90);
+    await page.waitForTimeout(200);
+
+    const state = await readLocate(page);
+    expect(state.mode).toBeNull();
+    expect(state.compassHeading).toBeNull();
+    await expect(page.locator(".ogis-locate-heading")).toHaveCount(0);
+    await expect(page.locator(".ogis-locate-position")).toHaveCount(0);
+  });
+});
+
+// ─── Locate / First-use compass denial / non-iOS ────────────────────────────
+
+test.describe("Locate / First-use compass denial / non-iOS", () => {
+  test("following keeps the normal hint without an orientation request", async ({
+    page,
+  }) => {
+    await withNoLocateStorage(page);
+    await withLocateHints(page);
+    await installGeolocationMock(page);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await btn.click();
+    await expect(page.getByText("Trust")).toBeVisible();
+    await page.getByRole("button", { name: "I understand" }).click();
+
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBeGreaterThan(0);
+    await emitFix(page, { lat: FIX.latitude, lng: FIX.longitude });
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+
+    await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
+    await btn.click();
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+
+    await expect(hintFor(page, "following")).toContainText(
+      "Tap again to stop",
+      {
+        timeout: LOCATE_TIMEOUT,
+      },
+    );
+    await expect(hintFor(page, "heading")).toHaveCount(0);
+    expect((await readLocate(page)).headingRecoveryPending).toBe(false);
+    expect(
+      await page.evaluate(() => window.__orientationPermissionCalls),
+    ).toBeUndefined();
+  });
+});
+
+// ─── Locate / Hung orientation prompt ────────────────────────────────────────
+
+/**
+ * Geolocation must not wait for the iOS Motion & Orientation prompt. These
+ * cases pin the new ordering: the GPS watcher is already live while the native
+ * orientation prompt is outstanding, and the active hint is suppressed until
+ * that prompt settles.
+ */
+test.describe("Locate / Hung orientation prompt", () => {
+  test("a pending orientation prompt does not block geolocation or leak the active hint", async ({
+    page,
+  }) => {
+    await withNoLocateStorage(page);
+    await withLocateHints(page);
+    await installGeolocationMock(page);
+    await withHangingIOSOrientationPermission(page);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await btn.click();
+    await expect(page.getByText("Trust")).toBeVisible();
+    await page.getByRole("button", { name: "I understand" }).click();
+
+    // The native prompt is outstanding…
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(1);
+    expect(
+      await page.evaluate(() => window.__orientationPermissionPending),
+    ).toBe(true);
+
+    // …and the GPS watcher is already registered regardless.
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBeGreaterThan(0);
+
+    // A fix lands while orientation permission is still unresolved.
+    await emitFix(page, { lat: FIX.latitude, lng: FIX.longitude });
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+
+    const state = await readLocate(page);
+    expect(state.mode).toBe("active");
+    expect(state.orientationPromptPending).toBe(true);
+
+    // Past the 400 ms state-change delay the active hint stays suppressed by
+    // the outstanding prompt, and is not marked seen.
+    await page.waitForTimeout(600);
+    await expect(page.locator(".ogis-locate-hint")).toHaveCount(0);
+    expect(await seenHints(page)).not.toContain("active");
+
+    // Granting the prompt releases the hint.
+    expect(await resolveIOSOrientationPermission(page, "granted")).toBe(true);
+    await expect(hintFor(page, "active")).toContainText("follow you", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await expect
+      .poll(() => seenHints(page), { timeout: LOCATE_TIMEOUT })
+      .toContain("active");
+  });
+});
+
+// ─── Locate / Session lifecycle guards ───────────────────────────────────────
+
+/**
+ * A prompt that settles after the session has been torn down must not revive
+ * orientation watching. These cases hold the iOS permission promise open, stop
+ * the session, then grant it.
+ */
+test.describe("Locate / Session lifecycle guards", () => {
+  test("stopping while the orientation prompt is pending stays stopped", async ({
+    page,
+  }) => {
+    await withNoLocateStorage(page);
+    await installGeolocationMock(page);
+    await withHangingIOSOrientationPermission(page);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await btn.click();
+    await expect(page.getByText("Trust")).toBeVisible();
+    await page.getByRole("button", { name: "I understand" }).click();
+
+    await expect
+      .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(1);
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBeGreaterThan(0);
+    await emitFix(page, { lat: FIX.latitude, lng: FIX.longitude });
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+
+    await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
+    await btn.click();
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+
+    // Stop through the chip while the initial prompt is still outstanding.
+    await btn.click();
+    await expect(btn).toContainText("Locate", { timeout: LOCATE_TIMEOUT });
+    expect((await readLocate(page)).mode).toBeNull();
+
+    // The stale continuation must not start watching for the dead session.
+    expect(await resolveIOSOrientationPermission(page, "granted")).toBe(true);
+    await dispatchIOSCompass(page, 90);
+    await page.waitForTimeout(200);
+
+    const state = await readLocate(page);
+    expect(state.mode).toBeNull();
+    expect(state.position).toBeNull();
+    expect(state.compassHeading).toBeNull();
+    await expect(page.locator(".ogis-locate-heading")).toHaveCount(0);
+    await expect(page.locator(".ogis-locate-position")).toHaveCount(0);
+  });
+
+  test("restore settles on a boot with no persisted session", async ({
+    page,
+  }) => {
+    await withNoLocateStorage(page);
+    await installGeolocationMock(page);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    expect((await readLocate(page)).mode).toBeNull();
+    await expect
+      .poll(async () => (await readLocate(page)).restoreSettled, {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(true);
   });
 });

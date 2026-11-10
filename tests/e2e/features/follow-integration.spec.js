@@ -313,7 +313,7 @@ test.describe("Follow / Locate chase", () => {
     // 1. Active: publish a rest fix (carrying a null speed/heading), a compass
     // event, then let the one-shot orientation flight settle.
     await btn.click();
-    await expect(btn).toContainText("Located", { timeout: CAMERA_TIMEOUT });
+    await expect(btn).toContainText("Locating…", { timeout: CAMERA_TIMEOUT });
     await expect
       .poll(() => page.evaluate(() => window.__geo.count()), {
         timeout: CAMERA_TIMEOUT,
@@ -324,6 +324,7 @@ test.describe("Follow / Locate chase", () => {
       lat: LOCATE_FIX.latitude,
       lng: LOCATE_FIX.longitude,
     });
+    await expect(btn).toContainText("Located", { timeout: CAMERA_TIMEOUT });
     await expect
       .poll(() => page.locator(".ogis-locate-position").count(), {
         timeout: CAMERA_TIMEOUT,
@@ -522,7 +523,7 @@ test.describe("Follow / Locate chase", () => {
     // 1. Reach following with a settled third-person rest pose (45°, yawed to
     // the compass).
     await btn.click();
-    await expect(btn).toContainText("Located", { timeout: CAMERA_TIMEOUT });
+    await expect(btn).toContainText("Locating…", { timeout: CAMERA_TIMEOUT });
     await expect
       .poll(() => page.evaluate(() => window.__geo.count()), {
         timeout: CAMERA_TIMEOUT,
@@ -532,6 +533,7 @@ test.describe("Follow / Locate chase", () => {
       lat: LOCATE_FIX.latitude,
       lng: LOCATE_FIX.longitude,
     });
+    await expect(btn).toContainText("Located", { timeout: CAMERA_TIMEOUT });
     await expect
       .poll(() => page.locator(".ogis-locate-position").count(), {
         timeout: CAMERA_TIMEOUT,
@@ -665,7 +667,7 @@ test.describe("Follow / Locate chase", () => {
 
     // 1. Reach following with a settled rest pose.
     await btn.click();
-    await expect(btn).toContainText("Located", { timeout: CAMERA_TIMEOUT });
+    await expect(btn).toContainText("Locating…", { timeout: CAMERA_TIMEOUT });
     await expect
       .poll(() => page.evaluate(() => window.__geo.count()), {
         timeout: CAMERA_TIMEOUT,
@@ -675,6 +677,7 @@ test.describe("Follow / Locate chase", () => {
       lat: LOCATE_FIX.latitude,
       lng: LOCATE_FIX.longitude,
     });
+    await expect(btn).toContainText("Located", { timeout: CAMERA_TIMEOUT });
     await expect
       .poll(() => page.locator(".ogis-locate-position").count(), {
         timeout: CAMERA_TIMEOUT,

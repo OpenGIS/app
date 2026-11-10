@@ -918,10 +918,10 @@ for (const vp of VIEWPORTS) {
       await normaliseCaptureState(page, testInfo);
       await capture(page, dir, "scale-collapsed");
 
-      // locate-active — Locate chip becomes Located (permission pre-seeded).
-      // The "Located" label flips on click, before the first fix arrives, so
-      // wait for the orientation flight's settled hash before the capture —
-      // otherwise it could record a mid-flight frame.
+      // locate-active — Locate chip becomes Located once the first fix lands
+      // (permission pre-seeded). Wait for the label and then the orientation
+      // flight's settled hash before the capture — otherwise it could record a
+      // mid-flight frame.
       await page.locator("#locate-button").click();
       await expect(page.locator("#locate-button")).toContainText("Located", {
         timeout: 5000,

@@ -7,7 +7,14 @@ import LocateError from "@/components/modals/locate-error.vue";
 import LocateHint from "@/components/ui/controls/locate-hint.vue";
 import { useLocateHints } from "@/composables/useLocateHints";
 
-const { mode, cycle, headingRecoveryPending } = useLocate();
+const {
+  mode,
+  hasFix,
+  cycle,
+  headingRecoveryPending,
+  restoreSettled,
+  orientationPromptPending,
+} = useLocate();
 const { t } = useLocale();
 const { dismiss: dismissHint } = useLocateHints();
 
@@ -17,13 +24,20 @@ const onClick = () => {
   cycle();
 };
 
+const isLocating = computed(
+  () =>
+    (mode.value === "active" || mode.value === "following") && !hasFix.value,
+);
+
 const iconName = computed(() => {
+  if (isLocating.value) return "position";
   if (mode.value === "following") return "position-locked";
   if (mode.value === "active") return "position-unlocked";
   return "position";
 });
 
 const iconColor = computed(() => {
+  if (isLocating.value) return "var(--bs-primary)";
   if (mode.value === "active" || mode.value === "following")
     return "var(--bs-primary)";
   if (mode.value === "error") return "var(--bs-danger)";
@@ -31,9 +45,10 @@ const iconColor = computed(() => {
 });
 
 const label = computed(() => {
-  if (mode.value === "active") return t("locate.button.located");
-  if (mode.value === "following") return t("locate.button.following");
   if (mode.value === "error") return t("locate.button.error");
+  if (isLocating.value) return t("locate.button.locating");
+  if (mode.value === "following") return t("locate.button.following");
+  if (mode.value === "active") return t("locate.button.located");
   return t("locate.button.locate");
 });
 </script>
@@ -54,6 +69,12 @@ const label = computed(() => {
     :aria-label="label"
     @click="onClick"
   />
-  <LocateHint :mode="mode" :heading-pending="headingRecoveryPending" />
+  <LocateHint
+    :mode="mode"
+    :heading-pending="headingRecoveryPending"
+    :has-fix="hasFix"
+    :orientation-pending="orientationPromptPending"
+    :restore-settled="restoreSettled"
+  />
   <LocateError />
 </template>

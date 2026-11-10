@@ -1,11 +1,46 @@
 <script setup>
+import { computed } from "vue";
 import Modal from "@/components/modals/modal.vue";
 import ModalClose from "@/components/modals/modal-close.vue";
 import { useLocate } from "@/composables/useLocate";
 import { useLocale } from "@/composables/useLocale";
 
-const { showErrorModal, retryPosition } = useLocate();
+const { showErrorModal, retryPosition, errorCause } = useLocate();
 const { t } = useLocale();
+
+const isDenied = computed(() => errorCause.value === "denied");
+
+const title = computed(() => {
+  switch (errorCause.value) {
+    case "denied":
+      return t("modal.locate.deniedTitle");
+    case "unavailable":
+      return t("modal.locate.unavailableTitle");
+    case "timeout":
+      return t("modal.locate.timeoutTitle");
+    case "unsupported":
+      return t("modal.locate.unsupportedTitle");
+    default:
+      return t("modal.locate.unknownTitle");
+  }
+});
+
+const body = computed(() => {
+  switch (errorCause.value) {
+    case "denied":
+      return t("modal.locate.deniedIntro");
+    case "unavailable":
+      return t("modal.locate.unavailableBody");
+    case "timeout":
+      return t("modal.locate.timeoutBody");
+    case "unsupported":
+      return t("modal.locate.unsupportedBody");
+    default:
+      return t("modal.locate.unknownBody");
+  }
+});
+
+const canRetry = computed(() => errorCause.value !== "unsupported");
 </script>
 
 <template>
@@ -13,13 +48,13 @@ const { t } = useLocale();
     <template #default="{ close }">
       <div class="modal-header">
         <h5 class="modal-title" id="locate-error-title">
-          {{ t("modal.locate.deniedTitle") }}
+          {{ title }}
         </h5>
         <ModalClose :label="t('common.close')" @click="close" />
       </div>
       <div class="modal-body">
-        <p>{{ t("modal.locate.deniedIntro") }}</p>
-        <ol class="small mb-0">
+        <p>{{ body }}</p>
+        <ol v-if="isDenied" class="small mb-0">
           <li>
             {{ t("modal.locate.tryOne") }}
           </li>
@@ -41,6 +76,7 @@ const { t } = useLocale();
           {{ t("modal.locate.close") }}
         </button>
         <button
+          v-if="canRetry"
           type="button"
           class="btn btn-primary"
           id="locate-error-retry"

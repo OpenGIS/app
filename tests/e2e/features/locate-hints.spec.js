@@ -11,6 +11,7 @@ import {
   installGeolocationMock,
   orientHash,
   waitForCameraSettle,
+  withDelayedPermissionQuery,
   withGrantedLocateStorage,
   withIOSOrientationPermission,
   withLocateSession,
@@ -51,6 +52,14 @@ const hint = (page) => page.locator(".ogis-locate-hint");
 // address each state's bubble by its key.
 const hintFor = (page, key) =>
   page.locator(`.ogis-locate-hint[data-hint="${key}"]`);
+
+const seenHints = async (page) => {
+  const raw = await page.evaluate(
+    (key) => localStorage.getItem(key),
+    HINTS_KEY,
+  );
+  return raw ? (readStoredState(raw)?.seen ?? []) : [];
+};
 
 test.describe("Locate / Hints", () => {
   test.beforeEach(async ({ page }) => {
@@ -218,5 +227,65 @@ test.describe("Locate / Hints / Restored heading (non-iOS)", () => {
       "Tap again to stop",
       { timeout: LOCATE_TIMEOUT },
     );
+  });
+});
+
+// ─── Locate / Hints / Slow restore ──────────────────────────────────────────
+
+/**
+ * A restore can take up to the permission query's 2 s bound. The boot hint must
+ * wait for that attempt to settle, so the idle "Tap here…" bubble never flashes
+ * over a session that is about to restore as Located or Following.
+ */
+test.describe("Locate / Hints / Slow restore", () => {
+  test("a slow restore never flashes the idle hint", async ({ page }) => {
+    await withHints(page);
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    // Hold the permission query well past the old 1.5 s boot delay, and widen
+    // the app's own bound so the delayed query still resolves as granted.
+    await withDelayedPermissionQuery(page, {
+      delayMs: 2500,
+      state: "granted",
+      timeoutMs: 6000,
+    });
+    await withLocateSession(page, recentFollowingSession);
+
+    await page.goto("/");
+
+    // Wait until the restore has reached the permission query, then advance
+    // past the old boot delay while the restore is still pending.
+    await expect
+      .poll(() => page.evaluate(() => window.__permissionQueryCalls), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(1);
+    await page.waitForTimeout(1600);
+
+    // Still uninactive and unsettled: no idle hint was scheduled at all.
+    await expect(page.locator("#locate-button")).toContainText("Locate");
+    await expect(page.locator(".ogis-locate-hint")).toHaveCount(0);
+
+    // The stored Following session then restores.
+    await expect(page.locator("#locate-button")).toContainText("Following", {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await expect(hintFor(page, "idle")).toHaveCount(0);
+
+    // The following hint proves hints were live, so the missing idle one is a
+    // real suppression rather than hints being disabled.
+    await expect
+      .poll(
+        async () => {
+          const raw = await page.evaluate(
+            (key) => localStorage.getItem(key),
+            HINTS_KEY,
+          );
+          return raw ? [...readStoredState(raw).seen] : [];
+        },
+        { timeout: LOCATE_TIMEOUT },
+      )
+      .toContain("following");
+    expect(await seenHints(page)).not.toContain("idle");
   });
 });

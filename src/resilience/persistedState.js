@@ -36,7 +36,14 @@ const storeKey = (namespace, instanceId) => `ogis_${namespace}_${instanceId}`;
 const quarantineKey = (namespace, instanceId) =>
   `ogis_quarantine_${namespace}_${instanceId}`;
 
-const INSTANCE_NAMESPACES = ["view", "routes", "locate", "navigation", "sync"];
+export const INSTANCE_NAMESPACES = [
+  "view",
+  "routes",
+  "locate",
+  "navigation",
+  "sync",
+  "locate-hints",
+];
 
 /**
  * Whether a storage key belongs to exactly this instance and one of the app's

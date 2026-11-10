@@ -32,6 +32,35 @@ describe("hintKeyForMode", () => {
     expect(hintKeyForMode(null, { headingPending: true })).toBe("idle");
     expect(hintKeyForMode("error", { headingPending: true })).toBeNull();
   });
+
+  it("suppresses active and following hints until a fix exists", () => {
+    expect(hintKeyForMode("active", { hasFix: false })).toBeNull();
+    expect(hintKeyForMode("following", { hasFix: false })).toBeNull();
+    // The fix gate wins over the heading hint.
+    expect(
+      hintKeyForMode("following", { headingPending: true, hasFix: false }),
+    ).toBeNull();
+    expect(
+      hintKeyForMode("following", { headingPending: true, hasFix: true }),
+    ).toBe("heading");
+    // Idle is unaffected: it explains the inactive chip, not a position.
+    expect(hintKeyForMode(null, { hasFix: false })).toBe("idle");
+  });
+
+  it("suppresses every hint while an orientation prompt is outstanding", () => {
+    expect(hintKeyForMode("active", { orientationPending: true })).toBeNull();
+    expect(
+      hintKeyForMode("following", { orientationPending: true }),
+    ).toBeNull();
+    expect(
+      hintKeyForMode("following", {
+        headingPending: true,
+        orientationPending: true,
+      }),
+    ).toBeNull();
+    expect(hintKeyForMode(null, { orientationPending: true })).toBeNull();
+    expect(hintKeyForMode(undefined, { orientationPending: true })).toBeNull();
+  });
 });
 
 describe("hydrateLocateHints", () => {
@@ -79,6 +108,20 @@ describe("useLocateHints", () => {
     vi.advanceTimersByTime(1);
     expect(hints.current.value).toBe("idle");
     expect(hints.isSeen("idle")).toBe(true);
+  });
+
+  it("waits for a fix before showing the active hint", () => {
+    const hints = useLocateHints(ID);
+
+    hints.showFor("active", { hasFix: false });
+    vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS * 2);
+    expect(hints.current.value).toBeNull();
+    expect(hints.isSeen("active")).toBe(false);
+
+    hints.showFor("active", { hasFix: true });
+    vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
+    expect(hints.current.value).toBe("active");
+    expect(hints.isSeen("active")).toBe(true);
   });
 
   it("hides on its own after the display duration", () => {

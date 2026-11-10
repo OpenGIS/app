@@ -6,6 +6,9 @@ import { useLocateHints } from "@/composables/useLocateHints";
 const props = defineProps({
   mode: { type: String, default: null },
   headingPending: { type: Boolean, default: false },
+  hasFix: { type: Boolean, default: true },
+  orientationPending: { type: Boolean, default: false },
+  restoreSettled: { type: Boolean, default: true },
 });
 
 const { t } = useLocale();
@@ -21,9 +24,23 @@ const text = computed(() => {
 
 let booted = false;
 watch(
-  [() => props.mode, () => props.headingPending],
-  ([mode, headingPending]) => {
-    showFor(mode, { boot: !booted, headingPending });
+  [
+    () => props.mode,
+    () => props.headingPending,
+    () => props.hasFix,
+    () => props.orientationPending,
+    () => props.restoreSettled,
+  ],
+  ([mode, headingPending, hasFix, orientationPending, restoreSettled]) => {
+    // A pending restore has not decided the chip's first state yet, so hold the
+    // boot hint rather than flashing the idle one over it.
+    if (!restoreSettled) return;
+    showFor(mode, {
+      boot: !booted,
+      headingPending,
+      hasFix,
+      orientationPending,
+    });
     booted = true;
   },
   { immediate: true },

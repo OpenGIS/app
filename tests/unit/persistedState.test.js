@@ -359,9 +359,15 @@ describe("usePersistedState", () => {
       const removed = [
         "ogis_view_app",
         "ogis_locate_app",
+        "ogis_locate-hints_app",
         "ogis_quarantine_view_app",
+        "ogis_quarantine_locate-hints_app",
       ];
-      const kept = ["ogis_view_trip_app", "ogis_locate_trip_app"];
+      const kept = [
+        "ogis_view_trip_app",
+        "ogis_locate_trip_app",
+        "ogis_locate-hints_trip_app",
+      ];
 
       for (const key of [...removed, ...kept]) {
         localStorage.setItem(key, "x");

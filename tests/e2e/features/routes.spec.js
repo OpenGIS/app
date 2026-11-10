@@ -353,17 +353,35 @@ const showRoute = async (page) => {
 
 /**
  * Start navigation from the open panel and wait for the chrome-level contract:
- * the panel closes, locate enters Following and the top-centre navigation
- * control appears as the default card variant.
+ * the panel closes and the top-centre navigation control appears as the default
+ * card variant.
+ *
+ * Navigation starts following immediately, before the first position fix. With
+ * a real granted fix the chip settles on Following straight away; under the
+ * geolocation stub no fix exists yet, so pass `hasFix: false` to pin the
+ * intentional pre-fix window (the chip reports Locating… and the caller
+ * publishes a fix afterwards).
  */
-const startNavigation = async (page) => {
+const startNavigation = async (page, { hasFix = true } = {}) => {
   await routeRow(page, "Test Loop")
     .getByRole("button", { name: "Navigate", exact: true })
     .click();
   await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
-  await expect(locateLabel(page)).toHaveText("Following");
+  await expect(locateLabel(page)).toHaveText(
+    hasFix ? "Following" : "Locating…",
+  );
   await expect(navControl(page)).toBeVisible();
   await expect(navControl(page)).toHaveAttribute("data-variant", "card");
+};
+
+/** Publish a fix once the navigation-started watcher is live. */
+const emitNavigationFix = async (page, fix) => {
+  await expect
+    .poll(() => page.evaluate(() => window.__geo.count()), {
+      timeout: NAV_TIMEOUT,
+    })
+    .toBeGreaterThan(0);
+  await emitFix(page, fix);
 };
 
 /** Reopen the Routes panel and stop navigation through its Stop control. */
@@ -909,11 +927,20 @@ test.describe("Routes / Navigate", () => {
   }) => {
     await bootRoutes(page, { mockGeolocation: true });
     await showRoute(page);
-    await startNavigation(page);
+    await startNavigation(page, { hasFix: false });
+
+    // Navigation starts before the first fix: the chip and the top-centre card
+    // both report the intentional pre-fix window rather than a stale state.
+    await expect(navControl(page)).toHaveAttribute("data-state", "locating");
+    await expect(navControlCaption(page)).toHaveText("Locating…");
 
     // Publish crafted fixes through the stub: Chromium's context.setGeolocation
     // emits a transient POSITION_UNAVAILABLE when it changes an active watcher.
-    await emitFix(page, { lat: OFF_ROUTE_FIX.lat, lng: OFF_ROUTE_FIX.lng });
+    await emitNavigationFix(page, {
+      lat: OFF_ROUTE_FIX.lat,
+      lng: OFF_ROUTE_FIX.lng,
+    });
+    await expect(locateLabel(page)).toHaveText("Following");
     await expect(navControl(page)).toHaveAttribute("data-state", "off-route");
     await expect(navConnector(page)).toHaveCount(1);
 
@@ -1111,13 +1138,15 @@ test.describe("Routes / Navigate", () => {
   }) => {
     await bootRoutes(page, { mockGeolocation: true });
     await showRoute(page);
-    await startNavigation(page);
+    await startNavigation(page, { hasFix: false });
 
     const watcherCount = () => page.evaluate(() => window.__geo.count());
     await expect.poll(watcherCount, { timeout: NAV_TIMEOUT }).toBe(1);
 
-    // Drive a fix through the stub so the indicator is genuinely live.
+    // Drive a fix through the stub so the chip leaves its pre-fix window and
+    // the indicator is genuinely live.
     await emitFix(page, { lat: OFF_ROUTE_FIX.lat, lng: OFF_ROUTE_FIX.lng });
+    await expect(locateLabel(page)).toHaveText("Following");
     await expect(navControl(page)).toHaveAttribute("data-state", "off-route");
 
     await stopNavigationFromPanel(page);
@@ -1651,6 +1680,10 @@ test.describe("Routes / Cross-tab sync", () => {
 
     await row.getByRole("button", { name: "Navigate", exact: true }).click();
     await expect(navControl(page)).toBeVisible();
+    // Navigation starts following before the first fix; publish one so the
+    // chip settles out of its intentional Locating… window.
+    await expect(locateLabel(page)).toHaveText("Locating…");
+    await emitNavigationFix(page, ROUTE_START);
     await expect(locateLabel(page)).toHaveText("Following");
     expect(await readLocateMode(page)).toBe("following");
 

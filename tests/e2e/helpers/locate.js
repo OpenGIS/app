@@ -91,6 +91,44 @@ export const withHangingPermissionQuery = (page, timeoutMs = 50) =>
     });
   }, timeoutMs);
 
+/**
+ * Simulate a slow but successful geolocation permission query.
+ *
+ * `navigator.permissions.query` resolves `state` after `delayMs`, and the app's
+ * own permission bound is widened to `timeoutMs` so the delayed query can still
+ * settle. The call count is exposed as `window.__permissionQueryCalls`. Must be
+ * installed before the document boots.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ delayMs?: number, state?: "granted"|"denied"|"prompt", timeoutMs?: number }} [options]
+ */
+export const withDelayedPermissionQuery = (
+  page,
+  { delayMs = 2500, state = "granted", timeoutMs = 6000 } = {},
+) =>
+  page.addInitScript(
+    ({ delay, permissionState, timeout }) => {
+      window.__permissionQueryCalls = 0;
+      window.__ogisLocatePermissionTimeoutMs = timeout;
+      if (!navigator.permissions) {
+        Object.defineProperty(navigator, "permissions", {
+          configurable: true,
+          value: {},
+        });
+      }
+      Object.defineProperty(navigator.permissions, "query", {
+        configurable: true,
+        value: () => {
+          window.__permissionQueryCalls += 1;
+          return new Promise((resolve) => {
+            setTimeout(() => resolve({ state: permissionState }), delay);
+          });
+        },
+      });
+    },
+    { delay: delayMs, permissionState: state, timeout: timeoutMs },
+  );
+
 /** Escape a literal string so it can be matched exactly inside a RegExp. */
 export const escapeRegExp = (value) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -295,6 +333,51 @@ export const withIOSOrientationPermission = (page, result = "granted") =>
       },
     });
     delete window.ondeviceorientationabsolute;
+  }, result);
+
+/**
+ * Simulate an iOS orientation permission prompt that never settles on its own.
+ *
+ * Like {@link withIOSOrientationPermission}, but `requestPermission` returns a
+ * promise held until the test calls {@link resolveIOSOrientationPermission}.
+ * The pending state is exposed as `window.__orientationPermissionPending`.
+ * Must be installed before the document boots.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+export const withHangingIOSOrientationPermission = (page) =>
+  page.addInitScript(() => {
+    window.__orientationPermissionCalls = 0;
+    window.__orientationPermissionPending = false;
+    window.__orientationPermissionResolve = null;
+    Object.defineProperty(window.DeviceOrientationEvent, "requestPermission", {
+      configurable: true,
+      value: () => {
+        window.__orientationPermissionCalls += 1;
+        window.__orientationPermissionPending = true;
+        return new Promise((resolve) => {
+          window.__orientationPermissionResolve = resolve;
+        });
+      },
+    });
+    delete window.ondeviceorientationabsolute;
+  });
+
+/**
+ * Settle a prompt started by {@link withHangingIOSOrientationPermission}.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {"granted"|"denied"} [result]
+ * @returns {Promise<boolean>} Whether a pending prompt was resolved.
+ */
+export const resolveIOSOrientationPermission = (page, result = "granted") =>
+  page.evaluate((permissionResult) => {
+    const resolve = window.__orientationPermissionResolve;
+    if (typeof resolve !== "function") return false;
+    window.__orientationPermissionResolve = null;
+    window.__orientationPermissionPending = false;
+    resolve(permissionResult);
+    return true;
   }, result);
 
 /** Dispatch one iOS-style `deviceorientation` event with a compass heading. */

@@ -20,6 +20,7 @@ import { useOrientView } from "@/composables/useOrientView";
 import { useFollowCamera } from "@/composables/useFollowCamera";
 import { useActions } from "@/composables/useActions";
 import { deriveCourse, deriveSpeed } from "@/utils/follow";
+import { locateErrorCause } from "@/utils/locateError";
 import { emitter } from "@/emitter.js";
 import { Position } from "@/classes/Position";
 
@@ -61,7 +62,7 @@ function smoothAngle(current, next, factor) {
  * Manages GPS tracking state, map markers, and the permission flow.
  * State is cached per app instance and shared across all callers.
  *
- * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, headingRecoveryPending: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, restoreComplete: Promise<void>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function, dispose: Function }}
+ * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, errorCause: import('vue').Ref<'denied'|'unavailable'|'timeout'|'unsupported'|'unknown'|null>, hasFix: import('vue').ComputedRef<boolean>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, headingRecoveryPending: import('vue').ComputedRef<boolean>, orientationPromptPending: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, restoreSettled: import('vue').ComputedRef<boolean>, restoreComplete: Promise<void>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function, dispose: Function }}
  */
 const createLocate = (instanceId) => {
   if (!locateCache.has(instanceId)) {
@@ -88,9 +89,11 @@ const createLocate = (instanceId) => {
       flushStorage: locateStore.flush,
       mode: ref(null), // null | 'active' | 'following' | 'error'
       position: ref(null), // Position | null
+      errorCause: ref(null), // null | 'denied' | 'unavailable' | 'timeout' | 'unsupported' | 'unknown'
       compassHeading: ref(null), // smoothed DeviceOrientation compass bearing
       headingLost: ref(false), // true when orientation events have stopped arriving
       headingRecoveryPending: ref(false), // true when the next chip tap should repair the compass
+      orientationPromptPending: ref(false), // true while our orientation permission prompt is outstanding
       smoothedHeading: null, // internal: raw float used for smoothing
       magneticDeclination: 0, // degrees East; corrects webkitCompassHeading to true north
       lastFix: null, // { lat, lng, atMs } of the previous accepted fix
@@ -124,6 +127,7 @@ const createLocate = (instanceId) => {
       gotFix: false, // true once this session has accepted a fix
       restoreScheduled: false, // auto-restore is scheduled once per instance
       restoreComplete: null, // Promise resolved when the scheduled restore ends
+      restoreSettled: ref(false), // true once the scheduled restore attempt has finished
       stopSessionProbes: null, // idempotent liveness-probe listener stop
     });
   }
@@ -654,6 +658,7 @@ const createLocate = (instanceId) => {
     stopOrientationWatching();
     removeMarkers();
     c.headingRecoveryPending.value = false;
+    c.orientationPromptPending.value = false;
 
     // A restore that fails before its first fix is silent: the user never
     // started this session, so there is nothing to report and no modal to show.
@@ -664,10 +669,15 @@ const createLocate = (instanceId) => {
       return;
     }
 
+    // Drop the stale fix so a later start cannot briefly report a position
+    // before its own first fix.
+    c.position.value = null;
+    c.errorCause.value = locateErrorCause(err);
     setMode("error");
-    if (err.code === 1 /* PERMISSION_DENIED */) {
-      c.showErrorModal.value = true;
-    }
+    // Every cause is reported immediately: the copy is cause-specific, so a
+    // denial, an unavailable device, a timeout and an unknown failure all have
+    // something honest to say.
+    c.showErrorModal.value = true;
   };
 
   // ─── Internal helpers ─────────────────────────────────────────────────────
@@ -803,7 +813,10 @@ const createLocate = (instanceId) => {
    */
   const startWatching = async ({ restore = false } = {}) => {
     if (c.disposed) return;
+    c.errorCause.value = null;
     c.headingRecoveryPending.value = false;
+    // A fresh session never inherits the previous session's prompt flag.
+    c.orientationPromptPending.value = false;
     // A normal start (or a fresh restore) owns the permission flow; drop any
     // retry armed for the previous restored session.
     clearOrientationGestureRetry();
@@ -812,7 +825,9 @@ const createLocate = (instanceId) => {
         clearRestoredState();
         return;
       }
+      c.errorCause.value = "unsupported";
       setMode("error");
+      c.showErrorModal.value = true;
       return;
     }
     const gen = ++c.generation;
@@ -829,20 +844,10 @@ const createLocate = (instanceId) => {
       // A successful restore arms a one-shot map gesture to request permission
       // (see restorePersistedSession), because a boot restore cannot prompt.
       startOrientationWatching();
-    } else {
-      // One user gesture triggers both permission requests. Location and
-      // motion/orientation are separate OS permissions on iOS, so the browser
-      // may present them as separate native prompts; they cannot be merged.
-      await requestOrientationPermission();
-
-      // A stop() (or a fresh startWatching) may have run during that await.
-      // Abandon this generation so we neither orphan a watcher nor clobber
-      // the newer session's state.
-      if (gen !== c.generation) return;
-
-      startOrientationWatching();
     }
 
+    // Geolocation starts before the orientation prompt so a hung/ignored iOS
+    // Motion & Orientation dialog cannot block position tracking.
     try {
       c.watcherId = navigator.geolocation.watchPosition(
         (pos) => onPosition(pos, gen),
@@ -853,6 +858,38 @@ const createLocate = (instanceId) => {
       // A synchronous throw is still a geolocation failure: route it through
       // the normal error path (silent during a restore, reported otherwise).
       onError(error, gen);
+    }
+
+    // A synchronous throw bumped the generation; never prompt for a dead one.
+    if (gen !== c.generation) return;
+
+    if (restore) return;
+
+    // One user gesture triggers both permission requests. Location and
+    // motion/orientation are separate OS permissions on iOS, so the browser
+    // may present them as separate native prompts; they cannot be merged.
+    // Evaluating the call synchronously here preserves the gesture.
+    c.orientationPromptPending.value = hasOrientationPermissionRequest();
+    const orientationGranted = await requestOrientationPermission();
+
+    // A stop() (or a fresh startWatching) may have run during that await.
+    // Abandon this generation so we neither orphan a watcher nor clobber
+    // the newer session's state; never clear the newer session's flag.
+    if (gen !== c.generation) return;
+
+    c.orientationPromptPending.value = false;
+    startOrientationWatching();
+
+    // A denial on first use leaves a live session without a compass, exactly
+    // as a restore can. Flag it and arm the same one-shot gesture repair, so
+    // the persistent heading hint and both repair gestures work here too. A
+    // session that has already stopped or errored is left untouched.
+    if (
+      !orientationGranted &&
+      (c.mode.value === "active" || c.mode.value === "following")
+    ) {
+      c.headingRecoveryPending.value = true;
+      armOrientationGestureRetry();
     }
   };
 
@@ -927,10 +964,15 @@ const createLocate = (instanceId) => {
    *
    * Already following: reported as started. Error: re-opens the error modal
    * without starting. Active: follows straight away. Inactive: requests
-   * permission first, then starts watching and follows once a fix is tracked.
-   * `onStarted` runs only when following actually began, so a cancelled
-   * permission prompt, an unavailable geolocation API or a geolocation error
-   * leaves the caller's state untouched.
+   * permission first, then starts watching and follows immediately.
+   *
+   * `onStarted` fires once following has begun — the mode is `following` and
+   * the follow camera has started. That can happen before the first position
+   * fix; the routes UI shows its own `Locating…` card for that window, and a
+   * later geolocation error deliberately ends following, unwinding navigation
+   * through the routes mode watcher. In the inactive branch the callback may
+   * also run only after the first-use Trust confirmation; cancelling that
+   * confirmation never calls it.
    *
    * @param {Object} [options]
    * @param {Function} [options.onStarted] - Called once following has started.
@@ -1001,6 +1043,7 @@ const createLocate = (instanceId) => {
     clearOrientationGestureRetry();
     c.needsInitialOrient = false;
     c.headingRecoveryPending.value = false;
+    c.orientationPromptPending.value = false;
     followCamera.stop();
     resetDerivation();
     stopWatcher();
@@ -1008,6 +1051,9 @@ const createLocate = (instanceId) => {
     removeMarkers();
     setMode(null);
     c.position.value = null;
+    c.errorCause.value = null;
+    c.showErrorModal.value = false;
+    c.pendingCallback = null;
   };
 
   /**
@@ -1043,9 +1089,14 @@ const createLocate = (instanceId) => {
    * DeviceOrientationEvent permission.
    */
   const retryOrientation = async () => {
+    const gen = c.generation;
     c.headingRecoveryPending.value = false;
     stopOrientationWatching();
     const granted = await requestOrientationPermission();
+    // stop(), onError() or dispose() may have superseded this retry while the
+    // permission prompt was outstanding. Never clear state or start watching
+    // for a dead or newer session.
+    if (c.disposed || gen !== c.generation) return;
     if (granted) {
       c.headingLost.value = false;
       startOrientationWatching();
@@ -1060,7 +1111,10 @@ const createLocate = (instanceId) => {
    */
   const retryPosition = async () => {
     c.restoring = false;
+    c.errorCause.value = null;
     setMode(null);
+    c.position.value = null;
+    resetDerivation();
     c.showErrorModal.value = false;
     await startWatching();
   };
@@ -1182,7 +1236,10 @@ const createLocate = (instanceId) => {
       queueMicrotask(() => {
         restorePersistedSession()
           .catch(() => {})
-          .finally(() => resolve());
+          .finally(() => {
+            c.restoreSettled.value = true;
+            resolve();
+          });
       });
     });
 
@@ -1232,9 +1289,11 @@ const createLocate = (instanceId) => {
     c.compassHeading.value = null;
     c.headingLost.value = false;
     c.headingRecoveryPending.value = false;
+    c.orientationPromptPending.value = false;
     c.pendingCallback = null;
     c.showConfirmModal.value = false;
     c.showErrorModal.value = false;
+    c.errorCause.value = null;
 
     c.stopSessionProbes?.();
     c.stopSessionProbes = null;
@@ -1245,12 +1304,16 @@ const createLocate = (instanceId) => {
   return {
     mode: computed(() => c.mode.value),
     position: computed(() => c.position.value),
+    errorCause: c.errorCause,
+    hasFix: computed(() => c.position.value !== null),
     compassHeading: computed(() => c.compassHeading.value),
     headingLost: computed(() => c.headingLost.value),
     headingRecoveryPending: computed(() => c.headingRecoveryPending.value),
+    orientationPromptPending: computed(() => c.orientationPromptPending.value),
     permissionGranted: computed(() => c.storage.permissionGranted),
     showConfirmModal: c.showConfirmModal,
     showErrorModal: c.showErrorModal,
+    restoreSettled: computed(() => c.restoreSettled.value),
     restoreComplete: c.restoreComplete,
     cycle,
     startFollowing,
