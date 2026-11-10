@@ -1,7 +1,7 @@
 @font-face {
     font-family: "ogis-icons";
-    src: url("./ogis-icons.woff2?d5ca9dc0291ecdf49927d3b4dbfb5091") format("woff2"),
-url("./ogis-icons.woff?d5ca9dc0291ecdf49927d3b4dbfb5091") format("woff");
+    src: url("./ogis-icons.woff2?2fabe256169ea1e1628bf06e724b03c8") format("woff2"),
+url("./ogis-icons.woff?2fabe256169ea1e1628bf06e724b03c8") format("woff");
 }
 
 i[class^="oi-"]:before, i[class*=" oi-"]:before {

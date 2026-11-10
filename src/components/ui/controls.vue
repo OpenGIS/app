@@ -60,7 +60,7 @@ const handleCustomClick = (btn) => {
       <IconButton
         id="menu-button"
         chip
-        icon="graph-down"
+        icon="route"
         :label="t('menu.routes')"
         :title="t('menu.routes')"
         :aria-label="t('menu.routes')"

@@ -549,7 +549,7 @@ export const RoutesFeature = {
 
     addPanel({
       id: "routes",
-      icon: "graph-down",
+      icon: "route",
       title: () => t("menu.routes"),
       component: RoutesPanel,
     });
