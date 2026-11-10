@@ -188,6 +188,17 @@ test.describe("Info pane / Pane separation", () => {
       page.locator(".panel-nav").getByRole("button", { name: /^routes$/i });
     await expect(routesTab()).toHaveAttribute("aria-pressed", "true");
 
+    // The menu chip shares the Routes name; the lone tab keeps its icon markup
+    // but hides it for the temporary label-only header. A regex match keeps the
+    // modifier check robust to surrounding class order.
+    await expect(page.locator("#menu-button")).toHaveAccessibleName("Routes");
+    await expect(routesTab()).toHaveAccessibleName("Routes");
+    await expect(page.locator(".panel-nav")).toHaveClass(
+      /\bpanel-nav--single\b/,
+    );
+    await expect(page.locator(".panel-nav .icon-btn__icon")).toHaveCount(1);
+    await expect(page.locator(".panel-nav .icon-btn__icon")).toBeHidden();
+
     // Open Info via the chip, then reopen the menu pane: the active tab survives.
     await page.locator("#attribution-button").click();
     await expect(page.locator(".ogis-info-panel")).toBeVisible();
@@ -572,7 +583,7 @@ test.describe("Panel geometry / safe-area insets", () => {
       document.documentElement.style.setProperty("--ogis-safe-bottom", "34px");
     });
 
-    // Top-left Menu chip: corner padding-top = 0.75rem (12px) + 44px = 56px.
+    // Top-left Routes chip: corner padding-top = 0.75rem (12px) + 44px = 56px.
     const menuBox = await page.locator("#menu-button").boundingBox();
     expect(menuBox.y).toBeGreaterThanOrEqual(55);
 

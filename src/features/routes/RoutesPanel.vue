@@ -77,11 +77,7 @@ const confirmDelete = (route) => {
 </script>
 
 <template>
-  <div class="sidebar-section sidebar-section-body p-3 pb-0">
-    <h5 class="mb-0">{{ t("menu.routes") }}</h5>
-  </div>
-
-  <div class="sidebar-section sidebar-section-body p-3 border-top">
+  <div class="sidebar-section sidebar-section-body p-3">
     <input
       type="file"
       accept=".gpx,.geojson,.json,application/gpx+xml,application/geo+json,application/json"

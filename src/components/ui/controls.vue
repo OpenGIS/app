@@ -60,10 +60,10 @@ const handleCustomClick = (btn) => {
       <IconButton
         id="menu-button"
         chip
-        icon="layout-sidebar-inset"
-        :label="t('nav.menu')"
-        :title="t('nav.menu')"
-        :aria-label="t('nav.menu')"
+        icon="graph-down"
+        :label="t('menu.routes')"
+        :title="t('menu.routes')"
+        :aria-label="t('menu.routes')"
         :icon-size="29"
         :active="isMenuVisible"
         @click="togglePanel()"

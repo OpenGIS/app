@@ -528,6 +528,33 @@ $enable-dark-mode: false;
   pointer-events: none;
 }
 
+// Temporary single-panel simplification: Routes is currently the only
+// installed feature panel, so the lone tab renders as a full-width,
+// label-only header. The icon stays in the markup and is hidden here; remove
+// this modifier (and its class binding in panels.vue) to restore the
+// multi-tab layout.
+.panel-nav--single {
+  min-height: 3rem;
+
+  .icon-btn {
+    flex: 1 0 100%;
+    padding: 0.75rem 0.5rem;
+  }
+
+  .icon-btn__icon {
+    display: none;
+  }
+
+  .icon-btn__label {
+    position: static;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    font-size: 0.8125rem;
+    text-align: center;
+  }
+}
+
 // Menu-chip status — the generic `menuBadge` dot sits in the chip's top-right
 // corner. Navigation status lives in its own top-centre control. Kept
 // feature-agnostic here: the caller supplies the state, core owns the styling.

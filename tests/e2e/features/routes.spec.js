@@ -105,12 +105,13 @@ const openRoutesPanel = async (page) => {
     await page.locator("#menu-button").click();
     await page.locator(".panel-nav").waitFor();
   }
-  await page
+  const routesTab = page
     .locator(".panel-nav")
-    .getByRole("button", { name: "Routes", exact: true })
-    .click();
+    .getByRole("button", { name: "Routes", exact: true });
+  await routesTab.click();
   await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
-  await expect(page.getByRole("heading", { name: "Routes" })).toBeVisible();
+  await expect(routesTab).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('.ogis-panel input[type="file"]')).toBeVisible();
 };
 
 /** Locate a route row by its displayed name. */

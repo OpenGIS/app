@@ -32,7 +32,8 @@ const symbolIds = [...sprite.matchAll(/<symbol[^>]*\bid="([^"]+)"/g)].map(
  *  - position-locked / position-unlocked — located and following states of the
  *    locate control in components/ui/controls/locate.vue (position remains its
  *    inactive-state icon)
- *  - layout-sidebar-inset — panel toggle in components/ui/controls.vue
+ *  - layout-sidebar-inset — retained sprite icon for the panel toggle (the
+ *    menu chip currently uses graph-down)
  *  - info-circle — attribution chip in components/ui/controls/attribution.vue
  *  - check / pencil / share / dice — Info panel actions in
  *    components/panels/info.vue
@@ -41,7 +42,8 @@ const symbolIds = [...sprite.matchAll(/<symbol[^>]*\bid="([^"]+)"/g)].map(
  *  - ogis-logo — About logo in components/panels/info.vue
  *  - direction-arrow — map direction chevrons in composables/useGeoJSON.js
  *  - route / graph-down / person-circle / list / map —
- *    feature nav icons in src/features/{routes,account,collections,maps}/index.js
+ *    feature nav icons in src/features/{routes,account,collections,maps}/index.js;
+ *    graph-down is also the menu chip icon in components/ui/controls.vue
  */
 const REQUIRED_ICON_IDS = [
   "position",

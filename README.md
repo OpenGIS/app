@@ -33,7 +33,7 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 - Detailed, free global map — no install, no account.
 - Default view is of the user's country (best guess from OS timezone).
 - Corner controls:
-  - Menu
+  - Routes (opens the side panel)
   - Locate / Follow (GPS position + Compass heading)
   - Info
 - Import and share GPX/GeoJSON routes.

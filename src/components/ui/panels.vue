@@ -134,7 +134,11 @@ watch(
            the tabbed feature panels stay mounted while the pane is closed
            (offcanvas `show` class handles visibility). Switching to Info still
            unmounts them. -->
-      <div v-if="!isInfoVisible" class="panel-nav border-bottom bg-body">
+      <div
+        v-if="!isInfoVisible"
+        class="panel-nav border-bottom bg-body"
+        :class="{ 'panel-nav--single': tabs.length === 1 }"
+      >
         <template v-for="tab in tabs" :key="tab.id">
           <IconButton
             :id="tab.btnId"
