@@ -1,3 +1,17 @@
+## [3.21.1](https://github.com/OpenGIS/app/compare/v3.21.0...v3.21.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **icons:** refresh PWA icons from the redrawn logo master [skip e2e] ([55af30a](https://github.com/OpenGIS/app/commit/55af30ab7194e7f9622e369070d3d98b5168325b))
+
+# [3.21.0](https://github.com/OpenGIS/app/compare/v3.20.3...v3.21.0) (2026-11-10)
+
+
+### Features
+
+* **ui:** use the redrawn route icon for the routes chip ([0934566](https://github.com/OpenGIS/app/commit/0934566598be2757032256f21e8e773490c89481))
+
 ## [3.20.3](https://github.com/OpenGIS/app/compare/v3.20.2...v3.20.3) (2026-11-09)
 
 
