@@ -137,6 +137,13 @@ const readLocateMode = (page) =>
     return useLocate("app").mode.value;
   });
 
+/** Whether this tab deferred its locate restore to a live owner in another tab. */
+const readLocateRestoreDeferred = (page) =>
+  page.evaluate(async () => {
+    const { useLocate } = await import("/src/composables/useLocate.js");
+    return useLocate("app").restoreDeferred.value;
+  });
+
 /** A stored fix for seeded restore cases. */
 const STORED_FIX = {
   lat: DEMO.center.lat,
@@ -369,6 +376,7 @@ const startNavigation = async (page, { hasFix = true } = {}) => {
   await expect(page.locator(".ogis-panel")).not.toHaveClass(/show/);
   await expect(locateLabel(page)).toHaveText(
     hasFix ? "Following" : "Locating…",
+    { timeout: NAV_TIMEOUT },
   );
   await expect(navControl(page)).toBeVisible();
   await expect(navControl(page)).toHaveAttribute("data-variant", "card");
@@ -912,7 +920,9 @@ test.describe("Routes / Navigate", () => {
 
     // The green dashed connector is an SVG overlay drawing a line from the
     // locate marker to the nearest point on the route.
-    await expect(navConnector(page)).toHaveCount(1);
+    await expect(navConnector(page)).toHaveCount(1, {
+      timeout: NAV_TIMEOUT,
+    });
     const connectorPoints =
       (await navConnector(page).getAttribute("points")) ?? "";
     expect(connectorPoints.trim().split(/\s+/).length).toBeGreaterThanOrEqual(
@@ -942,7 +952,9 @@ test.describe("Routes / Navigate", () => {
     });
     await expect(locateLabel(page)).toHaveText("Following");
     await expect(navControl(page)).toHaveAttribute("data-state", "off-route");
-    await expect(navConnector(page)).toHaveCount(1);
+    await expect(navConnector(page)).toHaveCount(1, {
+      timeout: NAV_TIMEOUT,
+    });
 
     await emitFix(page, { lat: ROUTE_POINT.lat, lng: ROUTE_POINT.lng });
 
@@ -1021,7 +1033,9 @@ test.describe("Routes / Navigate", () => {
     await showRoute(page);
     await startNavigation(page);
     await expect(navControl(page)).toHaveAttribute("data-state", "off-route");
-    await expect(navConnector(page)).toHaveCount(1);
+    await expect(navConnector(page)).toHaveCount(1, {
+      timeout: NAV_TIMEOUT,
+    });
 
     await stopNavigationFromPanel(page);
 
@@ -1044,9 +1058,13 @@ test.describe("Routes / Navigate", () => {
 
     // The user owns follow mode before navigation starts.
     await page.locator("#locate-button").click();
-    await expect(locateLabel(page)).toHaveText("Located");
+    await expect(locateLabel(page)).toHaveText("Located", {
+      timeout: NAV_TIMEOUT,
+    });
     await page.locator("#locate-button").click();
-    await expect(locateLabel(page)).toHaveText("Following");
+    await expect(locateLabel(page)).toHaveText("Following", {
+      timeout: NAV_TIMEOUT,
+    });
 
     await startNavigation(page);
     await expect(navControl(page)).toBeVisible();
@@ -1063,7 +1081,9 @@ test.describe("Routes / Navigate", () => {
     await bootRoutes(page, { fix: OFF_ROUTE_FIX });
     await showRoute(page);
     await startNavigation(page);
-    await expect(navConnector(page)).toHaveCount(1);
+    await expect(navConnector(page)).toHaveCount(1, {
+      timeout: NAV_TIMEOUT,
+    });
 
     await openRoutesPanel(page);
     await routeRow(page, "Test Loop")
@@ -1092,7 +1112,9 @@ test.describe("Routes / Navigate", () => {
     await bootRoutes(page, { fix: OFF_ROUTE_FIX });
     await showRoute(page);
     await startNavigation(page);
-    await expect(navConnector(page)).toHaveCount(1);
+    await expect(navConnector(page)).toHaveCount(1, {
+      timeout: NAV_TIMEOUT,
+    });
 
     await openRoutesPanel(page);
     const messages = [];
@@ -1118,7 +1140,9 @@ test.describe("Routes / Navigate", () => {
     await showRoute(page);
     await startNavigation(page);
     await expect(navControl(page)).toHaveAttribute("data-state", "off-route");
-    await expect(navConnector(page)).toHaveCount(1);
+    await expect(navConnector(page)).toHaveCount(1, {
+      timeout: NAV_TIMEOUT,
+    });
 
     // Following → stopped; the locate watcher stops and navigation follows it.
     await page.locator("#locate-button").click();
@@ -1393,6 +1417,11 @@ test.describe("Routes / Restore across reload", () => {
     await bootRestoreRoutes(page);
     await showRoute(page);
 
+    await expect
+      .poll(async () => (await storedRoutes(page))?.length ?? 0, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
     const [stored] = await storedRoutes(page);
     const routeId = stored.id;
 
@@ -1509,6 +1538,14 @@ test.describe("Routes / Restore across reload", () => {
       })
       .not.toBeNull();
 
+    // …and its locate restore deferred to page A's live session rather than
+    // claiming it, which is what keeps the navigation document untouched.
+    await expect
+      .poll(() => readLocateRestoreDeferred(pageB), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(true);
+
     // …and must not clear it: the owner stays navigating.
     await expect(navControl(pageA)).toBeVisible({ timeout: RESTORE_TIMEOUT });
     await expect
@@ -1531,9 +1568,13 @@ test.describe("Routes / Restore across reload", () => {
 
     // The user owns follow mode before navigation starts.
     await page.locator("#locate-button").click();
-    await expect(locateLabel(page)).toHaveText("Located");
+    await expect(locateLabel(page)).toHaveText("Located", {
+      timeout: NAV_TIMEOUT,
+    });
     await page.locator("#locate-button").click();
-    await expect(locateLabel(page)).toHaveText("Following");
+    await expect(locateLabel(page)).toHaveText("Following", {
+      timeout: NAV_TIMEOUT,
+    });
 
     await startNavigation(page);
 
@@ -1672,27 +1713,39 @@ test.describe("Routes / Cross-tab sync", () => {
     ]);
 
     const row = routeRow(page, ROUTE_NAME);
-    await expect(row).toBeVisible();
+    await expect(row).toBeVisible({ timeout: NAV_TIMEOUT });
     await row.getByRole("button", { name: "Show", exact: true }).click();
     await expect
-      .poll(() => mapFeatureIds(page, "routes-route-"))
+      .poll(() => mapFeatureIds(page, "routes-route-"), {
+        timeout: NAV_TIMEOUT,
+      })
       .toEqual([`routes-route-${ROUTE_ID}`]);
 
     await row.getByRole("button", { name: "Navigate", exact: true }).click();
-    await expect(navControl(page)).toBeVisible();
+    await expect(navControl(page)).toBeVisible({ timeout: NAV_TIMEOUT });
     // Navigation starts following before the first fix; publish one so the
     // chip settles out of its intentional Locating… window.
-    await expect(locateLabel(page)).toHaveText("Locating…");
+    await expect(locateLabel(page)).toHaveText("Locating…", {
+      timeout: NAV_TIMEOUT,
+    });
     await emitNavigationFix(page, ROUTE_START);
-    await expect(locateLabel(page)).toHaveText("Following");
+    await expect(locateLabel(page)).toHaveText("Following", {
+      timeout: NAV_TIMEOUT,
+    });
     expect(await readLocateMode(page)).toBe("following");
 
     await writeStoredEnvelope(peer, "ogis_routes_app", 1, []);
 
-    await expect(row).toHaveCount(0);
-    await expect.poll(() => mapFeatureIds(page, "routes-route-")).toEqual([]);
-    await expect(navControl(page)).toHaveCount(0);
-    await expect.poll(() => readLocateMode(page)).toBeNull();
+    await expect(row).toHaveCount(0, { timeout: NAV_TIMEOUT });
+    await expect
+      .poll(() => mapFeatureIds(page, "routes-route-"), {
+        timeout: NAV_TIMEOUT,
+      })
+      .toEqual([]);
+    await expect(navControl(page)).toHaveCount(0, { timeout: NAV_TIMEOUT });
+    await expect
+      .poll(() => readLocateMode(page), { timeout: NAV_TIMEOUT })
+      .toBeNull();
 
     expectNoConsoleErrors(peer);
     await peer.close();

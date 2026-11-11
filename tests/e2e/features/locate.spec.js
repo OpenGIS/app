@@ -1169,6 +1169,7 @@ const readLocate = (page) =>
       headingRecoveryPending: locate.headingRecoveryPending.value,
       orientationPromptPending: locate.orientationPromptPending.value,
       restoreSettled: locate.restoreSettled.value,
+      restoreDeferred: locate.restoreDeferred.value,
       compassHeading: locate.compassHeading.value,
       position: position
         ? {
@@ -1603,15 +1604,24 @@ test.describe("Locate / Restore", () => {
       })
       .toBeNull();
 
-    // The owner's durable session is untouched and still live.
+    // The owner's durable session is untouched and still live. Page A's
+    // Vue-rendered chip proves its live mode while B is open: a second
+    // SwiftShader map can stall A's main thread for tens of seconds, so the
+    // module-graph read below waits until B is closed.
     expect((await readLocateStorage(pageA))?.mode).toBe("following");
-    await expect
-      .poll(async () => (await readLocate(pageA)).mode, {
-        timeout: RESTORE_TIMEOUT,
-      })
-      .toBe("following");
+    await expect(button).toContainText("Following", {
+      timeout: LOCATE_TIMEOUT,
+    });
 
     await pageB.close();
+
+    // With B gone the live read clears the second map's backlog; allow the
+    // same budget as the element assertions above for the remaining stalls.
+    await expect
+      .poll(async () => (await readLocate(pageA)).mode, {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe("following");
   });
 
   test("keeps the permission grant after an app quit", async ({

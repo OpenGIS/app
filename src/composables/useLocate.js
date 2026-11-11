@@ -62,7 +62,7 @@ function smoothAngle(current, next, factor) {
  * Manages GPS tracking state, map markers, and the permission flow.
  * State is cached per app instance and shared across all callers.
  *
- * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, errorCause: import('vue').Ref<'denied'|'unavailable'|'timeout'|'unsupported'|'unknown'|null>, hasFix: import('vue').ComputedRef<boolean>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, headingRecoveryPending: import('vue').ComputedRef<boolean>, orientationPromptPending: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, restoreSettled: import('vue').ComputedRef<boolean>, restoreComplete: Promise<void>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function, dispose: Function }}
+ * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, errorCause: import('vue').Ref<'denied'|'unavailable'|'timeout'|'unsupported'|'unknown'|null>, hasFix: import('vue').ComputedRef<boolean>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, headingRecoveryPending: import('vue').ComputedRef<boolean>, orientationPromptPending: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, restoreSettled: import('vue').ComputedRef<boolean>, restoreDeferred: import('vue').ComputedRef<boolean>, restoreComplete: Promise<void>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function, dispose: Function }}
  */
 const createLocate = (instanceId) => {
   if (!locateCache.has(instanceId)) {
@@ -128,6 +128,7 @@ const createLocate = (instanceId) => {
       restoreScheduled: false, // auto-restore is scheduled once per instance
       restoreComplete: null, // Promise resolved when the scheduled restore ends
       restoreSettled: ref(false), // true once the scheduled restore attempt has finished
+      restoreDeferred: ref(false), // true when a live owner in another tab made this tab defer its restore
       stopSessionProbes: null, // idempotent liveness-probe listener stop
     });
   }
@@ -815,8 +816,10 @@ const createLocate = (instanceId) => {
     if (c.disposed) return;
     c.errorCause.value = null;
     c.headingRecoveryPending.value = false;
-    // A fresh session never inherits the previous session's prompt flag.
+    // A fresh session never inherits the previous session's prompt flag or a
+    // stale deferral from a restore that stepped aside for another tab.
     c.orientationPromptPending.value = false;
+    c.restoreDeferred.value = false;
     // A normal start (or a fresh restore) owns the permission flow; drop any
     // retry armed for the previous restored session.
     clearOrientationGestureRetry();
@@ -1131,6 +1134,7 @@ const createLocate = (instanceId) => {
    */
   const restorePersistedSession = async () => {
     if (c.disposed) return;
+    c.restoreDeferred.value = false;
     let restoreStarted = false;
 
     try {
@@ -1157,7 +1161,13 @@ const createLocate = (instanceId) => {
           instanceId,
         });
         if (c.disposed) return;
-        if (ownerAlive) return;
+        // Another tab owns the live locate session; record that this tab
+        // deliberately deferred its restore so consumers (e.g. routes) do not
+        // claim or clear the owner's durable state.
+        if (ownerAlive) {
+          c.restoreDeferred.value = true;
+          return;
+        }
         if (c.mode.value !== null) return;
       }
 
@@ -1314,6 +1324,7 @@ const createLocate = (instanceId) => {
     showConfirmModal: c.showConfirmModal,
     showErrorModal: c.showErrorModal,
     restoreSettled: computed(() => c.restoreSettled.value),
+    restoreDeferred: computed(() => c.restoreDeferred.value),
     restoreComplete: c.restoreComplete,
     cycle,
     startFollowing,

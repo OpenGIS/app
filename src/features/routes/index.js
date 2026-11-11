@@ -382,49 +382,81 @@ export const RoutesFeature = {
      * Resume persisted navigation once locate has settled.
      *
      * Runs after mount and never opens the app's permission explainer.
-     * Visibility is restored first and is left untouched by any navigation
-     * failure, so a denied geolocation restore only clears navigation. Every
-     * failure is silent.
+     * Restoring is deferral-safe: visibility is restored first without claiming
+     * ownership, navigation ownership is persisted only after locate settles
+     * and this tab is following, and a deferred locate restore (another live
+     * tab owns that session) leaves the navigation document untouched. A
+     * denied geolocation restore only clears navigation; every failure is
+     * silent.
      */
     const restoreNavigation = async () => {
       const storedRouteId = navigation.routeId;
       if (!storedRouteId) return;
 
+      const tabId = getSessionTabId();
+
+      const storedOwner = navigation.ownerId;
+
+      // True only once no other tab can still own this navigation session.
+      // It starts true for a legacy ownerless document or our own document,
+      // and becomes true after a live-owner probe reports the owner is gone.
+      let ownsNavigation = !storedOwner || storedOwner === tabId;
+
       try {
         // Another live tab owns this navigation session. Leave it untouched so
         // a secondary tab neither restores nor clears it.
-        const storedOwner = navigation.ownerId;
-        const tabId = getSessionTabId();
         if (storedOwner && storedOwner !== tabId) {
           const ownerAlive = await isSessionOwnerAlive(storedOwner, {
             instanceId,
           });
           if (ownerAlive) return;
+          ownsNavigation = true;
           if (navigating.value || navigation.routeId !== storedRouteId) return;
         }
 
-        // This tab now owns the durable navigation session.
-        navigation.ownerId = tabId;
-        flushNavigation();
-
+        // Validate before touching storage so a missing document is dropped
+        // rather than left as a dangling navigation entry.
         const route = routes.find((item) => item.id === storedRouteId);
         if (!route || !lineGeometry(route)) {
           clearPersistedNavigation();
           return;
         }
 
+        // Show the route in memory without claiming or persisting ownership.
+        // Visibility is written back only once this tab knows whether it owns
+        // the session, so a deferred tab leaves the owner's document alone.
         showOnMap(storedRouteId, { fit: false, claim: false, persist: false });
-        persistVisibility();
 
         await locate.restoreComplete;
 
         // The user acted while the restore was pending; leave their state be.
         if (navigating.value || navigation.routeId !== storedRouteId) return;
 
+        // Another live tab owns the locate session and this tab deliberately
+        // deferred its restore. This tab shows the route only in memory and
+        // leaves the owner's stored navigation document alone; the exception
+        // is a stored navigation owner that is already dead, where the stale
+        // navigation entry is cleared.
+        if (locate.restoreDeferred.value) {
+          if (ownsNavigation && navigation.routeId === storedRouteId) {
+            clearPersistedNavigation();
+          }
+          return;
+        }
+
+        // A non-deferred restore persists the visibility it restored before
+        // deciding whether navigation can resume.
+        persistVisibility();
+
         if (locate.mode.value !== "following") {
           clearPersistedNavigation();
           return;
         }
+
+        // Only now, once locate has settled and this tab is following, claim
+        // the durable navigation session.
+        navigation.ownerId = tabId;
+        flushNavigation();
 
         const restored = startNavigation(storedRouteId, {
           restore: true,
@@ -432,7 +464,11 @@ export const RoutesFeature = {
         });
         if (!restored) clearPersistedNavigation();
       } catch {
-        if (navigation.routeId === storedRouteId) clearPersistedNavigation();
+        // Only clear a document this tab can prove it owns. If the liveness
+        // probe failed before settling, another tab may still be live.
+        if (ownsNavigation && navigation.routeId === storedRouteId) {
+          clearPersistedNavigation();
+        }
       }
     };
 
