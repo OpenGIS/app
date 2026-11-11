@@ -56,12 +56,15 @@ export const followCameraDefaults = {
   // Navigation zoom model: the close chase view rests at `restZoom` and pulls
   // back by only `zoomPullBack` level as speed rises to 100 km/h, keeping the
   // driver's immediate surroundings in view. The locate orientation flight
-  // remains a separate, wider fit.
-  restZoom: 17.5,
+  // remains a separate, wider fit. The 256 px satellite source asks for
+  // `round(zoom + 1)` tiles under the pitched camera's near field, so 17.0
+  // keeps the user's own tiles at z18 — one level below the less widely
+  // available z19.
+  restZoom: 17.0,
   zoomPullBack: 0.5,
   // Hand-off glide from the wide locate pose into the navigation pose. The
   // glide is eased over `handoffGlideMs`; each frame moves the zoom by at most
-  // `handoffMaxZoomStep` levels, so a slow renderer cannot jump-cut the ~5.85
+  // `handoffMaxZoomStep` levels, so a slow renderer cannot jump-cut the ~5.35
   // level zoom-in. Reduced-motion users snap instead of gliding.
   handoffGlideMs: 1600,
   handoffMaxZoomStep: 0.35,

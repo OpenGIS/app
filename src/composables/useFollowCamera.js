@@ -640,7 +640,7 @@ export const useFollowCamera = (explicitInstanceId) => {
       let eased = easeOut(t);
       if (c.resume.kind === "handoff") {
         // Cap the per-frame zoom movement so a slow frame cannot jump-cut the
-        // ~5.85-level hand-off. The cap stretches the glide on a slow renderer
+        // ~5.35-level hand-off. The cap stretches the glide on a slow renderer
         // rather than dropping frames of the transition.
         const span = Math.abs(target.zoom - resumeFrom.zoom);
         const maxStep = followCameraDefaults.handoffMaxZoomStep;

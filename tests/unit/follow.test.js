@@ -410,8 +410,10 @@ describe("navigationZoomForSpeed", () => {
   });
 
   it("pulls back half a level at 100 km/h and clamps beyond", () => {
-    expect(navigationZoomForSpeed(100)).toBeCloseTo(17, 6);
-    expect(navigationZoomForSpeed(200)).toBeCloseTo(17, 6);
+    const pulledBackZoom =
+      followCameraDefaults.restZoom - followCameraDefaults.zoomPullBack;
+    expect(navigationZoomForSpeed(100)).toBeCloseTo(pulledBackZoom, 6);
+    expect(navigationZoomForSpeed(200)).toBeCloseTo(pulledBackZoom, 6);
   });
 
   it("is monotone and bounded between the rest and pulled-back zooms", () => {
