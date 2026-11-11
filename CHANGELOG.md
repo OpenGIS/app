@@ -1,3 +1,10 @@
+## [3.21.3](https://github.com/OpenGIS/app/compare/v3.21.2...v3.21.3) (2026-11-11)
+
+
+### Bug Fixes
+
+* **follow:** rest at z18 satellite detail ([c05a317](https://github.com/OpenGIS/app/commit/c05a31779151fff7a3086fca898a934ce7461e4e))
+
 ## [3.21.2](https://github.com/OpenGIS/app/compare/v3.21.1...v3.21.2) (2026-11-11)
 
 
