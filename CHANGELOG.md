@@ -1,3 +1,11 @@
+## [3.21.2](https://github.com/OpenGIS/app/compare/v3.21.1...v3.21.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **locate:** report honest location and permission state ([3561c19](https://github.com/OpenGIS/app/commit/3561c19f4c3f7319911a30c83d0d26f37b2f6338))
+* **session:** harden cross-tab ownership and restore ([9b85167](https://github.com/OpenGIS/app/commit/9b85167c10be5845461691ea3ef16cae314af9fa))
+
 ## [3.21.1](https://github.com/OpenGIS/app/compare/v3.21.0...v3.21.1) (2026-11-10)
 
 
