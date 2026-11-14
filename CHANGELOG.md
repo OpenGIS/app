@@ -1,3 +1,10 @@
+# [3.22.0](https://github.com/OpenGIS/app/compare/v3.21.3...v3.22.0) (2026-11-14)
+
+
+### Features
+
+* **locate:** gate follow on compass capability ([aaa5252](https://github.com/OpenGIS/app/commit/aaa52523ca11299dc0cf1de1400c48fa83e8e975))
+
 ## [3.21.3](https://github.com/OpenGIS/app/compare/v3.21.2...v3.21.3) (2026-11-11)
 
 
