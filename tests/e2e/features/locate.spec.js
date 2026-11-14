@@ -539,10 +539,11 @@ test.describe("Locate / Compass capability gate", () => {
   }) => {
     await withLocateHints(page);
     await withGrantedStorage(page);
-    // Hold the probe open so Following can be entered while capability is
-    // still optimistically unknown. The window covers a slow CI boot plus the
-    // first tap.
-    await withCompassProbeTimeout(page, 20000);
+    // Hold the probe open far beyond any CI boot or interaction delay so
+    // Following can be entered while capability is still optimistically
+    // unknown. The window is not a timer to wait out: the controlled null
+    // reading below settles the probe exactly when the spec chooses.
+    await withCompassProbeTimeout(page, 600000);
     await installGeolocationMock(page);
     await page.goto("/");
     await waitForMapReady(page);
@@ -571,8 +572,12 @@ test.describe("Locate / Compass capability gate", () => {
       })
       .toBeLessThan(1);
 
-    // The probe timeout settles incapable. The chip must leave Following for
-    // Located, persist `active`, release the follow camera and keep watching.
+    // The controlled null reading settles the probe incapable. The helper
+    // proves capability was still unknown immediately before the dispatch, so
+    // the null-event grace — not the probe timeout — decides. The chip must
+    // then leave Following for Located, persist `active`, release the follow
+    // camera and keep watching.
+    expect(await dispatchNullCompassReading(page)).toBe("unknown");
     await expect
       .poll(async () => (await readLocate(page)).mode, {
         timeout: 30000,
@@ -1918,6 +1923,14 @@ test.describe("Locate / Restore", () => {
     // The helper proves capability was still unknown immediately before the
     // dispatch, so the null-event grace — not the 120 s probe timeout — decides.
     expect(await dispatchNullCompassReading(page)).toBe("unknown");
+    // Pin the exact signature the helper delivered, so a future platform that
+    // mangles the reading fails here rather than as an opaque capability wait.
+    expect(await page.evaluate(() => window.__ogisLastNullReading)).toEqual({
+      alpha: null,
+      beta: null,
+      gamma: null,
+      absolute: true,
+    });
     await expect
       .poll(async () => (await readLocate(page)).compassCapability, {
         timeout: 3000,
@@ -2598,24 +2611,31 @@ test.describe("Locate / Restore / Compass permission", () => {
       })
       .toBe(1);
 
-    await dispatchIOSCompassUntilHeading(page, 180);
+    // Keep a live iOS compass heartbeat so the heading stays alive through the
+    // damped bearing assertion. Under SwiftShader the 8 s heading watchdog can
+    // clear a one-shot dispatch before the camera reaches the target. Stop it
+    // before the second tap so the one-shot retry assertion stays valid.
+    await startIOSCompassStream(page, 180);
+    try {
+      // The stored fix supplies the magnetic declination before any live GPS fix
+      // arrives, so a magnetic 180° heading is corrected to true north using the
+      // production `magvar` package at the stored coordinates.
+      const expectedBearing = await page.evaluate(
+        async (fix) => {
+          // Vite serves the optimised package with a default export.
+          const { magvar } = (await import("/@id/magvar")).default;
+          return (180 + magvar(fix.lat, fix.lng) + 360) % 360;
+        },
+        { lat: RESTORE_FIX.lat, lng: RESTORE_FIX.lng },
+      );
 
-    // The stored fix supplies the magnetic declination before any live GPS fix
-    // arrives, so a magnetic 180° heading is corrected to true north using the
-    // production `magvar` package at the stored coordinates.
-    const expectedBearing = await page.evaluate(
-      async (fix) => {
-        // Vite serves the optimised package with a default export.
-        const { magvar } = (await import("/@id/magvar")).default;
-        return (180 + magvar(fix.lat, fix.lng) + 360) % 360;
-      },
-      { lat: RESTORE_FIX.lat, lng: RESTORE_FIX.lng },
-    );
-
-    // The follow camera holds its last target after the compass heading goes
-    // stale, so the map bearing is the stable product-level assertion. The
-    // marker's CSS transform is map-relative and unreliable during the glide.
-    await expectMapBearing(page, expectedBearing);
+      // The follow camera holds its last target after the compass heading goes
+      // stale, so the map bearing is the stable product-level assertion. The
+      // marker's CSS transform is map-relative and unreliable during the glide.
+      await expectMapBearing(page, expectedBearing);
+    } finally {
+      await stopIOSCompassStream(page);
+    }
 
     // The retry is one-shot: a later map tap must not prompt again.
     await tapMap(page);
@@ -2675,9 +2695,14 @@ test.describe("Locate / Restore / Compass permission", () => {
       .toBe(1);
     await expect(btn).toContainText("Following", { timeout: RESTORE_TIMEOUT });
 
-    // The repaired compass rotates the follow camera.
-    await dispatchIOSCompassUntilHeading(page, 180);
-    await expectMapBearing(page, await expectedIOSBearing(page, 180));
+    // The repaired compass rotates the follow camera. Keep a live heartbeat so
+    // the heading survives the damped bearing assertion on a slow renderer.
+    await startIOSCompassStream(page, 180);
+    try {
+      await expectMapBearing(page, await expectedIOSBearing(page, 180));
+    } finally {
+      await stopIOSCompassStream(page);
+    }
   });
 
   test("starts orientation listening on restore without a prompt on non-iOS", async ({
@@ -3071,27 +3096,34 @@ test.describe("Locate / Restore / Compass permission", () => {
       .toBe(1);
 
     // A magnetic 180° heading is corrected to true north at the stored fix, and
-    // the follow camera damps towards that bearing.
-    await dispatchIOSCompassUntilHeading(page, 180);
-    await expect(page.locator(".ogis-locate-heading")).toHaveCount(1);
+    // the follow camera damps towards that bearing. Keep a live heartbeat so the
+    // heading survives the marker and damped bearing assertions on a slow
+    // renderer; the 8 s heading watchdog would otherwise clear a one-shot event.
+    await startIOSCompassStream(page, 180);
+    try {
+      await expect(page.locator(".ogis-locate-heading")).toHaveCount(1);
 
-    const expectedBearing = await expectedIOSBearing(page, 180);
-    let bearing = null;
-    await expect
-      .poll(
-        async () => {
-          bearing = await mapBearing(page);
-          return (
-            bearing !== null && bearingDifference(bearing, expectedBearing) < 10
-          );
-        },
-        {
-          timeout: RESTORE_TIMEOUT,
-          message: `follow camera did not rotate to ${expectedBearing}°`,
-        },
-      )
-      .toBe(true);
-    expect(bearingDifference(bearing, expectedBearing)).toBeLessThan(10);
+      const expectedBearing = await expectedIOSBearing(page, 180);
+      let bearing = null;
+      await expect
+        .poll(
+          async () => {
+            bearing = await mapBearing(page);
+            return (
+              bearing !== null &&
+              bearingDifference(bearing, expectedBearing) < 10
+            );
+          },
+          {
+            timeout: RESTORE_TIMEOUT,
+            message: `follow camera did not rotate to ${expectedBearing}°`,
+          },
+        )
+        .toBe(true);
+      expect(bearingDifference(bearing, expectedBearing)).toBeLessThan(10);
+    } finally {
+      await stopIOSCompassStream(page);
+    }
 
     // The repair is consumed by the first tap: a second tap stops normally.
     await btn.click();
@@ -3128,8 +3160,14 @@ test.describe("Locate / Restore / Compass permission", () => {
       timeout: RESTORE_TIMEOUT,
     });
 
-    await dispatchIOSCompassUntilHeading(page, 90);
-    await expect(page.locator(".ogis-locate-heading")).toHaveCount(1);
+    // Keep a live heartbeat so the heading marker stays present through the
+    // assertion on a slow renderer.
+    await startIOSCompassStream(page, 90);
+    try {
+      await expect(page.locator(".ogis-locate-heading")).toHaveCount(1);
+    } finally {
+      await stopIOSCompassStream(page);
+    }
   });
 
   test("a denied chip repair keeps Following without an error", async ({

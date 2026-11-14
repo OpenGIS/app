@@ -388,7 +388,10 @@ export const withCompassProbeTimeout = (
  * null-event grace — not the probe timeout — settled it.
  *
  * The signature is an absolute event whose alpha, beta and gamma are all null,
- * with no `webkitCompassHeading`.
+ * with no `webkitCompassHeading`. The fields are redefined as own properties so
+ * the WebIDL constructor cannot coerce or omit them on another platform; the
+ * final reading is recorded on `window.__ogisLastNullReading` for diagnostics
+ * and the helper throws if it is not null/null/null/true.
  *
  * @param {import('@playwright/test').Page} page
  * @returns {Promise<'unknown'|'capable'|'incapable'>} Capability before dispatch.
@@ -404,6 +407,42 @@ export const dispatchNullCompassReading = (page) =>
       gamma: null,
       absolute: true,
     });
+
+    // The WebIDL constructor is allowed to coerce or omit these fields, and
+    // has been observed to leave the reading unsettled on Linux headless
+    // Chrome. Pin the signature as own properties so every platform delivers
+    // the identical null reading regardless of constructor behaviour.
+    for (const [key, value] of [
+      ["alpha", null],
+      ["beta", null],
+      ["gamma", null],
+      ["absolute", true],
+    ]) {
+      Object.defineProperty(event, key, {
+        configurable: true,
+        enumerable: true,
+        value,
+      });
+    }
+
+    const reading = {
+      alpha: event.alpha,
+      beta: event.beta,
+      gamma: event.gamma,
+      absolute: event.absolute,
+    };
+    window.__ogisLastNullReading = reading;
+    if (
+      reading.alpha !== null ||
+      reading.beta !== null ||
+      reading.gamma !== null ||
+      reading.absolute !== true
+    ) {
+      throw new Error(
+        `dispatchNullCompassReading built the wrong signature: ${JSON.stringify(reading)}`,
+      );
+    }
+
     window.dispatchEvent(event);
     return capabilityBefore;
   });
