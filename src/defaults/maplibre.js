@@ -49,9 +49,10 @@ export const followCameraDefaults = {
   bearingTimeConstantS: 0.3,
   pitchTimeConstantS: 0.4,
   zoomTimeConstantS: 0.4,
-  // Third-person floor: the speed curve may only tilt the camera further, so
-  // following enters a chase view immediately rather than resting on the flat
-  // orientation pose. Clamped to the map's own pitch range.
+  // Third-person floor, applied only when a live compass heading authorises the
+  // 3D chase: the speed curve may then only tilt the camera further. Without a
+  // heading follow stays flat at the close navigation zoom. Clamped to the
+  // map's own pitch range.
   restPitch: 45,
   // Navigation zoom model: the close chase view rests at `restZoom` and pulls
   // back by only `zoomPullBack` level as speed rises to 100 km/h, keeping the

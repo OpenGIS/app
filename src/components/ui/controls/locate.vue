@@ -11,6 +11,7 @@ const {
   mode,
   hasFix,
   cycle,
+  canFollow,
   headingRecoveryPending,
   restoreSettled,
   orientationPromptPending,
@@ -74,6 +75,7 @@ const label = computed(() => {
     :heading-pending="headingRecoveryPending"
     :has-fix="hasFix"
     :orientation-pending="orientationPromptPending"
+    :can-follow="canFollow"
     :restore-settled="restoreSettled"
   />
   <LocateError />

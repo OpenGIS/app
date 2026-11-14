@@ -16,6 +16,7 @@ const {
   navigating,
   error,
   isMetric,
+  canFollow,
   importTracks,
   deleteRoute,
   toggleVisibility,
@@ -51,6 +52,7 @@ const hasPoints = (route) => documentPointCount(route) > 0;
 const hasWaypoints = (route) => waypointCount(route) > 0;
 
 const navigateTitle = (route) => {
+  if (!canFollow.value) return t("panel.routes.navigateNoCompass");
   if (!isVisible(route.id)) return t("panel.routes.navigateHidden");
   if (navigating.value && navigating.value !== route.id) {
     return t("panel.routes.navigateBusy");
@@ -137,6 +139,7 @@ const confirmDelete = (route) => {
             navigating === route.id ? 'btn-success' : 'btn-outline-success'
           "
           :disabled="
+            !canFollow ||
             !isVisible(route.id) ||
             Boolean(navigating && navigating !== route.id)
           "

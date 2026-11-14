@@ -13,6 +13,9 @@ import {
   installGeolocationMock,
   emitFix,
   LOCATE_FIX,
+  startCompassStream,
+  stopCompassStream,
+  withCompassCapability,
 } from "../helpers/locate.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 import { isSwiftShaderRun } from "../helpers/determinism.js";
@@ -40,6 +43,8 @@ const HANDOFF_TIMEOUT = isSwiftShaderRun() ? 120000 : ACTION_TIMEOUT;
 test.setTimeout(isSwiftShaderRun() ? 360000 : 120000);
 
 test.beforeEach(({ page }) => trackConsoleErrors(page));
+// These cases drive the locate chip into Following; pin a capable device.
+test.beforeEach(({ page }) => withCompassCapability(page, true));
 test.afterEach(({ page }) => expectNoConsoleErrors(page));
 
 /**
@@ -486,6 +491,9 @@ test.describe("Map actions / Random while following / desktop", () => {
     await page.goto("/");
     await waitForMapReady(page);
 
+    // Follow is compass-only 3D: keep a live heading so the hand-off settles at
+    // the third-person rest pitch rather than the flat, north-up pose.
+    await startCompassStream(page, 90);
     await startFollowing(page);
 
     const root = page.locator(".ogis-root");
@@ -501,6 +509,7 @@ test.describe("Map actions / Random while following / desktop", () => {
       .toBeLessThan(1);
 
     const pose = await waitForStablePose(page, HANDOFF_TIMEOUT);
+    await stopCompassStream(page);
 
     await page.getByRole("link", { name: "Improve" }).click();
 

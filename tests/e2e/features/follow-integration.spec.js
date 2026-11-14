@@ -14,6 +14,7 @@ import {
   startCompassStream,
   stopCompassStream,
   waitForCameraSettle,
+  withCompassCapability,
   withGrantedLocateStorage,
 } from "../helpers/locate.js";
 import { readStoredState } from "../helpers/storage.js";
@@ -33,12 +34,44 @@ import { readStoredState } from "../helpers/storage.js";
 // larger backstop; the GPU path keeps the tight budget.
 const CAMERA_TIMEOUT = isSwiftShaderRun() ? 120000 : 60000;
 
-// One cold-load boot plus several camera settles; ample headroom under
-// SwiftShader.
-test.setTimeout(isSwiftShaderRun() ? 360000 : 180000);
+// Heading-refresh cadence for the speed-driven chase assertions. It stays below
+// the 8 s heading watchdog so the camera cannot flatten mid-check. Heading
+// events only update bearing: they re-feed the last fix's timestamp, so the
+// driver's 3 s dead-reckon clock keeps running across the refresh and the
+// designed speed-drift goal still forms.
+const COMPASS_REFRESH_MS = 6000;
+
+// One cold-load boot plus several camera settles; the pinned software renderer
+// needs a wider per-test budget than the GPU path (the heaviest chase reaches
+// its final persistence checks around the six-minute mark).
+test.setTimeout(isSwiftShaderRun() ? 600000 : 180000);
 
 test.beforeEach(({ page }) => trackConsoleErrors(page));
+// Every case enters Following through the locate chip, so pin a capable device.
+test.beforeEach(({ page }) => withCompassCapability(page, true));
 test.afterEach(({ page }) => expectNoConsoleErrors(page));
+
+/**
+ * Snap the follow hand-off on the software renderer.
+ *
+ * The hand-off caps each frame's zoom movement, so reaching the close
+ * navigation pose needs ~16 rendered frames. A pinned SwiftShader frame can
+ * take tens of seconds here, turning the 1.6 s glide into minutes and starving
+ * every assertion behind it. Reduced motion is a supported production mode
+ * that snaps the hand-off in one frame; the chase phases that follow run with
+ * normal motion again via {@link restoreMotion}. The GPU path keeps the glide
+ * under test.
+ */
+const snapHandoffForSwiftShader = async (page) => {
+  if (!isSwiftShaderRun()) return;
+  await page.emulateMedia({ reducedMotion: "reduce" });
+};
+
+/** Restore normal motion after a SwiftShader hand-off. */
+const restoreMotion = async (page) => {
+  if (!isSwiftShaderRun()) return;
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+};
 
 const hashOf = (url) => new URL(url).hash;
 
@@ -57,6 +90,11 @@ const readPersistedCentre = async (page) => {
  * pending write can still land after an immediate snapshot. Two reads
  * separated by more than the debounce window resolve only once that write has
  * fired and the serialised value is stable.
+ *
+ * The timeout is the camera budget, not a fixed few seconds: under SwiftShader
+ * a single `page.evaluate` round-trip can outlast the 350 ms quiet window, so a
+ * tight timeout could expire before the second sample is taken even though
+ * storage is already stable.
  *
  * @param {import('@playwright/test').Page} page
  * @returns {Promise<string|null>} The settled serialised stored view.
@@ -78,7 +116,7 @@ const waitForPersistedViewQuiescent = async (page) => {
         settled = after;
         return before === after;
       },
-      { timeout: 5000 },
+      { timeout: CAMERA_TIMEOUT },
     )
     .toBe(true);
   return settled;
@@ -164,16 +202,25 @@ const markPointerRelease = (page) =>
 
 /**
  * Publish a stream of fast, course-over-ground fixes so the follow driver is
- * actively chasing while the test interacts. The longitude advances every tick
+ * actively chasing while the test interacts. The longitude advances each tick
  * at a speed that matches the reported ~100 km/h.
+ *
+ * The stream is self-scheduling rather than a fixed `setInterval`: under
+ * SwiftShader a single fix callback can outlast the interval, and an interval
+ * would then queue callbacks back-to-back until the page's main thread is
+ * starved. Re-arming after each emission bounds the work to the renderer's own
+ * pace while still keeping fixes arriving through the drag.
  */
-const startMovingFixes = (page, { lat, lng, heading = 90, intervalMs = 80 }) =>
+const startMovingFixes = (page, { lat, lng, heading = 90, intervalMs = 200 }) =>
   page.evaluate(
     ({ lat, lng, heading, interval }) => {
-      if (window.__followMoveStream) clearInterval(window.__followMoveStream);
+      if (window.__followMoveStream) clearTimeout(window.__followMoveStream);
+      const metresPerTick = (100 / 3.6) * (interval / 1000);
+      const lngPerTick =
+        metresPerTick / (111_320 * Math.cos((lat * Math.PI) / 180));
       let offset = 0;
       const emit = () => {
-        offset += 0.00003;
+        offset += lngPerTick;
         window.__geo.emit({
           latitude: lat,
           longitude: lng + offset,
@@ -181,9 +228,9 @@ const startMovingFixes = (page, { lat, lng, heading = 90, intervalMs = 80 }) =>
           heading,
           accuracy: 10,
         });
+        window.__followMoveStream = setTimeout(emit, interval);
       };
       emit();
-      window.__followMoveStream = setInterval(emit, interval);
     },
     { lat, lng, heading, interval: intervalMs },
   );
@@ -191,7 +238,7 @@ const startMovingFixes = (page, { lat, lng, heading = 90, intervalMs = 80 }) =>
 /** Stop the moving-fix stream. */
 const stopMovingFixes = (page) =>
   page.evaluate(() => {
-    if (window.__followMoveStream) clearInterval(window.__followMoveStream);
+    if (window.__followMoveStream) clearTimeout(window.__followMoveStream);
     window.__followMoveStream = null;
   });
 
@@ -268,6 +315,27 @@ const followGoal = (page, fix, { bearing, speedKmh = 0 }) =>
   );
 
 /**
+ * The position the follow driver dead-reckons a moving fix to once its clock
+ * saturates: the fix advanced along the travel bearing by the 3 s speed drift,
+ * with no composition look-ahead. This is the target a heading-loss retarget
+ * resolves to, because a flattened pose contributes no look-ahead.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ lat: number, lng: number }} fix
+ * @param {{ bearing: number, speedKmh: number }} motion
+ * @returns {Promise<{ lat: number, lng: number }>}
+ */
+const followDriftGoal = (page, fix, { bearing, speedKmh }) =>
+  page.evaluate(
+    async ({ lat, lng, bearing, speedKmh }) => {
+      const { deadReckon } = await import("/src/utils/follow.js");
+      // Mirrors the driver's 3 s dead-reckon cap.
+      return deadReckon({ lat, lng }, bearing, (speedKmh / 3.6) * 3);
+    },
+    { lat: fix.lat, lng: fix.lng, bearing, speedKmh },
+  );
+
+/**
  * Begin recording the live camera pose every animation frame. Each sample
  * carries its rAF timestamp so motion can be judged as a rate over real time.
  */
@@ -331,8 +399,10 @@ test.describe("Follow / Locate chase", () => {
       })
       .toBeGreaterThan(0);
     // Start a live compass stream: a single event would be cleared by the ~8 s
-    // heading watchdog before the (slow) follow click reads it.
-    await startCompassStream(page, 90);
+    // heading watchdog before the (slow) follow click reads it. The slower
+    // heartbeat keeps the heading live through the fast phase without resetting
+    // the dead-reckon clock faster than the driver's 3 s cap.
+    await startCompassStream(page, 90, COMPASS_REFRESH_MS);
 
     await waitForCameraSettle(
       page,
@@ -354,8 +424,13 @@ test.describe("Follow / Locate chase", () => {
     const restZoom = await navigationZoom(page, 0);
     const fastZoom = await navigationZoom(page, 100);
 
+    // On SwiftShader the hand-off glide would need ~16 rendered frames at tens
+    // of seconds each; snap it with reduced motion and sample only the chase.
+    const swiftshader = isSwiftShaderRun();
+    await snapHandoffForSwiftShader(page);
+
     // Start sampling before the hand-off so the transition itself is captured.
-    await startCameraSampler(page);
+    if (!swiftshader) await startCameraSampler(page);
 
     // The compass stream is already live, so the heading is fresh at the click.
     await btn.click();
@@ -382,7 +457,15 @@ test.describe("Follow / Locate chase", () => {
     expect(
       await page.evaluate(() => localStorage.getItem("ogis_view_app")),
     ).toBe(storedBefore);
-    await stopCompassStream(page);
+
+    // The chase phases below run with normal motion so the damping rate and
+    // pose assertions still cover the real driver.
+    await restoreMotion(page);
+    if (swiftshader) await startCameraSampler(page);
+
+    // The compass stream stays live through the walking and fast phases: with
+    // compass-only 3D, the 8 s heading watchdog would otherwise flatten the
+    // camera mid-test once the stream stops.
 
     // 3. Walking (~5 km/h east): the pitch stays on the 45° third-person rest
     // floor, which still out-tilts the 32° speed-curve keyframe.
@@ -478,6 +561,11 @@ test.describe("Follow / Locate chase", () => {
     expect(maxPitchDelta).toBeLessThan(45);
     expect(maxZoomDelta).toBeLessThan(0.6);
 
+    // Every pose-dependent check above is complete, so the stream can stop: the
+    // 8 s heading watchdog would otherwise flatten the camera mid-check once the
+    // last orientation event ages out.
+    await stopCompassStream(page);
+
     // 6. Stop: the final camera is persisted exactly once, through the normal
     // view-persistence path, and then stays put.
     await btn.click();
@@ -508,6 +596,183 @@ test.describe("Follow / Locate chase", () => {
     const afterStop = hashOf(page.url());
     await page.waitForTimeout(600);
     expect(hashOf(page.url())).toBe(afterStop);
+  });
+
+  test("keeps dead reckoning across a GPS gap while the compass streams", async ({
+    page,
+  }) => {
+    await withGrantedLocateStorage(page);
+    await installGeolocationMock(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+
+    await btn.click();
+    await expect(btn).toContainText("Locating…", { timeout: CAMERA_TIMEOUT });
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: CAMERA_TIMEOUT,
+      })
+      .toBeGreaterThan(0);
+    await emitFix(page, {
+      lat: LOCATE_FIX.latitude,
+      lng: LOCATE_FIX.longitude,
+    });
+    await expect(btn).toContainText("Located", { timeout: CAMERA_TIMEOUT });
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: CAMERA_TIMEOUT,
+      })
+      .toBeGreaterThan(0);
+
+    // A 1 s heartbeat is aggressive enough to expose the old bug: every
+    // orientation event re-fed the camera with a fresh timestamp, resetting
+    // the dead-reckon clock and pinning the centre to the raw fix. Heading
+    // events must instead keep the last fix's time so the position drift still
+    // reaches its 3 s cap.
+    await startCompassStream(page, 90, 1000);
+    await waitForCameraSettle(
+      page,
+      expectedHashRegExp(await orientHash(page)),
+      CAMERA_TIMEOUT,
+    );
+
+    await snapHandoffForSwiftShader(page);
+    await btn.click();
+    await expect(btn).toContainText("Following", { timeout: CAMERA_TIMEOUT });
+    await expect
+      .poll(async () => Math.abs((await readCamera(page)).bearing - 90), {
+        timeout: CAMERA_TIMEOUT,
+      })
+      .toBeLessThan(1);
+    await restoreMotion(page);
+
+    // One moving fix, then no more: only dead reckoning can carry the camera
+    // east while the compass heartbeat continues.
+    const fix = {
+      lat: LOCATE_FIX.latitude,
+      lng: LOCATE_FIX.longitude,
+    };
+    await emitFix(page, { ...fix, speed: 100 / 3.6, heading: 90 });
+
+    const goal = await followGoal(page, fix, { bearing: 90, speedKmh: 100 });
+    await expect
+      .poll(async () => centreDelta((await readCamera(page)).center, goal), {
+        timeout: CAMERA_TIMEOUT,
+        message:
+          "follow camera did not dead-reckon across the GPS gap while the compass streamed",
+      })
+      .toBeLessThan(0.0002);
+
+    await stopCompassStream(page);
+  });
+
+  test("flattens on heading loss without snapping the dead-reckoned centre back to the fix", async ({
+    page,
+  }) => {
+    await withGrantedLocateStorage(page);
+    await installGeolocationMock(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+
+    await btn.click();
+    await expect(btn).toContainText("Locating…", { timeout: CAMERA_TIMEOUT });
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: CAMERA_TIMEOUT,
+      })
+      .toBeGreaterThan(0);
+    await emitFix(page, {
+      lat: LOCATE_FIX.latitude,
+      lng: LOCATE_FIX.longitude,
+    });
+    await expect(btn).toContainText("Located", { timeout: CAMERA_TIMEOUT });
+    await expect
+      .poll(() => page.locator(".ogis-locate-position").count(), {
+        timeout: CAMERA_TIMEOUT,
+      })
+      .toBeGreaterThan(0);
+
+    await startCompassStream(page, 90);
+    await waitForCameraSettle(
+      page,
+      expectedHashRegExp(await orientHash(page)),
+      CAMERA_TIMEOUT,
+    );
+
+    await snapHandoffForSwiftShader(page);
+    await btn.click();
+    await expect(btn).toContainText("Following", { timeout: CAMERA_TIMEOUT });
+    await expect
+      .poll(async () => Math.abs((await readCamera(page)).bearing - 90), {
+        timeout: CAMERA_TIMEOUT,
+      })
+      .toBeLessThan(1);
+    await restoreMotion(page);
+
+    // One recent moving fix: the chase dead-reckons east from it. Wait for the
+    // designed goal to form, which also proves the driver's clock is running.
+    const fix = {
+      lat: LOCATE_FIX.latitude,
+      lng: LOCATE_FIX.longitude,
+    };
+    await emitFix(page, { ...fix, speed: 100 / 3.6, heading: 90 });
+    const chaseGoal = await followGoal(page, fix, {
+      bearing: 90,
+      speedKmh: 100,
+    });
+    await expect
+      .poll(
+        async () => centreDelta((await readCamera(page)).center, chaseGoal),
+        {
+          timeout: CAMERA_TIMEOUT,
+        },
+      )
+      .toBeLessThan(0.0002);
+
+    // Sample every frame across the loss, then stop the compass. The watchdog
+    // fires 8 s later; the flatten and the centre's glide are captured on-page
+    // so a slow evaluate round-trip cannot miss the moment the pose flattens.
+    await startCameraSampler(page);
+    await stopCompassStream(page);
+    const lossStartedAt = await page.evaluate(() => performance.now());
+
+    await expect
+      .poll(
+        async () => {
+          const cam = await readCamera(page);
+          return Math.abs(cam.pitch) + Math.abs(cam.bearing);
+        },
+        {
+          timeout: CAMERA_TIMEOUT,
+          message: "camera did not flatten after the heading watchdog fired",
+        },
+      )
+      .toBeLessThan(2);
+
+    const samples = await stopCameraSampler(page);
+    const flattened = samples.find(
+      (sample) =>
+        sample.t > lossStartedAt &&
+        Math.abs(sample.pitch) < 1 &&
+        Math.abs(sample.bearing) < 1,
+    );
+    expect(flattened).toBeTruthy();
+
+    // Heading loss flattens the pose, but the centre must keep the position
+    // dead-reckoned from the existing fix timestamp rather than restarting the
+    // clock and snapping back to the raw fix.
+    const driftGoal = await followDriftGoal(page, fix, {
+      bearing: 90,
+      speedKmh: 100,
+    });
+    expect(Math.abs(flattened.pitch)).toBeLessThan(1);
+    expect(Math.abs(flattened.bearing)).toBeLessThan(1);
+    expect(flattened.lng).toBeGreaterThan(driftGoal.lng - 0.0002);
+    expect(flattened.lng).toBeLessThan(driftGoal.lng + 0.0002);
   });
 
   test("suspends on a user drag, resumes after the idle delay, then persists once on stop", async ({
@@ -550,6 +815,7 @@ test.describe("Follow / Locate chase", () => {
 
     // The stream stays live through the slow follow click, so the heading
     // cannot be cleared before the driver starts.
+    await snapHandoffForSwiftShader(page);
     await btn.click();
     await expect(btn).toContainText("Following", { timeout: CAMERA_TIMEOUT });
     await expect
@@ -557,8 +823,12 @@ test.describe("Follow / Locate chase", () => {
         timeout: CAMERA_TIMEOUT,
       })
       .toBeLessThan(1);
-    await stopCompassStream(page);
+    await restoreMotion(page);
 
+    // Keep the compass stream live through the drag, the idle delay and the
+    // resume: compass-only 3D authorises the 45° pose only while a heading is
+    // fresh, and the 8 s watchdog would flatten the camera mid-test if the
+    // stream stopped here. It is stopped after the final pose check below.
     const restPose = await readCamera(page);
 
     // 2. A user drag suspends the driver: hold the pointer down so the idle
@@ -622,6 +892,11 @@ test.describe("Follow / Locate chase", () => {
     expect(resumed.t - releaseAt).toBeGreaterThanOrEqual(
       idleResumeDelayMs - 100,
     );
+
+    // The resume returned to the chase pose, so the heading is no longer
+    // needed; stop the stream before the terminal stop (the 8 s watchdog would
+    // flatten the camera once the last orientation event ages out).
+    await stopCompassStream(page);
 
     // 4. Stop: the final camera is persisted exactly once, through the normal
     // view-persistence path, then stays put.
@@ -690,6 +965,7 @@ test.describe("Follow / Locate chase", () => {
       CAMERA_TIMEOUT,
     );
 
+    await snapHandoffForSwiftShader(page);
     await btn.click();
     await expect(btn).toContainText("Following", { timeout: CAMERA_TIMEOUT });
     await expect
@@ -697,6 +973,7 @@ test.describe("Follow / Locate chase", () => {
         timeout: CAMERA_TIMEOUT,
       })
       .toBeLessThan(1);
+    await restoreMotion(page);
 
     const restPose = await readCamera(page);
 

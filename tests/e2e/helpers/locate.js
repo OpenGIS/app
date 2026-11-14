@@ -96,8 +96,10 @@ export const withHangingPermissionQuery = (page, timeoutMs = 50) =>
  *
  * `navigator.permissions.query` resolves `state` after `delayMs`, and the app's
  * own permission bound is widened to `timeoutMs` so the delayed query can still
- * settle. The call count is exposed as `window.__permissionQueryCalls`. Must be
- * installed before the document boots.
+ * settle. The call count is exposed as `window.__permissionQueryCalls`, and the
+ * resolved count as `window.__permissionQueryResolved`, so a test can wait for
+ * the restore to leave the permission query and park on the compass probe. Must
+ * be installed before the document boots.
  *
  * @param {import('@playwright/test').Page} page
  * @param {{ delayMs?: number, state?: "granted"|"denied"|"prompt", timeoutMs?: number }} [options]
@@ -109,6 +111,7 @@ export const withDelayedPermissionQuery = (
   page.addInitScript(
     ({ delay, permissionState, timeout }) => {
       window.__permissionQueryCalls = 0;
+      window.__permissionQueryResolved = 0;
       window.__ogisLocatePermissionTimeoutMs = timeout;
       if (!navigator.permissions) {
         Object.defineProperty(navigator, "permissions", {
@@ -121,7 +124,10 @@ export const withDelayedPermissionQuery = (
         value: () => {
           window.__permissionQueryCalls += 1;
           return new Promise((resolve) => {
-            setTimeout(() => resolve({ state: permissionState }), delay);
+            setTimeout(() => {
+              window.__permissionQueryResolved += 1;
+              resolve({ state: permissionState });
+            }, delay);
           });
         },
       });
@@ -311,19 +317,128 @@ export const startCompassStream = (page, bearingDeg, intervalMs = 1000) =>
   );
 
 /**
- * Simulate iOS orientation permission gating before the document boots.
+ * Declare compass-hardware capability before the document boots.
  *
- * Defines `DeviceOrientationEvent.requestPermission` as a stub that counts its
- * calls on `window.__orientationPermissionCalls` and resolves `result`. It also
+ * Sets the `__ogisCompassCapable` boot override read by the capability probe,
+ * so a spec can pin Follow availability without waiting out the real probe.
+ * Must be installed before the document boots.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {boolean} [capable]
+ */
+export const withCompassCapability = (page, capable = true) =>
+  page.addInitScript((value) => {
+    window.__ogisCompassCapable = value;
+  }, capable);
+
+/**
+ * Stretch (or shrink) the boot compass-capability probe window.
+ *
+ * Sets the `__ogisCompassProbeTimeoutMs` override read when the boot probe is
+ * created. A long window keeps capability `unknown` while a spec enters
+ * Following, so a later timeout can exercise the late-downgrade path.
+ *
+ * Desktop Chrome itself emits a null-reading orientation event, which now
+ * settles the probe incapable after a short grace. Those events are suppressed
+ * by default so the stretched window really stays open. A spec that needs to
+ * drive the probe itself dispatches through {@link dispatchNullCompassReading},
+ * which releases the suppression in the same synchronous step as the controlled
+ * event — native/background events still cannot settle the probe first. Passing
+ * `allowOrientationEvents: true` releases them from boot instead. Must be
+ * installed before the document boots.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {number} ms - Finite positive timeout in milliseconds.
+ * @param {{ allowOrientationEvents?: boolean }} [options]
+ */
+export const withCompassProbeTimeout = (
+  page,
+  ms,
+  { allowOrientationEvents = false } = {},
+) =>
+  page.addInitScript(
+    ({ timeout, allowEvents }) => {
+      window.__ogisCompassProbeTimeoutMs = timeout;
+      if (allowEvents) {
+        window.__ogisCompassAllowOrientationEvents = true;
+        return;
+      }
+
+      // Registered before the app's probe listener: stop native null readings
+      // from settling a probe the spec deliberately holds open. The flag is the
+      // deterministic release an explicit dispatch sets just before firing.
+      const suppress = (event) => {
+        if (window.__ogisCompassAllowOrientationEvents === true) return;
+        event.stopImmediatePropagation();
+      };
+      window.addEventListener("deviceorientation", suppress, true);
+      window.addEventListener("deviceorientationabsolute", suppress, true);
+    },
+    { timeout: ms, allowEvents: allowOrientationEvents },
+  );
+
+/**
+ * Dispatch desktop Chrome's null absolute orientation signature.
+ *
+ * Releases the native-event suppression installed by
+ * {@link withCompassProbeTimeout} in the same synchronous step as the dispatch,
+ * so no native/background event can settle the probe between the release and the
+ * controlled event. Returns the capability read immediately before the dispatch,
+ * letting a spec assert the probe was still `unknown` and therefore that the
+ * null-event grace — not the probe timeout — settled it.
+ *
+ * The signature is an absolute event whose alpha, beta and gamma are all null,
+ * with no `webkitCompassHeading`.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<'unknown'|'capable'|'incapable'>} Capability before dispatch.
+ */
+export const dispatchNullCompassReading = (page) =>
+  page.evaluate(async () => {
+    const { useLocate } = await import("/src/composables/useLocate.js");
+    const capabilityBefore = useLocate("app").compassCapability.value;
+    window.__ogisCompassAllowOrientationEvents = true;
+    const event = new DeviceOrientationEvent("deviceorientationabsolute", {
+      alpha: null,
+      beta: null,
+      gamma: null,
+      absolute: true,
+    });
+    window.dispatchEvent(event);
+    return capabilityBefore;
+  });
+
+/**
+ * Simulate an iOS device with gesture-gated orientation permission.
+ *
+ * Emulates an iPhone/iPadOS navigator in the same init script so the production
+ * iOS platform gate (`isIOSDevice`) is genuinely satisfied — the fixture does
+ * not pin the boot probe result. The `requestPermission` stub counts its calls
+ * on `window.__orientationPermissionCalls` and resolves `result`. It also
  * removes `ondeviceorientationabsolute` so the app falls back to the generic
- * `deviceorientation` event, matching iOS Safari. Must be installed before the
- * document boots.
+ * `deviceorientation` event, matching iOS Safari. `navigator.vendor` is left
+ * untouched so the fixture never triggers the Apple WebKit restore paths. A
+ * later `withCompassCapability(false)` init script still overrides the probe.
+ * Must be installed before the document boots.
  *
  * @param {import('@playwright/test').Page} page
  * @param {"granted"|"denied"} [result]
  */
 export const withIOSOrientationPermission = (page, result = "granted") =>
   page.addInitScript((permissionResult) => {
+    Object.defineProperty(navigator, "userAgent", {
+      configurable: true,
+      get: () =>
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+    });
+    Object.defineProperty(navigator, "platform", {
+      configurable: true,
+      get: () => "iPhone",
+    });
+    Object.defineProperty(navigator, "maxTouchPoints", {
+      configurable: true,
+      get: () => 5,
+    });
     window.__orientationPermissionCalls = 0;
     Object.defineProperty(window.DeviceOrientationEvent, "requestPermission", {
       configurable: true,
@@ -340,13 +455,28 @@ export const withIOSOrientationPermission = (page, result = "granted") =>
  *
  * Like {@link withIOSOrientationPermission}, but `requestPermission` returns a
  * promise held until the test calls {@link resolveIOSOrientationPermission}.
- * The pending state is exposed as `window.__orientationPermissionPending`.
- * Must be installed before the document boots.
+ * It emulates the iOS navigator in the same init script, so the production
+ * platform gate — not a pinned probe result — recognises the device. The
+ * pending state is exposed as `window.__orientationPermissionPending`. Must be
+ * installed before the document boots.
  *
  * @param {import('@playwright/test').Page} page
  */
 export const withHangingIOSOrientationPermission = (page) =>
   page.addInitScript(() => {
+    Object.defineProperty(navigator, "userAgent", {
+      configurable: true,
+      get: () =>
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+    });
+    Object.defineProperty(navigator, "platform", {
+      configurable: true,
+      get: () => "iPhone",
+    });
+    Object.defineProperty(navigator, "maxTouchPoints", {
+      configurable: true,
+      get: () => 5,
+    });
     window.__orientationPermissionCalls = 0;
     window.__orientationPermissionPending = false;
     window.__orientationPermissionResolve = null;
@@ -361,6 +491,31 @@ export const withHangingIOSOrientationPermission = (page) =>
       },
     });
     delete window.ondeviceorientationabsolute;
+  });
+
+/**
+ * Simulate desktop Chrome's orientation permission API before the document
+ * boots.
+ *
+ * Chrome 151+ exposes `DeviceOrientationEvent.requestPermission` on desktop
+ * without compass hardware. The stub counts its calls on
+ * `window.__orientationPermissionCalls` and resolves `granted`, but it does not
+ * pin capability or hide `deviceorientationabsolute`: the real probe must
+ * listen and settle on the sensor events. Must be installed before the document
+ * boots.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+export const withDesktopChromeOrientationPermission = (page) =>
+  page.addInitScript(() => {
+    window.__orientationPermissionCalls = 0;
+    Object.defineProperty(window.DeviceOrientationEvent, "requestPermission", {
+      configurable: true,
+      value: () => {
+        window.__orientationPermissionCalls += 1;
+        return Promise.resolve("granted");
+      },
+    });
   });
 
 /**
@@ -394,6 +549,43 @@ export const dispatchIOSCompass = (page, headingDeg) =>
     });
     window.dispatchEvent(event);
   }, headingDeg);
+
+/**
+ * Start a live iOS compass stream: dispatch the heading immediately and then
+ * every `intervalMs` through the same `deviceorientation` shape as
+ * {@link dispatchIOSCompass}. Real devices stream orientation continuously; a
+ * one-shot event is cleared by the ~8 s heading watchdog while a software
+ * renderer finishes its first positive bearing/pitch assertions. The interval
+ * handle is stored on the page so {@link stopIOSCompassStream} can clear it.
+ */
+export const startIOSCompassStream = (page, headingDeg, intervalMs = 1000) =>
+  page.evaluate(
+    ({ heading, interval }) => {
+      const dispatch = () => {
+        const event = new DeviceOrientationEvent("deviceorientation", {
+          alpha: 0,
+          beta: 0,
+          gamma: 0,
+        });
+        Object.defineProperty(event, "webkitCompassHeading", {
+          value: heading,
+          writable: false,
+        });
+        window.dispatchEvent(event);
+      };
+      if (window.__iosCompassStream) clearInterval(window.__iosCompassStream);
+      dispatch();
+      window.__iosCompassStream = setInterval(dispatch, interval);
+    },
+    { heading: headingDeg, interval: intervalMs },
+  );
+
+/** Stop the live iOS compass stream started by {@link startIOSCompassStream}. */
+export const stopIOSCompassStream = (page) =>
+  page.evaluate(() => {
+    if (window.__iosCompassStream) clearInterval(window.__iosCompassStream);
+    window.__iosCompassStream = null;
+  });
 
 /**
  * Dispatch a `click` on the map container (never on a control or panel), which

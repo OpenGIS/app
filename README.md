@@ -34,10 +34,10 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 - Default view is of the user's country (best guess from OS timezone).
 - Corner controls:
   - Routes (opens the side panel)
-  - Locate / Follow (GPS position + Compass heading)
+  - Locate / Follow (GPS position + Compass heading) — compass-gated Follow, with a flat north-up fallback until a heading is live
   - Info
 - Import and share GPX/GeoJSON routes.
-- Navigate Routes, with direction and distance indicators.
+- Navigate Routes, with direction and distance indicators (requires a compass-capable device).
 - Multilingual - both UI and map names where available (uses OS language).
 - Map view persisted between sessions and can be shared as URLs.
 - One default theme with a dark palette, independent of your device setting.
@@ -45,6 +45,7 @@ Full developer documentation lives in [docs/README.md](docs/README.md).
 ## Drawbacks and Limitations
 
 - Location permissions are required for GPS/Compass features. Some users have a deny-all approach to browser permissions and changing them varies between browsers and devices.
+- Follow and route navigation require usable compass hardware. Devices without a compass still locate and show routes, but Follow is not offered and Navigate is disabled; a compass-capable device without a live heading follows flat and north-up until one arrives.
 - The app cannot access the user's position when the device is locked — needed for live location and route navigation — a common limitation of web apps.
 - The app requires an initial connection to load. Afterwards the app shell boots offline and previously viewed map areas remain available, but areas never viewed online are not cached.
 

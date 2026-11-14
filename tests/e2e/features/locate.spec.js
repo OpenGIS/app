@@ -9,15 +9,22 @@ import {
   LOCATE_FIX as FIX,
   dispatchCompass,
   dispatchIOSCompass,
+  dispatchNullCompassReading,
   emitFix,
   emitGeoError,
   expectedHashRegExp,
   installGeolocationMock,
   orientHash,
   resolveIOSOrientationPermission,
+  startIOSCompassStream,
+  stopIOSCompassStream,
   tapMap,
   waitForCameraSettle,
   withAppleWebKitPromptPermission,
+  withCompassCapability,
+  withCompassProbeTimeout,
+  withDelayedPermissionQuery,
+  withDesktopChromeOrientationPermission,
   withGrantedLocateStorage as withGrantedStorage,
   withHangingIOSOrientationPermission,
   withHangingPermissionQuery,
@@ -306,6 +313,8 @@ test.describe("Locate / Confirmation modal", () => {
 test.describe("Locate / Active and Following states", () => {
   test.beforeEach(async ({ page }) => {
     await withGrantedStorage(page);
+    // A capable device offers Following; the no-compass gate has its own cases.
+    await withCompassCapability(page, true);
     await installGeolocationMock(page);
     await page.goto("/");
     await waitForMapReady(page);
@@ -403,6 +412,447 @@ test.describe("Locate / Active and Following states", () => {
   });
 });
 
+// ─── Locate / Following without a compass heading ───────────────────────────
+
+test.describe("Locate / Following without a heading", () => {
+  test.beforeEach(async ({ page }) => {
+    await withGrantedStorage(page);
+    // A capable device offers Following even before any heading arrives.
+    await withCompassCapability(page, true);
+    await installGeolocationMock(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+  });
+
+  test("a position fix retargets the following camera without a compass heading", async ({
+    page,
+  }) => {
+    const btn = page.locator("#locate-button");
+
+    await btn.click();
+    await expect(btn).toContainText("Locating…", { timeout: LOCATE_TIMEOUT });
+    await emitDemoFix(page);
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+    await waitForCameraSettle(page, expectedHashRegExp(await orientHash(page)));
+
+    // Follow is offered from hardware capability alone. No compass event has
+    // been dispatched, so the driver starts flat and north-up.
+    await btn.click();
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    await expect
+      .poll(async () => Math.abs(await mapPitch(page)), {
+        timeout: LOCATE_TIMEOUT,
+        message: "following camera did not start flat without a heading",
+      })
+      .toBeLessThan(1);
+    await expect
+      .poll(async () => bearingDifference(await mapBearing(page), 0), {
+        timeout: LOCATE_TIMEOUT,
+        message: "following camera did not start north-up without a heading",
+      })
+      .toBeLessThan(1);
+    await expect
+      .poll(async () => Math.abs((await mapZoom(page)) - 17), {
+        timeout: LOCATE_TIMEOUT,
+        message: "following camera did not reach the navigation rest zoom",
+      })
+      .toBeLessThan(0.5);
+
+    const initialCentre = await mapCentre(page);
+    const movedFix = {
+      lat: FIX.latitude + 0.001,
+      lng: FIX.longitude + 0.001,
+    };
+    expect(
+      Math.hypot(
+        initialCentre.lat - movedFix.lat,
+        initialCentre.lng - movedFix.lng,
+      ),
+    ).toBeGreaterThan(0.0005);
+
+    // A single moved fix with no compass event must drive a genuine camera
+    // move. Speed 0 keeps the pose on the raw fix (no drift, and no look-ahead
+    // while flat), so proximity to the new fix proves the per-fix feed.
+    await emitFix(page, { ...movedFix, speed: 0 });
+    await expect
+      .poll(
+        async () => {
+          const centre = await mapCentre(page);
+          return Math.hypot(
+            centre.lat - movedFix.lat,
+            centre.lng - movedFix.lng,
+          );
+        },
+        {
+          timeout: LOCATE_TIMEOUT,
+          message: "following camera did not follow the moved position fix",
+        },
+      )
+      .toBeLessThan(1e-4);
+    await expect
+      .poll(async () => Math.abs((await mapZoom(page)) - 17), {
+        timeout: LOCATE_TIMEOUT,
+        message: "following camera left the navigation rest zoom on the fix",
+      })
+      .toBeLessThan(0.5);
+  });
+});
+
+// ─── Locate / Compass capability gate ───────────────────────────────────────
+
+/**
+ * Follow is compass-only, so a device without usable compass hardware is never
+ * offered it. The probe is optimistic while it settles, which also means a user
+ * can enter Following during that window; these cases pin both the outright
+ * refusal and the late downgrade.
+ */
+test.describe("Locate / Compass capability gate", () => {
+  test("an incapable device stops on the second tap instead of entering Following", async ({
+    page,
+  }) => {
+    await withGrantedStorage(page);
+    await withCompassCapability(page, false);
+    await installGeolocationMock(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await btn.click();
+    await expect(btn).toContainText("Locating…", { timeout: LOCATE_TIMEOUT });
+    await emitDemoFix(page);
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+
+    // The second tap must not enter Following: with no usable compass the chip
+    // stops tracking instead.
+    await btn.click();
+    await expect(btn).toContainText("Locate", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).toHaveAttribute("aria-pressed", "false");
+
+    expect((await readLocate(page)).mode).toBeNull();
+    expect(await readActiveModes(page)).not.toContain("follow");
+    expect((await readLocateStorage(page))?.mode ?? null).toBeNull();
+    expect(await page.evaluate(() => window.__geo.count())).toBe(0);
+  });
+
+  test("a late incapable probe downgrades Following to Located and keeps tracking", async ({
+    page,
+  }) => {
+    await withLocateHints(page);
+    await withGrantedStorage(page);
+    // Hold the probe open so Following can be entered while capability is
+    // still optimistically unknown. The window covers a slow CI boot plus the
+    // first tap.
+    await withCompassProbeTimeout(page, 20000);
+    await installGeolocationMock(page);
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const btn = page.locator("#locate-button");
+    await btn.click();
+    await expect(btn).toContainText("Locating…", { timeout: LOCATE_TIMEOUT });
+    await emitDemoFix(page);
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+
+    // Precondition: the probe has not settled yet.
+    expect((await readLocate(page)).compassCapability).toBe("unknown");
+
+    // Enter Following straight away; the follow camera cancels the in-flight
+    // orientation flight, so no settle wait is needed and the probe stays open.
+    await btn.click();
+    await expect(btn).toContainText("Following", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).toHaveAttribute("aria-pressed", "true");
+    expect((await readLocate(page)).mode).toBe("following");
+
+    // With no heading the chase starts flat and north-up.
+    await expect
+      .poll(async () => Math.abs(await mapPitch(page)), {
+        timeout: LOCATE_TIMEOUT,
+        message: "following camera did not start flat without a heading",
+      })
+      .toBeLessThan(1);
+
+    // The probe timeout settles incapable. The chip must leave Following for
+    // Located, persist `active`, release the follow camera and keep watching.
+    await expect
+      .poll(async () => (await readLocate(page)).mode, {
+        timeout: 30000,
+        message: "late incapable probe did not leave Following",
+      })
+      .toBe("active");
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+    // Located stays an active session, so the chip remains pressed.
+    await expect(btn).toHaveAttribute("aria-pressed", "true");
+
+    expect(await readActiveModes(page)).not.toContain("follow");
+    // The camera itself must have released the follow mode, not just the chip.
+    expect(await readFollowActive(page)).toBe(false);
+    // A downgrade is not a heading loss: no recovery flag and no hint. Hints
+    // are live here, so past the change delay the dismissed bubble proves the
+    // suppression rather than the shared fixture disabling hints.
+    expect((await readLocate(page)).headingRecoveryPending).toBe(false);
+    await page.waitForTimeout(600);
+    await expect(hintFor(page, "heading")).toHaveCount(0);
+    await expect(page.locator(".ogis-locate-hint")).toHaveCount(0);
+    const stored = await readLocateStorage(page);
+    expect(stored?.mode).toBe("active");
+    expect(stored?.lastFix).not.toBeNull();
+    expect(await page.evaluate(() => window.__geo.count())).toBe(1);
+  });
+
+  test("a desktop Chrome null orientation reading settles incapable and never enters Following", async ({
+    page,
+  }) => {
+    await withLocateHints(page);
+    // Chrome 151+ offers requestPermission on desktop without compass hardware.
+    // The stub counts calls but must not imply capability.
+    await withDesktopChromeOrientationPermission(page);
+    // Keep the real probe open far beyond the boot allowance, and suppress
+    // native orientation events so only the controlled null reading below can
+    // settle it promptly. A broken dispatch path therefore cannot false-pass by
+    // waiting out the probe timeout.
+    await withCompassProbeTimeout(page, 120000);
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    // Restore starts tracking silently, so the orientation call count isolates
+    // the probe: a first-use start would issue its own permission request on
+    // any platform exposing the API.
+    await withLocateState(page, {
+      permissionGranted: true,
+      mode: "active",
+      lastFix: {
+        lat: DEMO.center.lat,
+        lng: DEMO.center.lng,
+        accuracy: 12,
+        heading: null,
+        at: Date.now(),
+      },
+    });
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // No capability pin: the real probe must decide.
+    expect(
+      await page.evaluate(() => window.__ogisCompassCapable),
+    ).toBeUndefined();
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+
+    // Precondition: the probe is still pending. The null reading below is the
+    // only thing that may settle it, because native events are suppressed.
+    expect((await readLocate(page)).compassCapability).toBe("unknown");
+
+    // A restored desktop session must never arm the iOS repair. Click the map
+    // *before* the null dispatch, while capability is still unknown, so zero
+    // requestPermission calls proves restore did not arm the retry rather than
+    // that a proven-incapable device ignores it.
+    expect((await readLocate(page)).headingRecoveryPending).toBe(false);
+    await tapMap(page);
+    await page.waitForTimeout(200);
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      0,
+    );
+    await expect(hintFor(page, "heading")).toHaveCount(0);
+    expect((await readLocate(page)).mode).toBe("active");
+
+    // Drive the desktop-Chrome sensor signature through the real probe. The
+    // helper returns the capability read immediately before the controlled
+    // event, proving the null-event grace settles it, not the probe timeout.
+    expect(await dispatchNullCompassReading(page)).toBe("unknown");
+
+    // The short null-reading grace must settle capability well inside the
+    // 120 s probe window.
+    await expect
+      .poll(async () => (await readLocate(page)).compassCapability, {
+        timeout: 3000,
+        message: "the null orientation reading did not settle capability",
+      })
+      .toBe("incapable");
+
+    // On a proven-incapable device the Located state carries no hint, even
+    // after the 400 ms state-change delay. Any ordinary Located hint already on
+    // screen is dismissed when capability settles incapable.
+    await page.waitForTimeout(600);
+    await expect(page.locator(".ogis-locate-hint")).toHaveCount(0);
+
+    // The chip stops tracking instead of entering Following.
+    await btn.click();
+    await expect(btn).toContainText("Locate", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).toHaveAttribute("aria-pressed", "false");
+    expect((await readLocate(page)).mode).toBeNull();
+    expect(await readActiveModes(page)).not.toContain("follow");
+
+    // Neither the probe nor the silent restore requested orientation
+    // permission: the API is not a probe path on non-iOS.
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      0,
+    );
+  });
+
+  test("a desktop Chrome first-use locate start never requests orientation permission", async ({
+    page,
+  }) => {
+    await withLocateHints(page);
+    // Chrome 151+ exposes requestPermission on desktop without a compass; it
+    // must never be mistaken for an iOS gesture-gated prompt.
+    await withDesktopChromeOrientationPermission(page);
+    // Suppress native orientation events: the controlled null reading, not the
+    // stretched probe timeout, must settle capability.
+    await withCompassProbeTimeout(page, 120000);
+    await installGeolocationMock(page);
+    await withNoLocateStorage(page);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // No capability pin: the real probe must decide.
+    expect(
+      await page.evaluate(() => window.__ogisCompassCapable),
+    ).toBeUndefined();
+
+    // Settle the real probe incapable through the desktop-Chrome signature.
+    // The helper releases native-event suppression and returns the capability
+    // read immediately before the controlled event, so the null-event grace —
+    // not the 120 s probe timeout — is what settles it.
+    expect(await dispatchNullCompassReading(page)).toBe("unknown");
+    await expect
+      .poll(async () => (await readLocate(page)).compassCapability, {
+        timeout: 3000,
+        message: "the null orientation reading did not settle capability",
+      })
+      .toBe("incapable");
+
+    const btn = page.locator("#locate-button");
+    await btn.click();
+    await expect(page.getByText("Trust")).toBeVisible();
+    await page.getByRole("button", { name: "I understand" }).click();
+
+    // The first-use start runs its orientation gate while location begins.
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBeGreaterThan(0);
+    await emitDemoFix(page);
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+
+    // The desktop API was never called and no iOS prompt state was entered.
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      0,
+    );
+    expect((await readLocate(page)).orientationPromptPending).toBe(false);
+  });
+});
+
+// ─── Locate / Programmatic Following guard ──────────────────────────────────
+
+/**
+ * `startFollowing` is the routes entry point. It must never report or announce
+ * a Following session that the capability guard refused, including when the
+ * boot probe settles incapable while the first-use permission modal is open.
+ */
+test.describe("Locate / Programmatic Following guard", () => {
+  /** Call startFollowing through the page's own module graph. */
+  const callStartFollowing = (page) =>
+    page.evaluate(async () => {
+      const { useLocate } = await import("/src/composables/useLocate.js");
+      window.__locateOnStartedCalls = 0;
+      return useLocate("app").startFollowing({
+        onStarted: () => {
+          window.__locateOnStartedCalls += 1;
+        },
+      });
+    });
+
+  test("does not fire onStarted when capability downgrades during the permission modal", async ({
+    page,
+  }) => {
+    await withNoLocateStorage(page);
+    await installGeolocationMock(page);
+    // Hold the probe open so the call starts while capability is optimistic.
+    await withCompassProbeTimeout(page, 20000);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // Precondition: the probe has not settled yet.
+    expect((await readLocate(page)).compassCapability).toBe("unknown");
+
+    const started = await callStartFollowing(page);
+    // The first-use confirmation is still pending, so Following has not begun.
+    expect(started).toBe(false);
+    await expect(page.getByText("Trust")).toBeVisible();
+
+    // The probe settles incapable while the modal is still open.
+    await expect
+      .poll(async () => (await readLocate(page)).compassCapability, {
+        timeout: 30000,
+        message: "the boot probe never downgraded capability",
+      })
+      .toBe("incapable");
+
+    await page.getByRole("button", { name: "I understand" }).click();
+
+    // Confirming starts a Located session; Following is refused, so the
+    // callback must not run and no camera may be claimed.
+    await expect
+      .poll(() => page.evaluate(() => window.__geo.count()), {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe(1);
+    await expect
+      .poll(async () => (await readLocate(page)).mode, {
+        timeout: LOCATE_TIMEOUT,
+      })
+      .toBe("active");
+    expect(await page.evaluate(() => window.__locateOnStartedCalls)).toBe(0);
+    expect(await readActiveModes(page)).not.toContain("follow");
+    expect(await readFollowActive(page)).toBe(false);
+  });
+
+  test("does not fire onStarted on an already-incapable device", async ({
+    page,
+  }) => {
+    await withGrantedStorage(page);
+    await withCompassCapability(page, false);
+    await installGeolocationMock(page);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    const started = await callStartFollowing(page);
+
+    expect(started).toBe(false);
+    expect(await page.evaluate(() => window.__locateOnStartedCalls)).toBe(0);
+    expect((await readLocate(page)).mode).toBeNull();
+    expect(await page.evaluate(() => window.__geo.count())).toBe(0);
+    await expect(page.getByText("Trust")).toBeHidden();
+  });
+
+  test("re-opens the error modal before the capability refusal", async ({
+    page,
+  }) => {
+    await withGrantedStorage(page);
+    await withCompassCapability(page, false);
+    // Deliberately no geolocation grant: the first activation errors.
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await page.locator("#locate-button").click();
+    await expect(page.getByText("Unable to Locate")).toBeVisible({
+      timeout: LOCATE_TIMEOUT,
+    });
+    await page.locator("#locate-error-close").click();
+    await expect(page.getByText("Unable to Locate")).toBeHidden();
+
+    const started = await callStartFollowing(page);
+
+    expect(started).toBe(false);
+    await expect(page.getByText("Unable to Locate")).toBeVisible();
+    expect(await page.evaluate(() => window.__locateOnStartedCalls)).toBe(0);
+  });
+});
+
 // ─── Locate / Transient timeout ─────────────────────────────────────────────
 
 test.describe("Locate / Transient timeout", () => {
@@ -411,6 +861,7 @@ test.describe("Locate / Transient timeout", () => {
   }) => {
     await installGeolocationMock(page);
     await withGrantedStorage(page);
+    await withCompassCapability(page, true);
     await page.goto("/");
     await waitForMapReady(page);
 
@@ -463,6 +914,7 @@ test.describe("Locate / Critical flush", () => {
   }) => {
     await installGeolocationMock(page);
     await withGrantedStorage(page);
+    await withCompassCapability(page, true);
     await page.goto("/");
     await waitForMapReady(page);
 
@@ -539,6 +991,7 @@ test.describe("Locate / Orientation reset", () => {
   }) => {
     await withGrantedStorage(page);
     await grantGeolocation(page);
+    await withCompassCapability(page, true);
     await page.goto("/");
     await waitForMapReady(page);
 
@@ -1157,6 +1610,35 @@ const withLegacyLocateState = (page, state) =>
     sessionStorage.setItem("ogis_locate_app", JSON.stringify(stored));
   }, state);
 
+/**
+ * Record every distinct locate chip label from document-start.
+ *
+ * The restore cases assert the chip never flashes a state. A MutationObserver
+ * records each committed label rather than sampling on a timer, so a transient
+ * Following cannot slip between observations. Observing the document node —
+ * which exists before `documentElement` — from the init script closes the boot
+ * window: the recorder is already live when the button first renders, rather
+ * than starting at DOMContentLoaded.
+ */
+const withLocateLabelRecorder = (page) =>
+  page.addInitScript(() => {
+    window.__locateLabels = [];
+    const record = () => {
+      const label = document.querySelector("#locate-button .icon-btn__label");
+      const text = label?.textContent?.trim();
+      if (!text) return;
+      if (window.__locateLabels.at(-1) !== text) {
+        window.__locateLabels.push(text);
+      }
+    };
+    record();
+    new MutationObserver(record).observe(document, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
+  });
+
 /** Read the live locate state through the page's own module graph. */
 const readLocate = (page) =>
   page.evaluate(async () => {
@@ -1170,6 +1652,7 @@ const readLocate = (page) =>
       orientationPromptPending: locate.orientationPromptPending.value,
       restoreSettled: locate.restoreSettled.value,
       restoreDeferred: locate.restoreDeferred.value,
+      compassCapability: locate.compassCapability.value,
       compassHeading: locate.compassHeading.value,
       position: position
         ? {
@@ -1199,11 +1682,41 @@ const readActiveModes = (page) =>
     return useActions("app").activeModes.value;
   });
 
+/** Whether the follow camera is genuinely active, through the module graph. */
+const readFollowActive = (page) =>
+  page.evaluate(async () => {
+    const { useFollowCamera } =
+      await import("/src/composables/useFollowCamera.js");
+    return useFollowCamera("app").isActive.value;
+  });
+
 /** Read the live map bearing through the page's own module graph. */
 const mapBearing = (page) =>
   page.evaluate(async () => {
     const { getMapInstance } = await import("/src/composables/useMap.js");
     return getMapInstance("app").getBearing();
+  });
+
+/** Read the live map pitch through the page's own module graph. */
+const mapPitch = (page) =>
+  page.evaluate(async () => {
+    const { getMapInstance } = await import("/src/composables/useMap.js");
+    return getMapInstance("app").getPitch();
+  });
+
+/** Read the live map centre through the page's own module graph. */
+const mapCentre = (page) =>
+  page.evaluate(async () => {
+    const { getMapInstance } = await import("/src/composables/useMap.js");
+    const centre = getMapInstance("app").getCenter();
+    return { lat: centre.lat, lng: centre.lng };
+  });
+
+/** Read the live map zoom through the page's own module graph. */
+const mapZoom = (page) =>
+  page.evaluate(async () => {
+    const { getMapInstance } = await import("/src/composables/useMap.js");
+    return getMapInstance("app").getZoom();
   });
 
 /** Smallest absolute angular difference between two bearings, in degrees. */
@@ -1236,6 +1749,12 @@ const expectMapBearing = async (page, expectedBearing, tolerance = 10) => {
 };
 
 test.describe("Locate / Restore", () => {
+  test.beforeEach(async ({ page }) => {
+    // These restore and Follow cases run on a capable device; the incapable
+    // restore case below overrides the fixture after this hook.
+    await withCompassCapability(page, true);
+  });
+
   test("restores an active session with the stored last fix", async ({
     page,
   }) => {
@@ -1354,6 +1873,224 @@ test.describe("Locate / Restore", () => {
         timeout: RESTORE_TIMEOUT,
       })
       .toBeGreaterThan(0);
+  });
+
+  test("restores a stored Following session as Located on the desktop null compass signature without flashing Following", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    // Override the capable fixture from the describe hook so the real probe
+    // decides, and keep native orientation events suppressed: only the
+    // controlled null reading may settle it.
+    await page.addInitScript(() => {
+      delete window.__ogisCompassCapable;
+    });
+    await withDesktopChromeOrientationPermission(page);
+    await withCompassProbeTimeout(page, 120000);
+    await withLocateHints(page);
+    await withLocateLabelRecorder(page);
+    await withLocateState(page, {
+      permissionGranted: true,
+      mode: "following",
+      lastFix: RESTORE_FIX,
+      ownerId: "dead-owner",
+    });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // The restore is parked on the still-pending probe, so no mode has been
+    // chosen yet. A map click here must not arm the iOS retry (desktop Chrome
+    // exposes requestPermission, but the platform gate is false).
+    const parked = await readLocate(page);
+    expect(parked.compassCapability).toBe("unknown");
+    expect(parked.mode).toBeNull();
+    expect(parked.restoreSettled).toBe(false);
+    expect(parked.headingRecoveryPending).toBe(false);
+    await tapMap(page);
+    await page.waitForTimeout(200);
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      0,
+    );
+
+    // The controlled desktop-Chrome null signature settles the real probe.
+    // The helper proves capability was still unknown immediately before the
+    // dispatch, so the null-event grace — not the 120 s probe timeout — decides.
+    expect(await dispatchNullCompassReading(page)).toBe("unknown");
+    await expect
+      .poll(async () => (await readLocate(page)).compassCapability, {
+        timeout: 3000,
+        message: "the null orientation reading did not settle capability",
+      })
+      .toBe("incapable");
+
+    await expect
+      .poll(async () => (await readLocate(page)).restoreSettled, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(true);
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Located", { timeout: RESTORE_TIMEOUT });
+    // Located stays an active session, so the chip remains pressed.
+    await expect(btn).toHaveAttribute("aria-pressed", "true");
+
+    const state = await readLocate(page);
+    expect(state.mode).toBe("active");
+    expect(state.position?.lat).toBeCloseTo(RESTORE_FIX.lat, 6);
+    expect(state.position?.lng).toBeCloseTo(RESTORE_FIX.lng, 6);
+
+    await expect
+      .poll(async () => (await readLocateStorage(page))?.mode ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe("active");
+    expect(await readActiveModes(page)).not.toContain("follow");
+    expect(await page.evaluate(() => window.__geo.count())).toBe(1);
+
+    // Hints are live for this case, so the empty bubble past the change delay
+    // proves the incapable Located state suppresses the hint rather than the
+    // shared fixture disabling hints.
+    await page.waitForTimeout(600);
+    await expect(page.locator(".ogis-locate-hint")).toHaveCount(0);
+    expect(await seenHints(page)).not.toContain("active");
+
+    // Neither the probe nor the silent restore requested orientation
+    // permission: the API is not a probe path on non-iOS.
+    expect(await page.evaluate(() => window.__orientationPermissionCalls)).toBe(
+      0,
+    );
+
+    // The recorder proves Following was never rendered, not merely replaced
+    // later: it must have captured the restored Located label.
+    const labels = await page.evaluate(() => window.__locateLabels);
+    expect(labels).toContain("Located");
+    expect(labels).not.toContain("Following");
+  });
+
+  test("restores a stored Following session as Located after awaiting a pending probe", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    // Override the capable fixture so the probe is genuinely pending, then
+    // settle it incapable well after the delayed permission query resolves.
+    await page.addInitScript(() => {
+      delete window.__ogisCompassCapable;
+    });
+    await withCompassProbeTimeout(page, 20000);
+    await withDelayedPermissionQuery(page, { delayMs: 1000, timeoutMs: 6000 });
+    await withLocateLabelRecorder(page);
+    await withLocateState(page, {
+      permissionGranted: true,
+      mode: "following",
+      lastFix: RESTORE_FIX,
+    });
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    // The permission query resolves first; the restore is then genuinely
+    // parked on the still-pending probe, so the mode must not have moved yet.
+    await expect
+      .poll(() => page.evaluate(() => window.__permissionQueryResolved), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+    const during = await readLocate(page);
+    expect(during.compassCapability).toBe("unknown");
+    expect(during.mode).toBeNull();
+
+    // Only the probe timeout can settle the restore now; it must do so as
+    // Located, never Following (removing the probe await would flash it).
+    await expect
+      .poll(async () => (await readLocate(page)).restoreSettled, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(true);
+
+    const btn = page.locator("#locate-button");
+    await expect(btn).toContainText("Located", { timeout: RESTORE_TIMEOUT });
+    await expect(btn).toHaveAttribute("aria-pressed", "true");
+
+    const state = await readLocate(page);
+    expect(state.mode).toBe("active");
+    expect(state.position?.lat).toBeCloseTo(RESTORE_FIX.lat, 6);
+    expect(state.position?.lng).toBeCloseTo(RESTORE_FIX.lng, 6);
+
+    await expect
+      .poll(async () => (await readLocateStorage(page))?.mode ?? null, {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe("active");
+    expect(await readActiveModes(page)).not.toContain("follow");
+    expect(await page.evaluate(() => window.__geo.count())).toBe(1);
+
+    const labels = await page.evaluate(() => window.__locateLabels);
+    expect(labels).toContain("Located");
+    expect(labels).not.toContain("Following");
+  });
+
+  test("dispose wakes a restore parked on the probe so restoreComplete settles", async ({
+    page,
+  }) => {
+    await installGeolocationMock(page);
+    await page.context().grantPermissions(["geolocation"]);
+    await page.addInitScript(() => {
+      delete window.__ogisCompassCapable;
+    });
+    // The probe outlives the test's dispose call; only the disposal signal can
+    // settle the restore from this point.
+    await withCompassProbeTimeout(page, 30000);
+    await withDelayedPermissionQuery(page, { delayMs: 1000, timeoutMs: 6000 });
+    await withLocateState(page, {
+      permissionGranted: true,
+      mode: "following",
+      lastFix: RESTORE_FIX,
+    });
+
+    await page.goto("/");
+
+    // Wait until the permission query has resolved, which leaves the restore
+    // awaiting the probe's (still pending) ready promise.
+    await expect
+      .poll(() => page.evaluate(() => window.__permissionQueryResolved), {
+        timeout: RESTORE_TIMEOUT,
+      })
+      .toBe(1);
+    const during = await readLocate(page);
+    expect(during.compassCapability).toBe("unknown");
+    expect(during.mode).toBeNull();
+    expect(during.restoreSettled).toBe(false);
+
+    await page.evaluate(async () => {
+      const { useLocate } = await import("/src/composables/useLocate.js");
+      useLocate("app").dispose();
+    });
+
+    // The app's own promise is captured before disposal, so this reads the
+    // restore that was parked, not a fresh instance.
+    const settled = await page.evaluate(() => {
+      const promise = window.__ogisLocateRestoreComplete;
+      if (!promise || typeof promise.then !== "function") return "missing";
+
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => resolve("pending"), 10000);
+        promise.then(
+          () => {
+            clearTimeout(timer);
+            resolve("settled");
+          },
+          () => {
+            clearTimeout(timer);
+            resolve("rejected");
+          },
+        );
+      });
+    });
+
+    expect(settled).toBe("settled");
   });
 
   test("restores a following session when Apple WebKit reports a prompt", async ({
@@ -1751,6 +2488,10 @@ test.describe("Locate / Restore", () => {
  * auto-listen, and a graceful denial that leaves the position marker in place.
  */
 test.describe("Locate / Restore / Compass permission", () => {
+  // No blanket capability pin: the emulated iOS navigator exercises the real
+  // probe's iOS permission-API shortcut, and each non-iOS case that needs a
+  // capable fixture pins capability itself.
+
   const recentFollowingSession = {
     permissionGranted: true,
     mode: "following",
@@ -1846,6 +2587,10 @@ test.describe("Locate / Restore / Compass permission", () => {
       0,
     );
 
+    // The emulated iOS navigator satisfies the real platform gate, so the boot
+    // probe short-circuits capable instead of waiting for sensor events.
+    expect((await readLocate(page)).compassCapability).toBe("capable");
+
     await tapMap(page);
     await expect
       .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
@@ -1940,6 +2685,9 @@ test.describe("Locate / Restore / Compass permission", () => {
   }) => {
     await installGeolocationMock(page);
     await page.context().grantPermissions(["geolocation"]);
+    // Non-iOS with no sensor fixture: pin capability so the restore can
+    // genuinely enter the Following state this case asserts.
+    await withCompassCapability(page, true);
     await withLocateState(page, recentFollowingSession);
 
     // Snap the follow camera so the hand-off glide cannot stretch the bearing
@@ -2027,6 +2775,9 @@ test.describe("Locate / Restore / Compass permission", () => {
   }) => {
     await installGeolocationMock(page);
     await page.context().grantPermissions(["geolocation"]);
+    // Non-iOS with no sensor fixture: pin capability so the restore reaches
+    // Following, which is the state this marker case needs.
+    await withCompassCapability(page, true);
     await withLocateState(page, recentFollowingSession);
 
     // Hold the style response so the restore finishes before MapLibre publishes
@@ -2114,7 +2865,7 @@ test.describe("Locate / Restore / Compass permission", () => {
     await expect(page.getByText("Trust")).toBeHidden();
   });
 
-  test("a compass event rotates the restored follow camera before the next fix", async ({
+  test("a restored follow camera starts flat, tilts on a compass event, then flattens when the heading is lost", async ({
     page,
   }) => {
     await installGeolocationMock(page);
@@ -2144,6 +2895,47 @@ test.describe("Locate / Restore / Compass permission", () => {
       0,
     );
 
+    // Compass-only 3D: with no live heading the restored follow camera holds
+    // the flat, north-up navigation pose rather than a stale tilted one.
+    await expect
+      .poll(async () => Math.abs(await mapPitch(page)), {
+        timeout: RESTORE_TIMEOUT,
+        message: "restored follow camera started tilted",
+      })
+      .toBeLessThan(1);
+    await expect
+      .poll(async () => bearingDifference(await mapBearing(page), 0), {
+        timeout: RESTORE_TIMEOUT,
+        message: "restored follow camera did not start north-up",
+      })
+      .toBeLessThan(1);
+
+    // Positive proof of the restored follow pose: a cold-start flat view (the
+    // un-followed map at its default centre and zoom) must not satisfy the flat
+    // north-up checks above. At rest the driver seats the camera on the stored
+    // fix at the navigation rest zoom, with no look-ahead while flat.
+    await expect
+      .poll(
+        async () => {
+          const centre = await mapCentre(page);
+          return Math.hypot(
+            centre.lat - RESTORE_FIX.lat,
+            centre.lng - RESTORE_FIX.lng,
+          );
+        },
+        {
+          timeout: RESTORE_TIMEOUT,
+          message: "restored follow camera was not centred on the stored fix",
+        },
+      )
+      .toBeLessThan(1e-4);
+    await expect
+      .poll(async () => Math.abs((await mapZoom(page)) - 17), {
+        timeout: RESTORE_TIMEOUT,
+        message: "restored follow camera was not at the navigation rest zoom",
+      })
+      .toBeLessThan(0.5);
+
     await tapMap(page);
     await expect
       .poll(() => page.evaluate(() => window.__orientationPermissionCalls), {
@@ -2164,26 +2956,71 @@ test.describe("Locate / Restore / Compass permission", () => {
     );
 
     // The restored `lastFix` is the only position throughout: the geolocation
-    // mock never auto-emits, so any rotation can only come from this compass
-    // event rotating the follow camera directly.
-    await dispatchIOSCompass(page, 180);
+    // mock never auto-emits, so any rotation or tilt can only come from this
+    // compass event rotating the follow camera directly. Dispatch until the
+    // heading marker is live: the repaired listener attaches only after the
+    // permission promise settles, so a one-shot event could land before it.
+    await dispatchIOSCompassUntilHeading(page, 180);
 
-    let bearing = null;
+    // Keep a live iOS compass heartbeat through the positive bearing and pitch
+    // assertions. Under SwiftShader the 8 s heading watchdog clears the
+    // one-shot dispatch before the camera finishes tilting, so the assertions
+    // would never see the authorised 3D pose. The heartbeat stops after them,
+    // leaving its final event to arm the watchdog that the flatten poll below
+    // proves.
+    await startIOSCompassStream(page, 180);
+    try {
+      let bearing = null;
+      await expect
+        .poll(
+          async () => {
+            bearing = await mapBearing(page);
+            return (
+              bearing !== null &&
+              bearingDifference(bearing, expectedBearing) < 10
+            );
+          },
+          {
+            timeout: RESTORE_TIMEOUT,
+            message: `follow camera did not rotate to ${expectedBearing}°`,
+          },
+        )
+        .toBe(true);
+      expect(bearingDifference(bearing, expectedBearing)).toBeLessThan(10);
+
+      // The heading authorises the 3D chase, so the camera also reaches the
+      // third-person rest pitch.
+      await expect
+        .poll(async () => Math.abs((await mapPitch(page)) - 45), {
+          timeout: RESTORE_TIMEOUT,
+          message: "follow camera did not tilt to the chase pitch",
+        })
+        .toBeLessThan(1);
+    } finally {
+      await stopIOSCompassStream(page);
+    }
+
+    // The compass heartbeat armed the 8 s heading watchdog. No further fix
+    // ever arrives, so only the watchdog can retarget the driver: it clears the
+    // heading and the camera must return to flat north-up. Allow the grace
+    // period plus easing on a slow renderer.
     await expect
       .poll(
         async () => {
-          bearing = await mapBearing(page);
+          const [pitch, currentBearing] = await Promise.all([
+            mapPitch(page),
+            mapBearing(page),
+          ]);
           return (
-            bearing !== null && bearingDifference(bearing, expectedBearing) < 10
+            Math.abs(pitch) < 1 && bearingDifference(currentBearing, 0) < 1
           );
         },
         {
-          timeout: RESTORE_TIMEOUT,
-          message: `follow camera did not rotate to ${expectedBearing}°`,
+          timeout: 30000,
+          message: "follow camera did not flatten after the heading was lost",
         },
       )
       .toBe(true);
-    expect(bearingDifference(bearing, expectedBearing)).toBeLessThan(10);
   });
 
   test("a chip tap repairs a restored iOS Following session and stays Following", async ({
@@ -2352,6 +3189,9 @@ test.describe("Locate / Restore / Compass permission", () => {
   }) => {
     await installGeolocationMock(page);
     await page.context().grantPermissions(["geolocation"]);
+    // Non-iOS with no sensor fixture: pin capability so the restore can enter
+    // the Following state this stop case starts from.
+    await withCompassCapability(page, true);
     await withLocateState(page, recentFollowingSession);
 
     // Snap the follow camera so the hand-off glide cannot stretch the bearing
@@ -2636,6 +3476,8 @@ test.describe("Locate / First-use compass denial / non-iOS", () => {
     await withNoLocateStorage(page);
     await withLocateHints(page);
     await installGeolocationMock(page);
+    // This non-iOS case genuinely enters Following.
+    await withCompassCapability(page, true);
 
     await page.goto("/");
     await waitForMapReady(page);

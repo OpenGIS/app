@@ -11,7 +11,11 @@ import {
   writeStoredEnvelope,
   openPeerPage,
 } from "../helpers/storage.js";
-import { emitFix, installGeolocationMock } from "../helpers/locate.js";
+import {
+  emitFix,
+  installGeolocationMock,
+  withCompassCapability,
+} from "../helpers/locate.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 import { readFileSync } from "node:fs";
 
@@ -142,6 +146,62 @@ const readLocateRestoreDeferred = (page) =>
   page.evaluate(async () => {
     const { useLocate } = await import("/src/composables/useLocate.js");
     return useLocate("app").restoreDeferred.value;
+  });
+
+/** Whether Following may be offered, through the page's own module graph. */
+const readCanFollow = (page) =>
+  page.evaluate(async () => {
+    const { useLocate } = await import("/src/composables/useLocate.js");
+    return useLocate("app").canFollow.value;
+  });
+
+/** The settled compass-capability probe result, through the module graph. */
+const readCompassCapability = (page) =>
+  page.evaluate(async () => {
+    const { useLocate } = await import("/src/composables/useLocate.js");
+    return useLocate("app").compassCapability.value;
+  });
+
+/** Call a method on the app's provided routes API through its module graph. */
+const callRoutes = (page, method, ...args) =>
+  page.evaluate(
+    ({ methodName, callArgs }) => {
+      const app = document.querySelector("#app")?.__vue_app__;
+      const api = app?._context?.provides?.routes;
+      if (!api) throw new Error("routes API is not provided");
+      return api[methodName](...callArgs);
+    },
+    { methodName: method, callArgs: args },
+  );
+
+/**
+ * Record every distinct locate chip label and whether the navigation card ever
+ * rendered, from document-start.
+ *
+ * A MutationObserver observes the document node itself, which exists before
+ * `document.documentElement`, so the recorder is live before the chip first
+ * renders. A transient Following or navigation card cannot slip between
+ * observations.
+ */
+const withNavigationFlashRecorder = (page) =>
+  page.addInitScript(() => {
+    window.__routesFlash = { labels: [], navControlSeen: false };
+    const record = () => {
+      const label = document.querySelector("#locate-button .icon-btn__label");
+      const text = label?.textContent?.trim();
+      if (text && window.__routesFlash.labels.at(-1) !== text) {
+        window.__routesFlash.labels.push(text);
+      }
+      if (document.querySelector(".ogis-nav-control")) {
+        window.__routesFlash.navControlSeen = true;
+      }
+    };
+    record();
+    new MutationObserver(record).observe(document, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
   });
 
 /** A stored fix for seeded restore cases. */
@@ -810,6 +870,8 @@ test.describe("Routes / Navigate", () => {
   test.beforeEach(async ({ page }) => {
     trackConsoleErrors(page);
     await withGrantedStorage(page);
+    // Navigation starts Following, which needs a capable device.
+    await withCompassCapability(page, true);
   });
 
   test.afterEach(async ({ page }) => {
@@ -1224,12 +1286,169 @@ test.describe("Routes / Navigate", () => {
     await showRoute(page);
     await startNavigation(page);
 
-    // No polling: navigation persistence is a critical write, so the stored
-    // envelope must already carry the route id.
+    // The route import writes through the debounced store, so wait for it to
+    // flush. Navigation persistence, by contrast, is a critical write: the
+    // stored envelope must already carry the route id without polling.
+    await expect
+      .poll(async () => (await storedRoutes(page)).length, {
+        timeout: ROUTE_IMPORT_TIMEOUT,
+      })
+      .toBe(1);
     const [route] = await storedRoutes(page);
     const stored = await storedNavigation(page);
     expect(stored).not.toBeNull();
     expect(stored.routeId).toBe(route.id);
+  });
+});
+
+// ─── Routes / Compass gate ──────────────────────────────────────────────────
+
+test.describe("Routes / Compass gate", () => {
+  test.setTimeout(isSwiftShaderRun() ? 180000 : 60000);
+
+  const GATE_TIMEOUT = isSwiftShaderRun() ? 120000 : 60000;
+
+  test.beforeEach(async ({ page }) => {
+    trackConsoleErrors(page);
+    await withGrantedStorage(page);
+  });
+
+  test.afterEach(({ page }) => expectNoConsoleErrors(page));
+
+  test("Navigate is disabled with a compass explanation on an incapable device", async ({
+    page,
+  }) => {
+    await withCompassCapability(page, false);
+    await bootRoutes(page);
+    await showRoute(page);
+
+    // Capability is optimistic while unknown, so wait for the real probe to
+    // settle — and assert its result, not just the derived gate boolean.
+    await expect
+      .poll(() => readCompassCapability(page), { timeout: GATE_TIMEOUT })
+      .toBe("incapable");
+    await expect
+      .poll(() => readCanFollow(page), { timeout: GATE_TIMEOUT })
+      .toBe(false);
+
+    const row = routeRow(page, "Test Loop");
+    const navigate = row.getByRole("button", {
+      name: "Navigate",
+      exact: true,
+    });
+    await expect(navigate).toBeVisible();
+    await expect(navigate).toBeDisabled();
+    await expect(navigate).toHaveAttribute(
+      "title",
+      "Navigation needs a compass, which this device doesn't have",
+    );
+
+    // Only navigation is gated: the row stays viewable and editable.
+    await expect(row).toBeVisible();
+    await expect(
+      row.getByRole("button", { name: "Hide", exact: true }),
+    ).toBeEnabled();
+    await expect(
+      row.getByRole("button", { name: "Delete", exact: true }),
+    ).toBeEnabled();
+  });
+
+  test("startNavigation refuses programmatically on an incapable device", async ({
+    page,
+  }) => {
+    await withCompassCapability(page, false);
+    await bootRoutes(page);
+    await showRoute(page);
+
+    await expect
+      .poll(() => readCompassCapability(page), { timeout: GATE_TIMEOUT })
+      .toBe("incapable");
+    await expect
+      .poll(() => readCanFollow(page), { timeout: GATE_TIMEOUT })
+      .toBe(false);
+    await expect
+      .poll(async () => (await storedRoutes(page)).length, {
+        timeout: ROUTE_IMPORT_TIMEOUT,
+      })
+      .toBe(1);
+    const [route] = await storedRoutes(page);
+
+    const result = await callRoutes(page, "startNavigation", route.id);
+    expect(result).toBe(false);
+
+    // No navigation state, card, map-mode claim or locate activation.
+    await expect(navControl(page)).toHaveCount(0);
+    const modes =
+      (await page.locator(".ogis-root").getAttribute("data-modes")) ?? "";
+    expect(modes).not.toContain("navigate");
+    expect(modes).not.toContain("follow");
+    expect(await readLocateMode(page)).toBeNull();
+    expect((await storedNavigation(page))?.routeId ?? null).toBeNull();
+
+    // The refusal has no side effects on the open panel either.
+    await expect(page.locator(".ogis-panel")).toHaveClass(/show/);
+  });
+
+  test("an incapable device restores Located and clears stored navigation without a flash", async ({
+    page,
+  }) => {
+    const routeId = "no-compass-route";
+
+    await withCompassCapability(page, false);
+    await withNavigationFlashRecorder(page);
+    await seedRestoreState(page, {
+      routes: [restoreRoute(routeId)],
+      navigation: { routeId, visible: [routeId], followOwned: true },
+      locate: {
+        permissionGranted: true,
+        mode: "following",
+        lastFix: STORED_FIX,
+      },
+    });
+    await grantGeolocation(page);
+
+    await page.goto("/");
+    await waitForMapReady(page);
+
+    await expect(locateLabel(page)).toHaveText("Located", {
+      timeout: GATE_TIMEOUT,
+    });
+    // Tie the restored Located state to the real probe result rather than the
+    // optimistic/incapable gate boolean alone.
+    await expect
+      .poll(() => readCompassCapability(page), { timeout: GATE_TIMEOUT })
+      .toBe("incapable");
+    await expect
+      .poll(() => readCanFollow(page), { timeout: GATE_TIMEOUT })
+      .toBe(false);
+    expect(await readLocateMode(page)).toBe("active");
+
+    // Navigation never resumes, and its stored session is cleared.
+    await expect(navControl(page)).toHaveCount(0);
+    await expect
+      .poll(async () => (await storedNavigation(page))?.routeId ?? null, {
+        timeout: GATE_TIMEOUT,
+      })
+      .toBeNull();
+    await expect
+      .poll(async () => (await storedNavigation(page))?.followOwned, {
+        timeout: GATE_TIMEOUT,
+      })
+      .toBe(false);
+
+    // The route itself stays visible: only navigation is gated.
+    await expect
+      .poll(() => mapFeatureIds(page, "routes-route-"), {
+        timeout: GATE_TIMEOUT,
+      })
+      .toEqual([`routes-route-${routeId}`]);
+
+    // The recorder proves Following and the navigation card never rendered,
+    // rather than merely being replaced later.
+    const flash = await page.evaluate(() => window.__routesFlash);
+    expect(flash.labels).toContain("Located");
+    expect(flash.labels).not.toContain("Following");
+    expect(flash.navControlSeen).toBe(false);
   });
 });
 
@@ -1259,7 +1478,13 @@ test.describe("Routes / Persist across reload", () => {
       .poll(() => mapFeatureIds(page, "routes-route-"))
       .toHaveLength(1);
 
-    // Visibility is persisted alongside the v2 document.
+    // Visibility is persisted alongside the v2 document, and that write is
+    // debounced, so wait for it rather than racing the store's 250 ms flush.
+    await expect
+      .poll(async () => (await storedRoutes(page)).length, {
+        timeout: ROUTE_IMPORT_TIMEOUT,
+      })
+      .toBe(1);
     const [stored] = await storedRoutes(page);
     expect(stored).toMatchObject({ v: 2, kind: "route", name: "Test Loop" });
     expect(stored.segments).toHaveLength(1);
@@ -1295,7 +1520,11 @@ test.describe("Routes / Restore across reload", () => {
 
   const RESTORE_TIMEOUT = isSwiftShaderRun() ? 120000 : 60000;
 
-  test.beforeEach(({ page }) => trackConsoleErrors(page));
+  test.beforeEach(async ({ page }) => {
+    trackConsoleErrors(page);
+    // Restored navigation resumes as Following on a capable device.
+    await withCompassCapability(page, true);
+  });
 
   test.afterEach(({ page }) => expectNoConsoleErrors(page));
 
@@ -1356,6 +1585,13 @@ test.describe("Routes / Restore across reload", () => {
     await bootRestoreRoutes(page);
     await showRoute(page);
 
+    // The imported route's write is debounced, so wait for it to flush before
+    // reading the id.
+    await expect
+      .poll(async () => (await storedRoutes(page)).length, {
+        timeout: ROUTE_IMPORT_TIMEOUT,
+      })
+      .toBe(1);
     const [stored] = await storedRoutes(page);
     const routeId = stored.id;
     const userView = { lat: 40.4168, lng: -3.7038, zoom: 11 };
@@ -1516,6 +1752,13 @@ test.describe("Routes / Restore across reload", () => {
     await bootRestoreRoutes(pageA);
     await showRoute(pageA);
 
+    // The imported route's write is debounced, so wait for it to flush before
+    // reading the id.
+    await expect
+      .poll(async () => (await storedRoutes(pageA)).length, {
+        timeout: ROUTE_IMPORT_TIMEOUT,
+      })
+      .toBe(1);
     const [stored] = await storedRoutes(pageA);
     const routeId = stored.id;
 
@@ -1563,6 +1806,13 @@ test.describe("Routes / Restore across reload", () => {
     await bootRestoreRoutes(page);
     await showRoute(page);
 
+    // The imported route's write is debounced, so wait for it to flush before
+    // reading the id.
+    await expect
+      .poll(async () => (await storedRoutes(page)).length, {
+        timeout: ROUTE_IMPORT_TIMEOUT,
+      })
+      .toBe(1);
     const [stored] = await storedRoutes(page);
     const routeId = stored.id;
 
@@ -1693,6 +1943,7 @@ test.describe("Routes / Cross-tab sync", () => {
   test.beforeEach(async ({ page }) => {
     trackConsoleErrors(page);
     await withGrantedStorage(page);
+    await withCompassCapability(page, true);
     await installGeolocationMock(page);
     await page.goto("/");
     await waitForMapReady(page);

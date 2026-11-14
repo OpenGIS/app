@@ -355,6 +355,11 @@ export const RoutesFeature = {
       if (!isVisible(id) || !lineGeometry(route)) return false;
       if (navigating.value && navigating.value !== id) return false;
 
+      // Navigation follows the user, so it needs usable compass hardware.
+      // Refuse before any side effect so an incapable device never claims the
+      // map, opens the permission flow or enters navigation state.
+      if (!locate.canFollow.value) return false;
+
       if (restore) {
         if (locate.mode.value !== "following") return false;
 
@@ -571,6 +576,7 @@ export const RoutesFeature = {
       navigating,
       error,
       isMetric,
+      canFollow: locate.canFollow,
       importTracks,
       deleteRoute,
       showOnMap,

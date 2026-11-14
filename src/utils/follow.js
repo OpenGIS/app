@@ -16,9 +16,10 @@ const RADIANS_TO_DEGREES = 180 / Math.PI;
 /**
  * Agreed non-linear pitch curve, as speed/pitch keyframes. Piecewise linear
  * interpolation between these points keeps the curve monotone; the camera
- * damping smooths the corners in practice. The follow composable floors the
- * result at `followCameraDefaults.restPitch`, so the chase view never falls
- * back to this flat 0° rest pose.
+ * damping smooths the corners in practice. The follow composable applies this
+ * curve only when a live compass heading authorises the 3D chase, flooring the
+ * result at `followCameraDefaults.restPitch`; without a heading the camera
+ * stays flat.
  *
  * @type {ReadonlyArray<{ speedKmh: number, pitchDeg: number }>}
  */

@@ -264,13 +264,18 @@ export const useFollowCamera = (explicitInstanceId) => {
   /**
    * Resolve raw follow inputs into a full camera target.
    *
-   * Explicit `bearing`/`pitch`/`zoom` overrides win (the low-level test path),
-   * so an explicit pitch is never floored or clamped. Otherwise the pose is
-   * derived from speed and heading: a speed-driven pitch floored at the
-   * third-person rest pitch, a speed-driven navigation zoom pulled back from a
-   * close rest baseline (clamped to the map's range), a compass/course bearing
-   * blend, and the composition look-ahead. An undecidable bearing holds the
-   * previous target (then the camera) bearing.
+   * Explicit `bearing`/`pitch`/`zoom`/`lookAheadMetres` overrides win (the
+   * low-level test path), so an explicit pitch is never floored or clamped and
+   * also keeps the composition look-ahead. Otherwise a live compass heading is
+   * the only authoriser of the 3D chase: it enables a speed-driven pitch
+   * floored at the third-person rest pitch, the compass/course bearing blend and
+   * the composition look-ahead. Without a heading or an explicit pitch the pose
+   * stays flat and north-up at the close navigation zoom, whatever the course
+   * over ground or any previous target said.
+   *
+   * `travelBearing` is derived separately from the camera bearing so position
+   * dead-reckoning follows the actual direction of travel: course over ground
+   * when present, else the compass facing direction, else null.
    */
   const resolveTarget = (raw) => {
     const map = c.map ?? getMapInstance(instanceId);
@@ -278,10 +283,14 @@ export const useFollowCamera = (explicitInstanceId) => {
     const pose = c.pose ?? {};
     const canvas = map?.getCanvas?.();
     const heightPx = canvas?.clientHeight;
+    const hasHeading = Number.isFinite(raw.compassHeading);
 
     let bearing;
     if (Number.isFinite(raw.bearing)) {
       bearing = raw.bearing;
+    } else if (!hasHeading) {
+      // No live compass heading: a flat, north-up pose regardless of course.
+      bearing = 0;
     } else {
       const blended = blendBearing({
         compassDeg: raw.compassHeading,
@@ -291,15 +300,20 @@ export const useFollowCamera = (explicitInstanceId) => {
       bearing = blended ?? previous?.bearing ?? pose.bearing ?? 0;
     }
 
-    const pitch = Number.isFinite(raw.pitch)
-      ? raw.pitch
-      : clampPitch(
-          Math.max(
-            pitchForSpeedKmh(raw.speedKmh),
-            followCameraDefaults.restPitch,
-          ),
-          map,
-        );
+    let pitch;
+    if (Number.isFinite(raw.pitch)) {
+      pitch = raw.pitch;
+    } else if (hasHeading) {
+      pitch = clampPitch(
+        Math.max(
+          pitchForSpeedKmh(raw.speedKmh),
+          followCameraDefaults.restPitch,
+        ),
+        map,
+      );
+    } else {
+      pitch = clampPitch(0, map);
+    }
 
     let zoom;
     if (Number.isFinite(raw.zoom)) {
@@ -310,14 +324,24 @@ export const useFollowCamera = (explicitInstanceId) => {
 
     const lookAhead = Number.isFinite(raw.lookAheadMetres)
       ? raw.lookAheadMetres
-      : lookAheadMetres({
-          pitchDeg: pitch,
-          zoom,
-          latitude: raw.lat,
-          viewportHeightPx: heightPx,
-          maxOffsetFraction: followCameraDefaults.maxOffsetFraction,
-          offsetRampPitchDeg: followCameraDefaults.offsetRampPitchDeg,
-        });
+      : hasHeading || Number.isFinite(raw.pitch)
+        ? lookAheadMetres({
+            pitchDeg: pitch,
+            zoom,
+            latitude: raw.lat,
+            viewportHeightPx: heightPx,
+            maxOffsetFraction: followCameraDefaults.maxOffsetFraction,
+            offsetRampPitchDeg: followCameraDefaults.offsetRampPitchDeg,
+          })
+        : 0;
+
+    // The direction of travel is independent of the camera bearing: an explicit
+    // camera bearing must never drag the position along the view direction.
+    const travelBearing = Number.isFinite(raw.courseDeg)
+      ? raw.courseDeg
+      : hasHeading
+        ? raw.compassHeading
+        : null;
 
     return {
       lat: raw.lat,
@@ -327,6 +351,7 @@ export const useFollowCamera = (explicitInstanceId) => {
       zoom,
       speedKmh: Number.isFinite(raw.speedKmh) ? raw.speedKmh : 0,
       lookAheadMetres: lookAhead,
+      travelBearing,
       timestampMs: raw.timestampMs,
     };
   };
@@ -667,19 +692,24 @@ export const useFollowCamera = (explicitInstanceId) => {
       pose.zoom = damp(pose.zoom, target.zoom, alpha(zoomTimeConstantS));
     }
 
-    // Dead-reckon the fix forward along its own bearing for the time since it
-    // arrived (capped), so the camera keeps pace between fixes. At rest this is
-    // the fix itself. The composition offset is then applied along the current
-    // damped bearing so the user sits in the lower third of the tilted view.
+    // Dead-reckon the fix forward along its travel bearing for the time since
+    // it arrived (capped), so the camera keeps pace between fixes. At rest, or
+    // without a direction of travel, this is the fix itself. The drift is
+    // never taken along the camera bearing, so a flat north-up camera cannot
+    // drag the position north. The composition offset is then applied along the
+    // current damped camera bearing so the user sits in the lower third of the
+    // tilted view.
     const elapsed = Number.isFinite(target.timestampMs)
       ? Math.min((now - target.timestampMs) / 1000, DEAD_RECKON_MAX_SECONDS)
       : 0;
     const drift = Math.max(0, (target.speedKmh / 3.6) * elapsed);
-    const fixGoal = deadReckon(
-      { lat: target.lat, lng: target.lng },
-      target.bearing,
-      drift,
-    );
+    const fixGoal = Number.isFinite(target.travelBearing)
+      ? deadReckon(
+          { lat: target.lat, lng: target.lng },
+          target.travelBearing,
+          drift,
+        )
+      : { lat: target.lat, lng: target.lng };
     const lookAhead = Math.min(
       lookAheadMaxMetres,
       Math.max(lookAheadMinMetres, target.lookAheadMetres ?? 0),
@@ -748,6 +778,10 @@ export const useFollowCamera = (explicitInstanceId) => {
    * `lookAheadMetres`) for tests and, for production, the raw follow inputs
    * (`compassHeading`, `courseDeg`, `speedKmh`, `timestampMs`) from which the
    * pose is derived. Ignored when the coordinates are not finite.
+   *
+   * The travel bearing used to dead-reckon the fix is derived internally:
+   * course over ground when present, else the compass facing direction, else
+   * null (no drift). It is never taken from an explicit camera bearing.
    *
    * @param {Object} [next]
    * @param {number} next.lat

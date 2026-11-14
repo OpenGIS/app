@@ -153,6 +153,32 @@ describe("useFollowCamera / target -> pose", () => {
     expect(jump.zoom).toBeCloseTo(14, 6);
   });
 
+  it("derives the composition look-ahead from an explicit pitch without a compass", () => {
+    const map = createMap({ width: 1000, height: 800 });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({
+      lat: 45,
+      lng: -60,
+      bearing: 90,
+      pitch: 60,
+      zoom: 17,
+      timestampMs: 0,
+    });
+    flushFrame();
+
+    const jump = lastJump(map);
+    // The explicit pitch is authoritative and also keeps the low-level driver's
+    // lower-third composition: the centre is offset east of the target along
+    // the explicit bearing.
+    expect(jump.pitch).toBeCloseTo(60, 6);
+    expect(jump.center[0]).toBeGreaterThan(-60);
+    expect(jump.center[0]).toBeLessThan(-59.99);
+    expect(jump.center[1]).toBeCloseTo(45, 6);
+  });
+
   it("accepts bearingDeg as an alias for bearing", () => {
     const map = createMap();
     getMapInstance.mockReturnValue(map);
@@ -256,7 +282,7 @@ describe("useFollowCamera / target -> pose", () => {
     );
   });
 
-  it("holds the previous bearing when the blend is undecidable", () => {
+  it("flattens to north-up when a target arrives without a compass", () => {
     const map = createMap();
     getMapInstance.mockReturnValue(map);
     const driver = useFollowCamera(nextInstanceId());
@@ -270,6 +296,8 @@ describe("useFollowCamera / target -> pose", () => {
       timestampMs: 0,
     });
     flushFrame();
+    expect(lastJump(map).bearing).toBeCloseTo(45, 3);
+    expect(lastJump(map).pitch).toBeCloseTo(followCameraDefaults.restPitch, 3);
 
     driver.setTarget({
       lat: 46,
@@ -281,7 +309,118 @@ describe("useFollowCamera / target -> pose", () => {
     });
     flushFrame();
 
-    expect(lastJump(map).bearing).toBeCloseTo(45, 3);
+    // No live heading: the previous 3D pose must not be held.
+    expect(lastJump(map).bearing).toBeCloseTo(0, 6);
+    expect(lastJump(map).pitch).toBeCloseTo(0, 6);
+  });
+
+  it("keeps a flat north-up pose at speed when no heading is available", () => {
+    const map = createMap({ width: 1000, height: 800 });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({
+      lat: 45,
+      lng: -60,
+      speedKmh: 100,
+      timestampMs: 0,
+    });
+    flushFrame(3000);
+
+    const jump = lastJump(map);
+    expect(jump.pitch).toBeCloseTo(0, 6);
+    expect(jump.bearing).toBeCloseTo(0, 6);
+    expect(jump.zoom).toBeCloseTo(navigationZoomForSpeed(100), 6);
+    // Without a travel direction there is no dead-reckoned drift.
+    expect(jump.center[1]).toBeCloseTo(45, 9);
+    expect(jump.center[0]).toBeCloseTo(-60, 9);
+  });
+
+  it("speeds south along the course without tilting when there is no heading", () => {
+    const map = createMap({ width: 1000, height: 800 });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({
+      lat: 45,
+      lng: -60,
+      courseDeg: 180,
+      speedKmh: 100,
+      timestampMs: 0,
+    });
+    flushFrame(3000);
+
+    const jump = lastJump(map);
+    // Course over ground never authorises the 3D chase.
+    expect(jump.bearing).toBeCloseTo(0, 6);
+    expect(jump.pitch).toBeCloseTo(0, 6);
+    // The position still dead-reckons along the course, decoupled from the
+    // flat camera bearing: roughly 83 m south over the 3 s cap.
+    expect(jump.center[1]).toBeLessThan(45);
+    expect(jump.center[1]).toBeGreaterThan(44.99);
+    expect(jump.center[0]).toBeCloseTo(-60, 6);
+  });
+
+  it("falls back to the compass heading for the travel bearing when course is absent", () => {
+    const map = createMap({ width: 1000, height: 800 });
+    getMapInstance.mockReturnValue(map);
+    const driver = useFollowCamera(nextInstanceId());
+
+    driver.start();
+    driver.setTarget({
+      lat: 45,
+      lng: -60,
+      compassHeading: 90,
+      speedKmh: 36,
+      timestampMs: 0,
+    });
+    flushFrame(3000);
+
+    const jump = lastJump(map);
+    // A live compass heading authorises the 3D chase, and with no course over
+    // ground it also supplies the travel direction: the camera faces east.
+    expect(jump.bearing).toBeCloseTo(90, 3);
+    // 36 km/h sits above the rest pitch on the speed curve.
+    expect(jump.pitch).toBeCloseTo(51.2, 3);
+    // Dead reckoning follows the compass bearing, so 30 m of drift (10 m/s over
+    // the 3 s cap) plus the eastward look-ahead move the centre east while the
+    // latitude holds.
+    expect(jump.center[0]).toBeGreaterThan(-60);
+    expect(jump.center[0]).toBeLessThan(-59.99);
+    expect(jump.center[1]).toBeCloseTo(45, 6);
+  });
+
+  it("caps dead-reckoned drift at 3 s however long the frame takes", () => {
+    const driveFor = (advanceMs) => {
+      const map = createMap({ width: 1000, height: 800 });
+      getMapInstance.mockReturnValue(map);
+      const driver = useFollowCamera(nextInstanceId());
+
+      driver.start();
+      driver.setTarget({
+        lat: 45,
+        lng: -60,
+        courseDeg: 180,
+        speedKmh: 36,
+        timestampMs: 0,
+      });
+      flushFrame(advanceMs);
+
+      return lastJump(map).center;
+    };
+
+    const capped = driveFor(3000);
+    const stalled = driveFor(10000);
+
+    // The 3 s drift is real, not a degenerate zero...
+    expect(capped[1]).toBeLessThan(45);
+    expect(capped[1]).toBeGreaterThan(44.99);
+    // ...and elapsed time beyond the cap adds nothing: a stalled fix stream
+    // lands in the same place as a frame that arrives on time.
+    expect(stalled[1]).toBeCloseTo(capped[1], 6);
+    expect(stalled[0]).toBeCloseTo(capped[0], 6);
   });
 
   it("ignores a target without finite coordinates", () => {

@@ -33,6 +33,22 @@ describe("hintKeyForMode", () => {
     expect(hintKeyForMode("error", { headingPending: true })).toBeNull();
   });
 
+  it("suppresses the Located hint on an incapable device", () => {
+    // An incapable device keeps a plain Located state with no hint.
+    expect(hintKeyForMode("active", { canFollow: false })).toBeNull();
+    // Unknown and capable capability keeps the ordinary active copy.
+    expect(hintKeyForMode("active", { canFollow: true })).toBe("active");
+    expect(hintKeyForMode("active")).toBe("active");
+    // Following cannot occur on an incapable device, so it is never relabelled.
+    expect(hintKeyForMode("following", { canFollow: false })).toBe("following");
+    expect(hintKeyForMode(null, { canFollow: false })).toBe("idle");
+    expect(hintKeyForMode("error", { canFollow: false })).toBeNull();
+    // The suppression still yields to the fix gate.
+    expect(
+      hintKeyForMode("active", { canFollow: false, hasFix: false }),
+    ).toBeNull();
+  });
+
   it("suppresses active and following hints until a fix exists", () => {
     expect(hintKeyForMode("active", { hasFix: false })).toBeNull();
     expect(hintKeyForMode("following", { hasFix: false })).toBeNull();
@@ -122,6 +138,68 @@ describe("useLocateHints", () => {
     vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
     expect(hints.current.value).toBe("active");
     expect(hints.isSeen("active")).toBe(true);
+  });
+
+  it("shows no hint in Located on an incapable device", () => {
+    const hints = useLocateHints(ID);
+    hints.showFor("active", { canFollow: false });
+
+    vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS * 2);
+    expect(hints.current.value).toBeNull();
+    expect(hints.isSeen("active")).toBe(false);
+  });
+
+  it("dismisses a visible active hint when capability settles incapable", async () => {
+    const hints = useLocateHints(ID);
+
+    // Unknown is optimistic: the ordinary active hint shows first.
+    hints.showFor("active", { canFollow: true });
+    vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
+    expect(hints.current.value).toBe("active");
+
+    // The probe then settles incapable while Located: the visible hint is
+    // dismissed and no hint key is recorded for a no-compass state.
+    hints.showFor("active", { canFollow: false });
+    expect(hints.current.value).toBeNull();
+
+    await vi.runAllTimersAsync();
+    expect(hints.current.value).toBeNull();
+    expect(hints.isSeen("active")).toBe(true);
+
+    const raw = JSON.parse(localStorage.getItem(`ogis_locate-hints_${ID}`));
+    expect(raw.data.seen).toEqual(["active"]);
+  });
+
+  it("dismisses a visible following hint when a late downgrade leaves Located incapable", async () => {
+    const hints = useLocateHints(ID);
+
+    // Capability is optimistic while unknown, so Following shows its hint.
+    hints.showFor("following", { canFollow: true });
+    vi.advanceTimersByTime(LOCATE_HINT_CHANGE_DELAY_MS);
+    expect(hints.current.value).toBe("following");
+    expect(hints.isSeen("following")).toBe(true);
+
+    // A late probe leaves Following for Located with capability incapable in
+    // the same flush: the watcher sees `active` + `canFollow: false`, so it
+    // dismisses rather than replacing the hint with the Located one.
+    hints.showFor("active", { canFollow: false });
+    expect(hints.current.value).toBeNull();
+
+    await vi.runAllTimersAsync();
+    expect(hints.current.value).toBeNull();
+    expect(hints.isSeen("active")).toBe(false);
+  });
+
+  it("leaves a visible idle hint alone when capability settles", () => {
+    const hints = useLocateHints(ID);
+    hints.showFor(null, { boot: true });
+    vi.advanceTimersByTime(LOCATE_HINT_BOOT_DELAY_MS);
+    expect(hints.current.value).toBe("idle");
+
+    // The probe settles while the chip is still idle: the same idle hint
+    // stays readable instead of being cleared by the capability change.
+    hints.showFor(null, { canFollow: false });
+    expect(hints.current.value).toBe("idle");
   });
 
   it("hides on its own after the display duration", () => {

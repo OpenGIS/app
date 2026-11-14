@@ -21,6 +21,11 @@ import { useFollowCamera } from "@/composables/useFollowCamera";
 import { useActions } from "@/composables/useActions";
 import { deriveCourse, deriveSpeed } from "@/utils/follow";
 import { locateErrorCause } from "@/utils/locateError";
+import {
+  createCompassCapabilityProbe,
+  isIOSDevice,
+  isValidHeadingEvent,
+} from "@/utils/compassCapability";
 import { emitter } from "@/emitter.js";
 import { Position } from "@/classes/Position";
 
@@ -62,7 +67,7 @@ function smoothAngle(current, next, factor) {
  * Manages GPS tracking state, map markers, and the permission flow.
  * State is cached per app instance and shared across all callers.
  *
- * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, errorCause: import('vue').Ref<'denied'|'unavailable'|'timeout'|'unsupported'|'unknown'|null>, hasFix: import('vue').ComputedRef<boolean>, compassHeading: import('vue').ComputedRef<number|null>, headingLost: import('vue').ComputedRef<boolean>, headingRecoveryPending: import('vue').ComputedRef<boolean>, orientationPromptPending: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, restoreSettled: import('vue').ComputedRef<boolean>, restoreDeferred: import('vue').ComputedRef<boolean>, restoreComplete: Promise<void>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function, dispose: Function }}
+ * @returns {{ mode: import('vue').ComputedRef<'active'|'following'|'error'|null>, position: import('vue').ComputedRef<Position|null>, errorCause: import('vue').Ref<'denied'|'unavailable'|'timeout'|'unsupported'|'unknown'|null>, hasFix: import('vue').ComputedRef<boolean>, compassHeading: import('vue').ComputedRef<number|null>, compassCapability: import('vue').ComputedRef<'unknown'|'capable'|'incapable'>, canFollow: import('vue').ComputedRef<boolean>, headingLost: import('vue').ComputedRef<boolean>, headingRecoveryPending: import('vue').ComputedRef<boolean>, orientationPromptPending: import('vue').ComputedRef<boolean>, permissionGranted: import('vue').ComputedRef<boolean>, showConfirmModal: import('vue').Ref<boolean>, showErrorModal: import('vue').Ref<boolean>, restoreSettled: import('vue').ComputedRef<boolean>, restoreDeferred: import('vue').ComputedRef<boolean>, restoreComplete: Promise<void>, cycle: Function, startFollowing: Function, confirmLocate: Function, requestPermission: Function, stop: Function, endFollowing: Function, retryOrientation: Function, retryPosition: Function, dispose: Function }}
  */
 const createLocate = (instanceId) => {
   if (!locateCache.has(instanceId)) {
@@ -91,6 +96,8 @@ const createLocate = (instanceId) => {
       position: ref(null), // Position | null
       errorCause: ref(null), // null | 'denied' | 'unavailable' | 'timeout' | 'unsupported' | 'unknown'
       compassHeading: ref(null), // smoothed DeviceOrientation compass bearing
+      compassCapability: ref("unknown"), // 'unknown' | 'capable' | 'incapable'
+      compassProbe: null, // boot-time compass-hardware probe
       headingLost: ref(false), // true when orientation events have stopped arriving
       headingRecoveryPending: ref(false), // true when the next chip tap should repair the compass
       orientationPromptPending: ref(false), // true while our orientation permission prompt is outstanding
@@ -123,6 +130,8 @@ const createLocate = (instanceId) => {
       followModeRegistered: false, // the follow mode is registered once per instance
       unregisterFollow: null, // removes the follow mode (terminal teardown only)
       disposed: false, // true once dispose() has run
+      disposalSignal: null, // per-instance promise resolved by dispose()
+      resolveDisposal: null, // resolves disposalSignal exactly once
       restoring: false, // true until a restore succeeds, fails or the user acts
       gotFix: false, // true once this session has accepted a fix
       restoreScheduled: false, // auto-restore is scheduled once per instance
@@ -138,6 +147,78 @@ const createLocate = (instanceId) => {
   const { orientView } = useOrientView(instanceId);
   const followCamera = useFollowCamera(instanceId);
   const actions = useActions(instanceId);
+
+  // A terminal disposal signal, created once per cached instance. Long awaits
+  // in the restore path race against it: the compass probe's `ready` promise
+  // deliberately never settles after dispose, so without this wake-up a restore
+  // parked on the probe would leave restoreComplete (and anything awaiting it,
+  // such as routes) pending forever.
+  if (!c.disposalSignal) {
+    c.disposalSignal = new Promise((resolve) => {
+      c.resolveDisposal = resolve;
+    });
+  }
+
+  /**
+   * Apply a settled compass-capability probe result.
+   *
+   * Capability is sticky: a positive finding is never downgraded. An incapable
+   * result only changes an unknown capability value, and — because capability is
+   * optimistic while unknown — a user may have entered Following during the
+   * probe window. If so, stop the follow camera and leave Following while
+   * keeping geolocation watching, so the chip becomes Located rather than
+   * silently staying in a mode the device cannot support. Any iOS repair state
+   * is cleared defensively so a late result cannot leave a repair path behind.
+   *
+   * @param {'capable'|'incapable'} result
+   */
+  const applyProbeResult = (result) => {
+    if (result === "capable") {
+      c.compassCapability.value = "capable";
+      return;
+    }
+    // A proven-incapable device can never use an iOS compass repair. Drop any
+    // pending recovery flag and armed gesture defensively, even when a late
+    // result arrives; this is idempotent and runs for repeated incapable
+    // results too.
+    if (c.compassCapability.value === "capable") return;
+    c.headingRecoveryPending.value = false;
+    clearOrientationGestureRetry();
+    if (c.compassCapability.value !== "unknown") return;
+    c.compassCapability.value = "incapable";
+    if (c.mode.value === "following") {
+      setMode("active");
+      followCamera.stop();
+    }
+  };
+
+  // Probe silently for compass hardware at boot, so later features can gate on
+  // it without waiting for locate activation. Capability is sticky: a positive
+  // result — from the probe or a later live heading — is never downgraded, and
+  // an unknown result stays optimistic until the probe settles.
+  if (c.compassProbe === null) {
+    // E2E fixture override, read only when the boot probe is created: a finite
+    // positive timeout can stretch the probe window to make a late downgrade
+    // deterministic. Production keeps the probe's 2500 ms default.
+    const timeoutOverride =
+      typeof window !== "undefined"
+        ? window.__ogisCompassProbeTimeoutMs
+        : undefined;
+    const timeoutMs =
+      typeof timeoutOverride === "number" &&
+      Number.isFinite(timeoutOverride) &&
+      timeoutOverride > 0
+        ? timeoutOverride
+        : undefined;
+    const probe = createCompassCapabilityProbe(
+      timeoutMs === undefined ? undefined : { timeoutMs },
+    );
+    c.compassProbe = probe;
+    probe.ready.then(applyProbeResult);
+  }
+
+  /** Whether Following may be offered: false only on an incapable device. */
+  const canFollow = computed(() => c.compassCapability.value !== "incapable");
 
   // Answer liveness probes while this tab owns a live locate session, so a
   // second tab never restores or clears this tab's durable session.
@@ -165,13 +246,26 @@ const createLocate = (instanceId) => {
   };
 
   /**
+   * The last accepted fix's time on the `performance.now()` clock.
+   *
+   * Heading-only re-feeds update the camera bearing but must not restart the
+   * driver's dead-reckon clock: that clock is measured from the last position
+   * fix, so a live compass stream cannot hold the camera at the raw fix. Falls
+   * back to the current time when no fix has been recorded yet.
+   */
+  const lastFixTimestampMs = () =>
+    Number.isFinite(c.lastFix?.atMs) ? c.lastFix.atMs : performance.now();
+
+  /**
    * Feed the follow camera a position with its motion.
    *
    * @param {number} lat
    * @param {number} lng
    * @param {number} speedMps - Reported or derived ground speed, m/s.
    * @param {number|null} courseDeg - Current course over ground, or null.
-   * @param {number} timestampMs - Fix time, from `performance.now()`.
+   * @param {number} timestampMs - Timestamp of the position sample, from
+   *   `performance.now()`. Not necessarily the current call time: a heading-only
+   *   update passes the last fix's time so the dead-reckon clock keeps running.
    */
   const feedFollowCamera = (lat, lng, speedMps, courseDeg, timestampMs) => {
     followCamera.setTarget({
@@ -182,6 +276,24 @@ const createLocate = (instanceId) => {
       speedKmh: speedMps * 3.6,
       timestampMs,
     });
+  };
+
+  /**
+   * Re-feed the follow camera the current pose without waiting for a new fix.
+   *
+   * Used when the compass heading is lost so a following camera retargets flat
+   * immediately; `feedFollowCamera` reads `currentCompassHeading()`, which is
+   * null while `headingLost` is set.
+   */
+  const refreshFollowCamera = () => {
+    if (c.mode.value !== "following" || c.position.value === null) return;
+    feedFollowCamera(
+      c.position.value.lat,
+      c.position.value.lng,
+      c.lastSpeedMps,
+      c.lastCourseDeg,
+      lastFixTimestampMs(),
+    );
   };
 
   // ─── Map markers ─────────────────────────────────────────────────────────
@@ -390,22 +502,22 @@ const createLocate = (instanceId) => {
   // ─── DeviceOrientation ────────────────────────────────────────────────────
 
   /**
-   * Request DeviceOrientationEvent permission on iOS (Safari ≥ 13).
-   * On other platforms the API is available without an explicit grant.
+   * Request the iOS/iPadOS, gesture-gated orientation permission.
+   *
+   * Only iOS/iPadOS gates the compass behind this API, so it is the only
+   * platform that may call `requestPermission()`. Everywhere else — including
+   * desktop Chrome 151+, which exposes the method without a compass — this is
+   * a no-op that reports permission as effectively granted, leaving the normal
+   * orientation listener to prove capability with a real heading.
    */
   const requestOrientationPermission = async () => {
-    if (
-      typeof DeviceOrientationEvent !== "undefined" &&
-      typeof DeviceOrientationEvent.requestPermission === "function"
-    ) {
-      try {
-        const result = await DeviceOrientationEvent.requestPermission();
-        return result === "granted";
-      } catch {
-        return false;
-      }
+    if (!hasOrientationPermissionRequest()) return true;
+    try {
+      const result = await DeviceOrientationEvent.requestPermission();
+      return result === "granted";
+    } catch {
+      return false;
     }
-    return true;
   };
 
   const startOrientationWatching = () => {
@@ -419,20 +531,19 @@ const createLocate = (instanceId) => {
       c.headingTimeoutId = setTimeout(() => {
         c.headingLost.value = true;
         c.compassHeading.value = null;
+        // Retarget the chase flat before syncing markers: a throw from the
+        // marker sync must not skip the camera retarget.
+        refreshFollowCamera();
         syncMarkers();
       }, 8000);
     };
 
     const handler = (event) => {
-      if (event.alpha === null) return;
-      // Skip relative (non-compass) readings from the generic event,
-      // unless the event carries a webkitCompassHeading (iOS Safari).
-      if (
-        "absolute" in event &&
-        !event.absolute &&
-        typeof event.webkitCompassHeading !== "number"
-      )
-        return;
+      if (!isValidHeadingEvent(event)) return;
+
+      // A valid heading proves the hardware is present, even if the boot probe
+      // timed out on a device that only started reporting later.
+      c.compassCapability.value = "capable";
 
       // Valid reading received — clear any loss state and reset the watchdog.
       c.headingLost.value = false;
@@ -462,12 +573,15 @@ const createLocate = (instanceId) => {
       syncMarkers();
 
       if (c.mode.value === "following" && c.position.value) {
+        // A heading event carries no new position, so keep the last fix's
+        // timestamp: the bearing updates while dead reckoning continues across
+        // a GPS gap instead of restarting on every compass reading.
         feedFollowCamera(
           c.position.value.lat,
           c.position.value.lng,
           c.lastSpeedMps,
           c.lastCourseDeg,
-          performance.now(),
+          lastFixTimestampMs(),
         );
       }
     };
@@ -720,8 +834,20 @@ const createLocate = (instanceId) => {
     c.restoring = false;
   };
 
-  /** Whether iOS-style orientation permission must be requested by gesture. */
+  /**
+   * Whether an iOS-style, gesture-gated orientation permission applies.
+   *
+   * Chrome 151+ exposes `DeviceOrientationEvent.requestPermission` on desktop
+   * and Android too, and that presence says nothing about compass hardware.
+   * Only on iOS/iPadOS does the platform gate the sensor behind the request, so
+   * every iOS-style prompt and repair path is gated on the platform as well as
+   * the API.
+   *
+   * @returns {boolean}
+   */
   const hasOrientationPermissionRequest = () =>
+    typeof navigator !== "undefined" &&
+    isIOSDevice(navigator) &&
     typeof DeviceOrientationEvent !== "undefined" &&
     typeof DeviceOrientationEvent.requestPermission === "function";
 
@@ -908,10 +1034,16 @@ const createLocate = (instanceId) => {
   /**
    * Switch from active to following, taking the camera over immediately.
    *
-   * Drops the one-shot orientation flight so a late fix cannot restart it
-   * mid-follow, starts the follow camera and feeds it the last known fix.
+   * Refuses on an incapable device: capability is checked before any mode or
+   * camera change, so Following is never entered without usable compass
+   * hardware. Drops the one-shot orientation flight so a late fix cannot
+   * restart it mid-follow, starts the follow camera and feeds it the last known
+   * fix.
+   *
+   * @returns {boolean} Whether Following was entered.
    */
   const enterFollowing = () => {
+    if (!canFollow.value) return false;
     setMode("following");
     c.needsInitialOrient = false;
     clearOrientRetry();
@@ -926,18 +1058,34 @@ const createLocate = (instanceId) => {
         performance.now(),
       );
     }
+    return true;
   };
 
   /**
    * Cycle through states: inactive → active → following → inactive.
    * In the error state, re-opens the error modal instead.
    * On first use (no stored grant), shows the confirmation modal.
+   *
+   * On a device without usable compass hardware, Following is not offered:
+   * tapping the chip while Located stops tracking instead, and a defensive
+   * Following state leaves the camera in favour of Located.
    */
   const cycle = () => {
     c.restoring = false;
     if (c.mode.value === "error") {
       c.showErrorModal.value = true;
       return;
+    }
+
+    if (!canFollow.value) {
+      if (c.mode.value === "following") {
+        endFollowing();
+        return;
+      }
+      if (c.mode.value === "active") {
+        stop();
+        return;
+      }
     }
 
     if (c.headingRecoveryPending.value) {
@@ -965,50 +1113,72 @@ const createLocate = (instanceId) => {
   /**
    * Start following from any state, for programmatic callers.
    *
-   * Already following: reported as started. Error: re-opens the error modal
-   * without starting. Active: follows straight away. Inactive: requests
-   * permission first, then starts watching and follows immediately.
+   * An error session is handled first: the error modal re-opens without
+   * starting, and this takes priority over the capability refusal so the user
+   * always learns why the previous attempt failed. Already following: reported
+   * as started. Active: follows straight away. Inactive: requests permission
+   * first, then starts watching and follows immediately.
    *
-   * `onStarted` fires once following has begun — the mode is `following` and
-   * the follow camera has started. That can happen before the first position
-   * fix; the routes UI shows its own `Locating…` card for that window, and a
-   * later geolocation error deliberately ends following, unwinding navigation
-   * through the routes mode watcher. In the inactive branch the callback may
-   * also run only after the first-use Trust confirmation; cancelling that
-   * confirmation never calls it.
+   * `onStarted` fires only once following has genuinely begun — the mode is
+   * `following` and the follow camera has started. That can happen before the
+   * first position fix; the routes UI shows its own `Locating…` card for that
+   * window, and a later geolocation error deliberately ends following,
+   * unwinding navigation through the routes mode watcher. In the inactive
+   * branch the callback may also run only after the first-use Trust
+   * confirmation; cancelling that confirmation never calls it. Capability can
+   * change while the confirmation is open, so a probe that settles `incapable`
+   * then leaves the session Located and never calls `onStarted`.
+   *
+   * On a device without usable compass hardware the call is refused before any
+   * side effect: no permission modal, no watcher, no `onStarted` and no camera
+   * claim. Callers can use the false result to avoid claiming the map.
    *
    * @param {Object} [options]
    * @param {Function} [options.onStarted] - Called once following has started.
+   * @returns {boolean} Whether Following genuinely began (and `onStarted` ran).
+   *   A first-use request whose confirmation is still pending returns false.
    */
   const startFollowing = ({ onStarted } = {}) => {
     c.restoring = false;
-    if (c.mode.value === "following") {
-      onStarted?.();
-      return;
-    }
 
+    // The error state is handled before the capability guard so an incapable
+    // device still re-opens the modal explaining its error.
     if (c.mode.value === "error") {
       c.showErrorModal.value = true;
-      return;
+      return false;
+    }
+
+    if (!canFollow.value) return false;
+
+    if (c.mode.value === "following") {
+      onStarted?.();
+      return true;
     }
 
     if (c.mode.value === "active") {
-      enterFollowing();
+      if (!enterFollowing()) return false;
       onStarted?.();
-      return;
+      return true;
     }
 
     if (c.mode.value === null) {
+      let started = false;
       requestPermission(() => {
         // startWatching() sets the mode synchronously (active, or error when
         // geolocation is unavailable), before it awaits orientation permission.
         startWatching();
         if (c.mode.value === "active") enterFollowing();
-        if (c.mode.value === "active" || c.mode.value === "following") {
-          onStarted?.();
-        }
+        // Only a genuinely entered Following counts: on an incapable device
+        // enterFollowing() refuses and the session stays active, so the
+        // callback must not claim the map or start navigation.
+        if (c.mode.value !== "following") return;
+        started = true;
+        onStarted?.();
       });
+      return started;
     }
+
+    return false;
   };
 
   /**
@@ -1104,7 +1274,9 @@ const createLocate = (instanceId) => {
       c.headingLost.value = false;
       startOrientationWatching();
     } else {
+      // Heading lost and compass cleared: retarget a following camera flat.
       c.headingLost.value = true;
+      refreshFollowCamera();
     }
   };
 
@@ -1131,6 +1303,10 @@ const createLocate = (instanceId) => {
    * older than 24 hours also qualifies; WebKit may still show its own native
    * prompt if the grant has lapsed. Everything is silent on failure so a
    * crash cannot surface an error modal on boot.
+   *
+   * A stored Following session settles the boot compass-capability probe
+   * before entering Following: an incapable device restores as Located
+   * instead, so the chip never flashes a mode the hardware cannot support.
    */
   const restorePersistedSession = async () => {
     if (c.disposed) return;
@@ -1190,6 +1366,33 @@ const createLocate = (instanceId) => {
         return;
       }
 
+      // A stored Following session may only restore onto a device that can
+      // support it. Capability is optimistic while unknown, so await the boot
+      // probe — bounded by its timeout — before deciding; a probe that has
+      // already settled is not awaited. An incapable device restores as
+      // Located and persists `active`, so the chip never flashes Following.
+      // Routes await restoreComplete, so this decision always settles first.
+      if (
+        storedMode === "following" &&
+        c.compassCapability.value === "unknown" &&
+        c.compassProbe
+      ) {
+        // The probe's `ready` never settles after dispose, so race it against
+        // the terminal disposal signal. A restore parked here must wake so its
+        // finally block can settle restoreComplete instead of hanging routes.
+        const capability = await Promise.race([
+          c.compassProbe.ready,
+          c.disposalSignal,
+        ]);
+        if (c.disposed) return;
+        applyProbeResult(capability);
+        // The user may have acted while the probe was pending.
+        if (c.mode.value !== null) return;
+      }
+
+      const restoreFollowing =
+        storedMode === "following" && c.compassCapability.value !== "incapable";
+
       // Orientation listening starts immediately on restore, so derive the
       // magnetic declination from the stored fix before the first live fix can
       // arrive. iOS webkitCompassHeading is magnetic north; without this an
@@ -1218,7 +1421,7 @@ const createLocate = (instanceId) => {
       c.headingRecoveryPending.value =
         hasOrientationPermissionRequest() && c.compassHeading.value === null;
 
-      if (c.mode.value === "active" && storedMode === "following") {
+      if (c.mode.value === "active" && restoreFollowing) {
         enterFollowing();
       }
 
@@ -1277,6 +1480,11 @@ const createLocate = (instanceId) => {
     if (c.disposed) return;
     c.disposed = true;
 
+    // Wake any restore awaiting the compass probe (whose own ready promise
+    // stays pending after dispose) so restoreComplete can settle.
+    c.resolveDisposal?.();
+    c.resolveDisposal = null;
+
     c.restoring = false;
     c.generation++;
 
@@ -1308,6 +1516,9 @@ const createLocate = (instanceId) => {
     c.stopSessionProbes?.();
     c.stopSessionProbes = null;
 
+    c.compassProbe?.dispose();
+    c.compassProbe = null;
+
     if (locateCache.get(instanceId) === c) locateCache.delete(instanceId);
   };
 
@@ -1317,6 +1528,8 @@ const createLocate = (instanceId) => {
     errorCause: c.errorCause,
     hasFix: computed(() => c.position.value !== null),
     compassHeading: computed(() => c.compassHeading.value),
+    compassCapability: computed(() => c.compassCapability.value),
+    canFollow,
     headingLost: computed(() => c.headingLost.value),
     headingRecoveryPending: computed(() => c.headingRecoveryPending.value),
     orientationPromptPending: computed(() => c.orientationPromptPending.value),

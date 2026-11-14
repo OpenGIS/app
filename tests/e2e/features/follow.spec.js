@@ -6,6 +6,7 @@ import {
 } from "../helpers/console.js";
 import { waitForMapReady } from "../helpers/panel.js";
 import { projectionType } from "../helpers/mapProjection.js";
+import { isSwiftShaderRun } from "../helpers/determinism.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 import { readStoredState } from "../helpers/storage.js";
 
@@ -102,6 +103,15 @@ test.describe("Follow / Camera driver", () => {
     const storedBefore = await page.evaluate(() =>
       localStorage.getItem("ogis_view_app"),
     );
+
+    // The hand-off caps each frame's pose movement so the wide starting view
+    // glides in; that needs ~16 rendered frames, which a pinned software
+    // renderer cannot deliver inside the settle budget. Reduced motion is a
+    // supported production mode that snaps the hand-off, keeping this driver
+    // smoke test focused on the pose and persistence it asserts.
+    if (isSwiftShaderRun()) {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+    }
 
     expect(await startDriver(page, TARGET)).toBe(true);
 

@@ -11,6 +11,8 @@ import {
   installGeolocationMock,
   orientHash,
   waitForCameraSettle,
+  withCompassCapability,
+  withCompassProbeTimeout,
   withDelayedPermissionQuery,
   withGrantedLocateStorage,
   withIOSOrientationPermission,
@@ -61,10 +63,29 @@ const seenHints = async (page) => {
   return raw ? (readStoredState(raw)?.seen ?? []) : [];
 };
 
+/** Read the live locate mode and capability through the page's module graph. */
+const readLocate = (page) =>
+  page.evaluate(async () => {
+    const { useLocate } = await import("/src/composables/useLocate.js");
+    const locate = useLocate("app");
+    return {
+      mode: locate.mode.value,
+      compassCapability: locate.compassCapability.value,
+    };
+  });
+
+/** Read the active map modes through the page's own module graph. */
+const readActiveModes = (page) =>
+  page.evaluate(async () => {
+    const { useActions } = await import("/src/composables/useActions.js");
+    return useActions("app").activeModes.value;
+  });
+
 test.describe("Locate / Hints", () => {
   test.beforeEach(async ({ page }) => {
     await withHints(page);
     await withGrantedLocateStorage(page);
+    await withCompassCapability(page, true);
     await page
       .context()
       .grantPermissions(["geolocation"])
@@ -118,6 +139,101 @@ test.describe("Locate / Hints", () => {
     await waitForMapReady(page);
     await page.waitForTimeout(2500);
     await expect(hint(page)).toHaveCount(0);
+  });
+});
+
+// ─── Locate / Hints / Incapable device ──────────────────────────────────────
+
+// A device whose compass probe proved it cannot Follow: the chip stays a plain
+// two-state toggle with no hint explaining the missing Follow capability.
+test.describe("Locate / Hints / Incapable device", () => {
+  test.beforeEach(async ({ page }) => {
+    await withHints(page);
+    await withGrantedLocateStorage(page);
+    await withCompassCapability(page, false);
+    await page
+      .context()
+      .grantPermissions(["geolocation"])
+      .then(() => page.context().setGeolocation(FIX));
+    await page.goto("/");
+    await waitForMapReady(page);
+  });
+
+  test("keeps a plain Located state with no hint", async ({ page }) => {
+    const btn = page.locator("#locate-button");
+
+    await btn.click();
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+
+    // No hint explains the missing compass, and Follow is never offered. Wait
+    // past the 400 ms state-change delay so a leaked hint would have rendered
+    // and been recorded, then assert both the bubble and the seen record.
+    await page.waitForTimeout(600);
+    await expect(hint(page)).toHaveCount(0);
+    expect(await seenHints(page)).not.toContain("active");
+    await expect(btn).not.toContainText("Follow");
+    await expect(page.getByText(/no compass/i)).toHaveCount(0);
+    await expect(page.getByText(/Follow is unavailable/i)).toHaveCount(0);
+  });
+
+  test("still shows the idle hint before locating", async ({ page }) => {
+    // Suppression is scoped to Located: an incapable device still gets the
+    // ordinary once-only idle explanation before the chip is engaged.
+    await expect(hintFor(page, "idle")).toContainText("show where you are", {
+      timeout: LOCATE_TIMEOUT,
+    });
+  });
+});
+
+// Capability is optimistic while unknown, so a probe can settle incapable
+// after the ordinary Located hint is already on screen. That hint must then be
+// dismissed, leaving a plain Located state with no hint.
+test.describe("Locate / Hints / Late incapable", () => {
+  test.beforeEach(async ({ page }) => {
+    await withHints(page);
+    await withGrantedLocateStorage(page);
+    // Keep the boot probe pending long enough to reach Located while capable
+    // is still unknown; no orientation events ever arrive in this browser.
+    await withCompassProbeTimeout(page, 30000);
+    await page
+      .context()
+      .grantPermissions(["geolocation"])
+      .then(() => page.context().setGeolocation(FIX));
+    await page.goto("/");
+    await waitForMapReady(page);
+  });
+
+  test("dismisses the active hint when capability settles incapable", async ({
+    page,
+  }) => {
+    const btn = page.locator("#locate-button");
+
+    await btn.click();
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+
+    // While capability is still unknown, the ordinary active hint shows.
+    await expect(hintFor(page, "active")).toContainText("follow you", {
+      timeout: LOCATE_TIMEOUT,
+    });
+
+    // The probe times out and downgrades to incapable: the visible hint is
+    // dismissed rather than replaced with any no-compass copy.
+    await expect(hintFor(page, "active")).toHaveCount(0, {
+      timeout: LOCATE_TIMEOUT,
+    });
+    await expect(hint(page)).toHaveCount(0);
+    await expect(btn).toContainText("Located", { timeout: LOCATE_TIMEOUT });
+    await expect(btn).not.toContainText("Follow");
+    await expect(page.getByText(/no compass/i)).toHaveCount(0);
+    await expect(page.getByText(/Follow is unavailable/i)).toHaveCount(0);
+
+    // The hint can only have gone because the real probe settled incapable
+    // (the hint duration is held open by the fixture), so tie it to the probe
+    // result: capability proven incapable, still Located, no follow mode.
+    const state = await readLocate(page);
+    expect(state.compassCapability).toBe("incapable");
+    expect(state.mode).toBe("active");
+    expect(await readActiveModes(page)).not.toContain("follow");
   });
 });
 
@@ -211,6 +327,7 @@ test.describe("Locate / Hints / Restored heading (non-iOS)", () => {
     await withHints(page);
     await installGeolocationMock(page);
     await page.context().grantPermissions(["geolocation"]);
+    await withCompassCapability(page, true);
     await withLocateSession(page, recentFollowingSession);
     await page.goto("/");
     await waitForMapReady(page);
@@ -249,6 +366,7 @@ test.describe("Locate / Hints / Slow restore", () => {
       state: "granted",
       timeoutMs: 6000,
     });
+    await withCompassCapability(page, true);
     await withLocateSession(page, recentFollowingSession);
 
     await page.goto("/");

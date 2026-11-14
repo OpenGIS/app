@@ -8,6 +8,7 @@ const props = defineProps({
   headingPending: { type: Boolean, default: false },
   hasFix: { type: Boolean, default: true },
   orientationPending: { type: Boolean, default: false },
+  canFollow: { type: Boolean, default: true },
   restoreSettled: { type: Boolean, default: true },
 });
 
@@ -29,9 +30,17 @@ watch(
     () => props.headingPending,
     () => props.hasFix,
     () => props.orientationPending,
+    () => props.canFollow,
     () => props.restoreSettled,
   ],
-  ([mode, headingPending, hasFix, orientationPending, restoreSettled]) => {
+  ([
+    mode,
+    headingPending,
+    hasFix,
+    orientationPending,
+    canFollow,
+    restoreSettled,
+  ]) => {
     // A pending restore has not decided the chip's first state yet, so hold the
     // boot hint rather than flashing the idle one over it.
     if (!restoreSettled) return;
@@ -40,6 +49,7 @@ watch(
       headingPending,
       hasFix,
       orientationPending,
+      canFollow,
     });
     booted = true;
   },

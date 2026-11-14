@@ -51,17 +51,24 @@ const PERSISTENT_HINT_KEYS = new Set(["heading"]);
  * and ignores the seen record and the hide timer.
  *
  * @param {'active'|'following'|'error'|null} mode
- * @param {{ headingPending?: boolean, hasFix?: boolean, orientationPending?: boolean }} [options]
+ * @param {{ headingPending?: boolean, hasFix?: boolean, orientationPending?: boolean, canFollow?: boolean }} [options]
  *   - `headingPending` selects the `heading` key while Following.
  *   - `hasFix` (default true) suppresses the active/following hints until a
  *     real position fix exists.
  *   - `orientationPending` suppresses every hint while a native permission
  *     prompt we initiated is outstanding.
+ *   - `canFollow: false` suppresses the Located hint entirely, so a device
+ *     proven incapable of Following keeps a plain Located state with no hint.
  * @returns {'idle'|'active'|'following'|'heading'|null}
  */
 export const hintKeyForMode = (
   mode,
-  { headingPending = false, hasFix = true, orientationPending = false } = {},
+  {
+    headingPending = false,
+    hasFix = true,
+    orientationPending = false,
+    canFollow = true,
+  } = {},
 ) => {
   if (orientationPending) return null;
   if (mode === null || mode === undefined) return "idle";
@@ -69,6 +76,7 @@ export const hintKeyForMode = (
   if ((mode === "active" || mode === "following") && hasFix === false)
     return null;
   if (mode === "following" && headingPending) return "heading";
+  if (mode === "active" && canFollow === false) return null;
   if (mode === "active" || mode === "following") return mode;
   return null; // unknown modes have no hint
 };
@@ -148,10 +156,11 @@ const createHints = (instanceId) => {
    * lasts and have no hide timer.
    *
    * @param {'active'|'following'|'error'|null} mode
-   * @param {{ boot?: boolean, headingPending?: boolean, hasFix?: boolean, orientationPending?: boolean }} [options]
+   * @param {{ boot?: boolean, headingPending?: boolean, hasFix?: boolean, orientationPending?: boolean, canFollow?: boolean }} [options]
    *   - `boot` uses the longer first delay; `headingPending` selects the
    *     heading hint while Following; `hasFix` and `orientationPending` gate
-   *     the hint while no fix exists or a permission prompt is outstanding.
+   *     the hint while no fix exists or a permission prompt is outstanding;
+   *     `canFollow: false` suppresses the Located hint entirely.
    */
   const showFor = (
     mode,
@@ -160,16 +169,29 @@ const createHints = (instanceId) => {
       headingPending = false,
       hasFix = true,
       orientationPending = false,
+      canFollow = true,
     } = {},
   ) => {
-    dismiss();
     const key = hintKeyForMode(mode, {
       headingPending,
       hasFix,
       orientationPending,
+      canFollow,
     });
     const persistent = PERSISTENT_HINT_KEYS.has(key);
-    if (!key || isDisabled() || (!persistent && isSeen(key))) return;
+    if (!key || isDisabled() || (!persistent && isSeen(key))) {
+      // A re-check with the same key — e.g. a capability settling while the
+      // idle hint is up — leaves that hint alone; anything else is cleared,
+      // pending work included.
+      if (key !== null && current.value === key) {
+        clearTimeout(pendingTimer);
+        pendingTimer = null;
+      } else {
+        dismiss();
+      }
+      return;
+    }
+    dismiss();
 
     const attempt = () => {
       if (isModalOpen()) {

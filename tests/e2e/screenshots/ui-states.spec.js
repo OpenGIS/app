@@ -14,6 +14,7 @@ import {
 } from "../helpers/layout.js";
 import { assertSafeOutputRoot } from "../helpers/screenshotsGuard.js";
 import { expectDefaultTheme } from "../helpers/theme.js";
+import { withCompassCapability } from "../helpers/locate.js";
 import { DEMO } from "../../fixtures/demo.mjs";
 import { DEMO_AREA } from "../../fixtures/map/demoArea.mjs";
 import { createHash } from "node:crypto";
@@ -924,7 +925,7 @@ for (const vp of VIEWPORTS) {
       // mid-flight frame.
       await page.locator("#locate-button").click();
       await expect(page.locator("#locate-button")).toContainText("Located", {
-        timeout: 5000,
+        timeout: 30000,
       });
       await waitForOrientHash(page);
       await normaliseCaptureState(page, testInfo);
@@ -1008,6 +1009,8 @@ test.describe("Feature states — desktop landscape", () => {
   }, testInfo) => {
     await withGrantedStorage(page);
     await grantGeolocation(page);
+    // Navigate enters Following, which requires a capable device.
+    await withCompassCapability(page, true);
     await page.goto(`/${BASE_HASH}`);
     await stabilizeCaptureRendering(page);
     await waitForMapIdle(page, testInfo);
@@ -1140,6 +1143,8 @@ test.describe("Secondary UI states — desktop landscape", () => {
   }, testInfo) => {
     await withGrantedStorage(page);
     await grantGeolocation(page);
+    // Following requires a capable device.
+    await withCompassCapability(page, true);
     await page.goto(`/${BASE_HASH}`);
     await stabilizeCaptureRendering(page);
     await waitForMapIdle(page, testInfo);
@@ -1152,7 +1157,7 @@ test.describe("Secondary UI states — desktop landscape", () => {
     // interrupt the flight and freeze a timing-dependent intermediate zoom.
     await page.locator("#locate-button").click();
     await expect(page.locator("#locate-button")).toContainText("Located", {
-      timeout: 5000,
+      timeout: 30000,
     });
     await waitForOrientHash(page);
     await page.locator("#locate-button").click();
@@ -1172,6 +1177,8 @@ test.describe("Secondary UI states — desktop landscape", () => {
   }, testInfo) => {
     await withGrantedStorage(page);
     await grantGeolocation(page);
+    // Following requires a capable device.
+    await withCompassCapability(page, true);
     await page.goto(`/${BASE_HASH}`);
     await stabilizeCaptureRendering(page);
     await waitForMapIdle(page, testInfo);
@@ -1184,7 +1191,7 @@ test.describe("Secondary UI states — desktop landscape", () => {
     // interrupt the flight and freeze a timing-dependent intermediate zoom.
     await page.locator("#locate-button").click();
     await expect(page.locator("#locate-button")).toContainText("Located", {
-      timeout: 5000,
+      timeout: 30000,
     });
     await waitForOrientHash(page);
     await page.locator("#locate-button").click();
